@@ -4,7 +4,9 @@ setup(
     ext_modules=[
         Extension(
             name="dragex_backend",
-            sources=["src/main.c"],
+            sources=[
+                "src/main.c",
+            ],
         ),
     ]
 )

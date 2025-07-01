@@ -7,16 +7,19 @@ static PyObject *get_value(PyObject *self, PyObject *args) {
   return PyLong_FromLong(421);
 }
 
-static PyMethodDef spam_methods[] = {
+static PyMethodDef dragex_backend_methods[] = {
     {"get_value", get_value, METH_VARARGS, "get 421"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
-static struct PyModuleDef spam_module = {
-    .m_name = "mylib_main",
-    .m_methods = spam_methods,
+static struct PyModuleDef dragex_backend_module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    // No idea what m_name does. It is *not* the name for importing.
+    // Be safe and set it to the same value as that anyway.
+    .m_name = "dragex_backend",
+    .m_methods = dragex_backend_methods,
 };
 
 PyMODINIT_FUNC PyInit_dragex_backend(void) {
-  return PyModuleDef_Init(&spam_module);
+  return PyModuleDef_Init(&dragex_backend_module);
 }
