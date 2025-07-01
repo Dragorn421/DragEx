@@ -20,7 +20,7 @@ requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-ext-modules = [{ name = "dragex_backend", sources = ["dragex_backend/main.c"] }]
+ext-modules = [{ name = "dragex_backend", sources = ["src/main.c"] }]
 
 [tool.setuptools.packages.find]
 include = ["dragex_backend"]
