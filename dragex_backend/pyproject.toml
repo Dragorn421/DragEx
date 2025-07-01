@@ -19,8 +19,5 @@ Issues = "https://github.com/pypa/sampleproject/issues"
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-ext-modules = [{ name = "dragex_backend", sources = ["src/main.c"] }]
-
 [tool.setuptools.packages.find]
 include = ["dragex_backend"]
