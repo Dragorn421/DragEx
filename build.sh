@@ -3,7 +3,7 @@ set -e
 
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install --upgrade cibuildwheel
+python3 -m pip install cibuildwheel==3.0.0
 pushd dragex_backend
 cibuildwheel --only cp311-manylinux_x86_64
 popd
