@@ -1,0 +1,23 @@
+[project]
+name = "dragex_backend"
+version = "0.0.1"
+authors = [{ name = "Dragorn421" }]
+description = "Backend for the DragEx Blender addon"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+license = "GPL-3.0-or-later"
+
+[project.urls]
+Homepage = "https://github.com/pypa/sampleproject"
+Issues = "https://github.com/pypa/sampleproject/issues"
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+ext-modules = [{ name = "mylib.main", sources = ["dragex_backend/main.c"] }]
