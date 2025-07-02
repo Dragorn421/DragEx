@@ -4,10 +4,10 @@ on: [push]
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/build.yml
 
   release-nightly:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     needs: build
     uses: ./.github/workflows/release-nightly.yml
