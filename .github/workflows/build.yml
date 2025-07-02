@@ -1,0 +1,50 @@
+name: Build
+
+on: [workflow_call]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: build
+    env:
+      archive_name: dragex-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+
+      - name: Install cibuildwheel
+        run: python3 -m pip install cibuildwheel==3.0.0
+
+      - name: Build dragex_backend wheel
+        run: cibuildwheel --only cp311-manylinux_x86_64 --output-dir wheelhouse dragex_backend
+        env:
+          CIBW_ENVIRONMENT: DRAGEX_BACKEND_VERSION_STRING=${{ github.sha }}
+
+      - name: Copy wheel to addon
+        run: |
+          mkdir dragex_addon/wheels
+          cp wheelhouse/*.whl dragex_addon/wheels/
+
+      - name: Amend blender_manifest.toml wheel list
+        run: |
+          cd dragex_addon
+          python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml wheels/*.whl
+
+      - name: Download Blender
+        run: curl -o blender-4.2.11-linux-x64.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.11-linux-x64.tar.xz
+
+      - name: Decompress Blender
+        run: tar -xzvf blender-4.2.11-linux-x64.tar.xz
+
+      - name: Build extension
+        run: ./blender-4.2.11-linux-x64/blender --command extension build --source-dir dragex_addon --output-filepath ${{ env.archive_name }}.zip
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.archive_name }}
+          path: |
+            ${{ env.archive_name }}.zip

@@ -29,7 +29,9 @@ platforms = ["linux-x64"]
 # It also seems like the installed wheel persists even when the wheel is deleted
 # touching the blender_manifest.toml may be required to update the wheel installation?
 wheels = [
+    # WHEELS START
     "./wheels/dragex_backend-0.0.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
+    # WHEELS END
 ]
 
 [permissions]

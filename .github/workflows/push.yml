@@ -1,0 +1,13 @@
+name: Push
+
+on: [push]
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/build.yml
+
+  release-nightly:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    uses: ./.github/workflows/release-nightly.yml

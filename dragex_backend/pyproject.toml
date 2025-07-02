@@ -1,6 +1,6 @@
 [project]
 name = "dragex_backend"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [{ name = "Dragorn421" }]
 description = "Backend for the DragEx Blender addon"
 readme = "README.md"
