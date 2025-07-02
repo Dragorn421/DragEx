@@ -35,7 +35,7 @@ jobs:
         run: curl -o blender-4.2.11-linux-x64.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.11-linux-x64.tar.xz
 
       - name: Decompress Blender
-        run: tar -xzvf blender-4.2.11-linux-x64.tar.xz
+        run: tar -xJvf blender-4.2.11-linux-x64.tar.xz
 
       - name: Build extension
         run: ./blender-4.2.11-linux-x64/blender --command extension build --source-dir dragex_addon --output-filepath ${{ env.archive_name }}.zip
