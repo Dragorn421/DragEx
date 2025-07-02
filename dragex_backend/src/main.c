@@ -182,5 +182,6 @@ static struct PyModuleDef dragex_backend_module = {
 };
 
 PyMODINIT_FUNC PyInit_dragex_backend(void) {
+  printf("%s: compiled %s %s\n", __FUNCTION__, __DATE__, __TIME__);
   return PyModuleDef_Init(&dragex_backend_module);
 }

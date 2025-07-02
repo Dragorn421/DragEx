@@ -1,19 +1,23 @@
 import bpy
 
-# TODO catch ImportError
-import dragex_backend
-
 
 class DragExBackendDemoOperator(bpy.types.Operator):
     bl_idname = "dragex.dragex_backend_demo"
     bl_label = "DragEx backend demo"
 
     def execute(self, context):
+
+        # TODO trying to not import at the module level, see if this is less jank this way
+        # TODO catch ImportError
+        import dragex_backend
+
         print("Hello World")
         mesh = context.object.data
         assert isinstance(mesh, bpy.types.Mesh)
+        # note: if size is too small, error is undescriptive:
+        # "RuntimeError: internal error setting the array"
         buf = dragex_backend.FloatBufferThing(3 * len(mesh.vertices))
-        mesh.vertices.foreach_get("co", buf)
+        mesh.vertices.foreach_get("co", memoryview(buf))
         print(memoryview(buf)[0])
         print(memoryview(buf)[1])
         print(memoryview(buf)[2])
@@ -25,6 +29,10 @@ classes = (DragExBackendDemoOperator,)
 
 def register():
     print("Hi from", __package__)
+
+    # TODO trying to not import at the module level, see if this is less jank this way
+    # TODO catch ImportError
+    import dragex_backend
 
     print(dir(dragex_backend))
 

@@ -9,3 +9,7 @@ cibuildwheel --only cp311-manylinux_x86_64
 popd
 mkdir -p dragex_addon/wheels
 cp dragex_backend/wheelhouse/*.whl dragex_addon/wheels/
+
+#blender=/home/dragorn421/blender_collection/blender-4.2.11-linux-x64/blender
+#$blender --command extension build --source-dir dragex_addon --output-filepath dragex-dev.zip
+#$blender --command extension install-file -r user_default dragex-dev.zip
