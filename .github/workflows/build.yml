@@ -20,8 +20,6 @@ jobs:
 
       - name: Build dragex_backend wheel
         run: cibuildwheel --only cp311-manylinux_x86_64 --output-dir wheelhouse dragex_backend
-        env:
-          CIBW_ENVIRONMENT: DRAGEX_BACKEND_VERSION_STRING=${{ github.sha }}
 
       - name: Copy wheel to addon
         run: |

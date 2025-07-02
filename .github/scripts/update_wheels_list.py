@@ -16,7 +16,9 @@ def main():
         if l.strip() == "# WHEELS START":
             in_wheels_list = True
             assert '"' not in args.wheel
+            new_lines.append("    # WHEELS START\n")
             new_lines.append(f'    "{args.wheel}",\n')
+            new_lines.append("    # WHEELS END\n")
         elif l.strip() == "# WHEELS END":
             in_wheels_list = False
         else:
