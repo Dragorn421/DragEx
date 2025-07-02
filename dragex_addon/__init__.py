@@ -1,5 +1,7 @@
 import bpy
 
+from .build_id import BUILD_ID
+
 
 class DragExBackendDemoOperator(bpy.types.Operator):
     bl_idname = "dragex.dragex_backend_demo"
@@ -36,12 +38,15 @@ def register():
 
     print(dir(dragex_backend))
 
+    print(BUILD_ID)
     try:
-        print(dragex_backend.get_value())
+        print(dragex_backend.get_build_id())
     except:
         import traceback
 
         traceback.print_exc()
+
+    assert dragex_backend.get_build_id() == BUILD_ID
 
     try:
         print(bytes(dragex_backend.FloatBufferThing(1)))

@@ -7,10 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-static PyObject *get_value(PyObject *self, PyObject *args) {
-  if (!PyArg_ParseTuple(args, ""))
-    return NULL;
-  return PyLong_FromLong(421);
+#include "../build_id.h"
+
+static PyObject *get_build_id(PyObject *self, PyObject *args) {
+  return PyLong_FromLong(BUILD_ID);
 }
 
 struct FloatBufferThingObject {
@@ -168,7 +168,7 @@ static PyModuleDef_Slot dragex_backend_slots[] = {
 };
 
 static PyMethodDef dragex_backend_methods[] = {
-    {"get_value", get_value, METH_VARARGS, "get 421"},
+    {"get_build_id", get_build_id, METH_NOARGS, "get build_id"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 

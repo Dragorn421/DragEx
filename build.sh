@@ -3,6 +3,7 @@ set -e
 
 python3 -m venv .venv
 . .venv/bin/activate
+python3 .github/scripts/gen_build_id.py
 python3 -m pip install cibuildwheel==3.0.0
 pushd dragex_backend
 rm -r wheelhouse

@@ -15,6 +15,9 @@ jobs:
 
       - uses: actions/setup-python@v5
 
+      - name: Generate build_id
+        run: python3 .github/scripts/gen_build_id.py
+
       - name: Install cibuildwheel
         run: python3 -m pip install cibuildwheel==3.0.0
 
