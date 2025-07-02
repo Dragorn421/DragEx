@@ -77,7 +77,7 @@ static int FloatBufferThing_init(PyObject *_self, PyObject *args,
   }
 
   // TODO initializing values is potentially slow and useless
-  for (size_t i = 0; i < length; i++)
+  for (Py_ssize_t i = 0; i < length; i++)
     self->vals[i] = value;
 
   return 0;
@@ -160,7 +160,10 @@ static int dragex_backend_exec(PyObject *m) {
 static PyModuleDef_Slot dragex_backend_slots[] = {
     {Py_mod_exec, dragex_backend_exec},
     // Just use this while using static types
+    // Note: added in Python 3.12
+    /*
     {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
+    */
     {0, NULL},
 };
 

@@ -7,7 +7,6 @@ setup(
             sources=[
                 "src/main.c",
             ],
-            extra_compile_args=["-g"],
         ),
     ]
 )
