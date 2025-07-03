@@ -29,15 +29,19 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
 struct MeshInfo *create_MeshInfo_from_buffers(
     float *buf_vertices_co, size_t buf_vertices_co_len,
     unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len,
-    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len) {
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len,
+    float *buf_loops_normal, size_t buf_loops_normal_len) {
+  unsigned int n_loops = buf_loops_vertex_index_len;
+  if (buf_loops_normal_len != n_loops * 3)
+    return NULL;
+
   struct MeshInfo *mesh = malloc(sizeof(struct MeshInfo));
   if (mesh == NULL)
     return NULL;
   mesh->name = strdup("mesh");
 
-  int n_verts = (int)(buf_vertices_co_len / 3);
-  mesh->n_verts = n_verts;
-  mesh->verts = malloc(sizeof(struct VertexInfo[n_verts]));
+  mesh->n_verts = n_loops;
+  mesh->verts = malloc(sizeof(struct VertexInfo[n_loops]));
 
   int n_faces = (int)(buf_triangles_loops_len / 3);
   mesh->n_faces = n_faces;
@@ -54,34 +58,30 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     return NULL;
   }
 
-  for (int i = 0; i < n_verts; i++) {
+  for (unsigned int i_loop = 0; i_loop < n_loops; i_loop++) {
     for (int j = 0; j < 3; j++) {
-      int v = i * 3 + j;
+      int v = buf_loops_vertex_index[i_loop] * 3 + j;
       if (v >= buf_vertices_co_len) {
         free_create_MeshInfo_from_buffers(mesh);
         return NULL;
       }
-      mesh->verts[i].coords[j] = buf_vertices_co[v];
+      mesh->verts[i_loop].coords[j] = buf_vertices_co[v];
     }
-    mesh->verts[i].color[0] = 255;
-    mesh->verts[i].color[1] = 255;
-    mesh->verts[i].color[2] = 255;
-    mesh->verts[i].alpha = 255;
+
+    for (int j = 0; j < 3; j++)
+      mesh->verts[i_loop].normal[j] = buf_loops_normal[i_loop * 3 + j];
+
+    mesh->verts[i_loop].alpha = 255;
   }
 
   for (int i = 0; i < n_faces; i++) {
     for (int j = 0; j < 3; j++) {
       unsigned int loop = buf_triangles_loops[i * 3 + j];
-      if (loop >= buf_loops_vertex_index_len) {
+      if (loop >= n_loops) {
         free_create_MeshInfo_from_buffers(mesh);
         return NULL;
       }
-      unsigned int v = buf_loops_vertex_index[loop];
-      if (v >= n_verts) {
-        free_create_MeshInfo_from_buffers(mesh);
-        return NULL;
-      }
-      mesh->faces[i].verts[j] = v;
+      mesh->faces[i].verts[j] = loop;
     }
     mesh->faces[i].material = 0;
   }
@@ -298,9 +298,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh) {
           f3d_v->coords[2] = (int16_t)vi->coords[2];
           f3d_v->st[0] = 0;
           f3d_v->st[1] = 0;
-          f3d_v->cn[0] = vi->color[0];
-          f3d_v->cn[1] = vi->color[1];
-          f3d_v->cn[2] = vi->color[2];
+          f3d_v->cn[0] = (uint8_t)(int)(vi->normal[0] * 0x7F);
+          f3d_v->cn[1] = (uint8_t)(int)(vi->normal[1] * 0x7F);
+          f3d_v->cn[2] = (uint8_t)(int)(vi->normal[2] * 0x7F);
           f3d_v->alpha = vi->alpha;
           i_f3d_vertices++;
         }

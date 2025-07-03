@@ -15,4 +15,5 @@ def create_MeshInfo(
     buf_vertices_co: Buffer,
     buf_triangles_loops: Buffer,
     buf_loops_vertex_index: Buffer,
+    buf_loops_normal: Buffer,
 ) -> MeshInfo: ...

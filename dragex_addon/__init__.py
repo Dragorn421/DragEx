@@ -41,13 +41,17 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         mesh.loop_triangles.foreach_get("loops", buf_triangles_loops)
         mesh.loop_triangles.foreach_get("material_index", buf_triangles_material_index)
         mesh.loops[0].vertex_index
+        mesh.loops[0].normal
         buf_loops_vertex_index = new_uint_buf(len(mesh.loops))
+        buf_loops_normal = dragex_backend.FloatBufferThing(3 * len(mesh.loops))
         mesh.loops.foreach_get("vertex_index", buf_loops_vertex_index)
+        mesh.loops.foreach_get("normal", memoryview(buf_loops_normal))
         mesh_info = dragex_backend.create_MeshInfo(
             buf_vertices_co,
             buf_triangles_loops,
             # buf_triangles_material_index,
             buf_loops_vertex_index,
+            buf_loops_normal,
         )
         mesh_info.write_c("/home/dragorn421/Documents/dragex/dragex_attempt2/output.c")
         return {"FINISHED"}

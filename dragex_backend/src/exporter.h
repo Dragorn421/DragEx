@@ -8,7 +8,7 @@
 
 struct VertexInfo {
   float coords[3];
-  uint8_t color[3];
+  float normal[3];
   uint8_t alpha;
 };
 
@@ -34,7 +34,8 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh);
 struct MeshInfo *create_MeshInfo_from_buffers(
     float *buf_vertices_co, size_t buf_vertices_co_len,
     unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len,
-    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len);
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len,
+    float *buf_loops_normal, size_t buf_loops_normal_len);
 
 // f3d
 

@@ -219,11 +219,12 @@ static PyTypeObject MeshInfoType = {
 };
 
 static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
-  struct FloatBufferThingObject *buf_vertices_co;
+  struct FloatBufferThingObject *buf_vertices_co, *buf_loops_normal;
   PyObject *buf_triangles_loops, *buf_loops_vertex_index;
 
-  if (!PyArg_ParseTuple(args, "O!OO", &FloatBufferThingType, &buf_vertices_co,
-                        &buf_triangles_loops, &buf_loops_vertex_index))
+  if (!PyArg_ParseTuple(args, "O!OOO!", &FloatBufferThingType, &buf_vertices_co,
+                        &buf_triangles_loops, &buf_loops_vertex_index,
+                        &FloatBufferThingType, &buf_loops_normal))
     return NULL;
 
   Py_buffer buf_triangles_loops_view;
@@ -281,7 +282,8 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
   mesh = create_MeshInfo_from_buffers(
       buf_vertices_co->vals, buf_vertices_co->sz, buf_triangles_loops_view_buf,
       buf_triangles_loops_view.shape[0], buf_loops_vertex_index_view_buf,
-      buf_loops_vertex_index_view.shape[0]);
+      buf_loops_vertex_index_view.shape[0], buf_loops_normal->vals,
+      buf_loops_normal->sz);
 
   PyBuffer_Release(&buf_triangles_loops_view);
   PyBuffer_Release(&buf_loops_vertex_index_view);
