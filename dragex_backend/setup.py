@@ -12,7 +12,11 @@ setup(
             name="dragex_backend",
             sources=[
                 "src/main.c",
+                "src/exporter.c",
+                "meshoptimizer/src/indexgenerator.cpp",
+                "meshoptimizer/src/vcacheoptimizer.cpp",
             ],
+            extra_compile_args=["-Og"],
         ),
     ],
 )

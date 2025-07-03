@@ -30,7 +30,7 @@ platforms = ["linux-x64"]
 # touching the blender_manifest.toml may be required to update the wheel installation?
 wheels = [
     # WHEELS START
-    "wheels/dragex_backend-0.0.1.dev1751457665-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
+    "wheels/dragex_backend-0.0.1.dev1751547940-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
     # WHEELS END
 ]
 

@@ -1,6 +1,16 @@
+import numpy as np
+
 import bpy
 
 from .build_id import BUILD_ID
+
+
+def new_uint_buf(len):
+    return np.empty(
+        shape=len,
+        dtype=np.uint32,  # np.uint leads to L format (unsigned long)
+        order="C",
+    )
 
 
 class DragExBackendDemoOperator(bpy.types.Operator):
@@ -18,11 +28,28 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         assert isinstance(mesh, bpy.types.Mesh)
         # note: if size is too small, error is undescriptive:
         # "RuntimeError: internal error setting the array"
-        buf = dragex_backend.FloatBufferThing(3 * len(mesh.vertices))
-        mesh.vertices.foreach_get("co", memoryview(buf))
-        print(memoryview(buf)[0])
-        print(memoryview(buf)[1])
-        print(memoryview(buf)[2])
+        buf_vertices_co = dragex_backend.FloatBufferThing(3 * len(mesh.vertices))
+        mesh.vertices.foreach_get("co", memoryview(buf_vertices_co))
+        print(memoryview(buf_vertices_co)[0])
+        print(memoryview(buf_vertices_co)[1])
+        print(memoryview(buf_vertices_co)[2])
+        mesh.calc_loop_triangles()
+        buf_triangles_loops = new_uint_buf(3 * len(mesh.loop_triangles))
+        buf_triangles_material_index = new_uint_buf(len(mesh.loop_triangles))
+        mesh.loop_triangles[0].loops
+        mesh.loop_triangles[0].material_index
+        mesh.loop_triangles.foreach_get("loops", buf_triangles_loops)
+        mesh.loop_triangles.foreach_get("material_index", buf_triangles_material_index)
+        mesh.loops[0].vertex_index
+        buf_loops_vertex_index = new_uint_buf(len(mesh.loops))
+        mesh.loops.foreach_get("vertex_index", buf_loops_vertex_index)
+        mesh_info = dragex_backend.create_MeshInfo(
+            buf_vertices_co,
+            buf_triangles_loops,
+            # buf_triangles_material_index,
+            buf_loops_vertex_index,
+        )
+        mesh_info.write_c("/home/dragorn421/Documents/dragex/dragex_attempt2/output.c")
         return {"FINISHED"}
 
 

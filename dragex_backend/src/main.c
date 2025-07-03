@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "exporter.h"
+
 #include "../build_id.h"
 
 static PyObject *get_build_id(PyObject *self, PyObject *args) {
@@ -144,13 +146,189 @@ static PyTypeObject FloatBufferThingType = {
     .tp_as_buffer = &FloatBufferThing_bufferprocs,
 };
 
+struct MeshInfoObject {
+  PyObject_HEAD
+
+      struct MeshInfo *mesh;
+};
+
+static void MeshInfo_dealloc(PyObject *_self) {
+  struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
+
+  printf("MeshInfo_dealloc\n");
+
+  if (self->mesh != NULL) {
+    free_create_MeshInfo_from_buffers(self->mesh);
+  }
+
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static PyObject *MeshInfo_new(PyTypeObject *type, PyObject *args,
+                              PyObject *kwds) {
+  struct MeshInfoObject *self;
+
+  printf("MeshInfo_new\n");
+
+  self = (struct MeshInfoObject *)type->tp_alloc(type, 0);
+  if (self != NULL) {
+    self->mesh = NULL;
+  }
+  return (PyObject *)self;
+}
+
+static PyObject *MeshInfo_write_c(PyObject *_self, PyObject *args) {
+  struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
+  PyObject *path_bytes_object;
+
+  if (!PyArg_ParseTuple(args, "O&", PyUnicode_FSConverter, &path_bytes_object))
+    return NULL;
+
+  char *path = PyBytes_AsString(path_bytes_object);
+  if (path == NULL)
+    return NULL;
+
+  int res = write_mesh_info_to_f3d_c(self->mesh, path);
+
+  Py_DECREF(path_bytes_object);
+
+  if (res != 0) {
+    PyErr_SetString(PyExc_Exception, "write_mesh_info_to_f3d_c failed");
+    return NULL;
+  }
+
+  return Py_None;
+}
+
+static PyMethodDef MeshInfo_methods[] = {
+    {"write_c", MeshInfo_write_c, METH_VARARGS, "Write mesh to a .c file"},
+    {NULL} /* Sentinel */
+};
+
+static PyTypeObject MeshInfoType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MeshInfo",
+    .tp_doc = PyDoc_STR("mesh info"),
+    .tp_basicsize = sizeof(struct MeshInfoObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = MeshInfo_new,
+    .tp_dealloc = MeshInfo_dealloc,
+    .tp_methods = MeshInfo_methods,
+};
+
+static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
+  struct FloatBufferThingObject *buf_vertices_co;
+  PyObject *buf_triangles_loops, *buf_loops_vertex_index;
+
+  if (!PyArg_ParseTuple(args, "O!OO", &FloatBufferThingType, &buf_vertices_co,
+                        &buf_triangles_loops, &buf_loops_vertex_index))
+    return NULL;
+
+  Py_buffer buf_triangles_loops_view;
+  if (PyObject_GetBuffer(buf_triangles_loops, &buf_triangles_loops_view,
+                         PyBUF_ND | PyBUF_FORMAT) < 0)
+    return NULL;
+  if (strcmp(buf_triangles_loops_view.format, "I") != 0) {
+    PyBuffer_Release(&buf_triangles_loops_view);
+    PyErr_SetString(PyExc_TypeError, "buf_triangles_loops_view.format != I");
+    return NULL;
+  }
+  if (buf_triangles_loops_view.ndim != 1) {
+    PyBuffer_Release(&buf_triangles_loops_view);
+    PyErr_SetString(PyExc_TypeError, "buf_triangles_loops_view.ndim != 1");
+    return NULL;
+  }
+  assert(buf_triangles_loops_view.itemsize == sizeof(unsigned int));
+  assert(buf_triangles_loops_view.len ==
+         buf_triangles_loops_view.itemsize * buf_triangles_loops_view.shape[0]);
+  unsigned int *buf_triangles_loops_view_buf = buf_triangles_loops_view.buf;
+  printf("buf_triangles_loops_view_buf = {\n");
+  for (Py_ssize_t i = 0; i < buf_triangles_loops_view.shape[0]; i++)
+    printf(" %u,", buf_triangles_loops_view_buf[i]);
+  printf("\n}\n");
+
+  Py_buffer buf_loops_vertex_index_view;
+  if (PyObject_GetBuffer(buf_loops_vertex_index, &buf_loops_vertex_index_view,
+                         PyBUF_ND | PyBUF_FORMAT) < 0)
+    return NULL;
+  if (strcmp(buf_loops_vertex_index_view.format, "I") != 0) {
+    PyBuffer_Release(&buf_triangles_loops_view);
+    PyBuffer_Release(&buf_loops_vertex_index_view);
+    PyErr_SetString(PyExc_TypeError, "buf_loops_vertex_index_view.format != I");
+    return NULL;
+  }
+  if (buf_loops_vertex_index_view.ndim != 1) {
+    PyBuffer_Release(&buf_triangles_loops_view);
+    PyBuffer_Release(&buf_loops_vertex_index_view);
+    PyErr_SetString(PyExc_TypeError, "buf_loops_vertex_index_view.ndim != 1");
+    return NULL;
+  }
+  assert(buf_loops_vertex_index_view.itemsize == sizeof(unsigned int));
+  assert(buf_loops_vertex_index_view.len ==
+         buf_loops_vertex_index_view.itemsize *
+             buf_loops_vertex_index_view.shape[0]);
+  unsigned int *buf_loops_vertex_index_view_buf =
+      buf_loops_vertex_index_view.buf;
+  printf("buf_loops_vertex_index_view_buf = {\n");
+  for (Py_ssize_t i = 0; i < buf_loops_vertex_index_view.shape[0]; i++)
+    printf(" %u,", buf_loops_vertex_index_view_buf[i]);
+  printf("\n}\n");
+
+  struct MeshInfo *mesh;
+
+  mesh = create_MeshInfo_from_buffers(
+      buf_vertices_co->vals, buf_vertices_co->sz, buf_triangles_loops_view_buf,
+      buf_triangles_loops_view.shape[0], buf_loops_vertex_index_view_buf,
+      buf_loops_vertex_index_view.shape[0]);
+
+  PyBuffer_Release(&buf_triangles_loops_view);
+  PyBuffer_Release(&buf_loops_vertex_index_view);
+
+  if (mesh == NULL) {
+    PyErr_SetString(PyExc_MemoryError, "create_MeshInfo_from_buffers failed");
+    return NULL;
+  }
+
+  struct MeshInfoObject *mesh_info_object;
+
+  // TODO is this how to create objects?
+  printf("%s: PyObject_New...\n", __FUNCTION__);
+  // FIXME PyObject_New does not call MeshInfo_new so must be wrong
+  mesh_info_object = PyObject_New(struct MeshInfoObject, &MeshInfoType);
+  if (mesh_info_object == NULL) {
+    PyErr_SetString(PyExc_MemoryError, "PyObject_New failed");
+    return NULL;
+  }
+  printf("%s: PyObject_Init...\n", __FUNCTION__);
+  if (PyObject_Init((PyObject *)mesh_info_object, Py_TYPE(mesh_info_object)) ==
+      NULL) {
+    // ? (can init even return NULL?)
+    Py_DECREF(mesh_info_object);
+    return NULL;
+  }
+
+  printf("%s: REFCNT = %zd\n", __FUNCTION__, Py_REFCNT(mesh_info_object));
+
+  mesh_info_object->mesh = mesh;
+
+  return (PyObject *)mesh_info_object;
+}
+
 static int dragex_backend_exec(PyObject *m) {
   if (PyType_Ready(&FloatBufferThingType) < 0) {
     return -1;
   }
-
   if (PyModule_AddObjectRef(m, "FloatBufferThing",
                             (PyObject *)&FloatBufferThingType) < 0) {
+    return -1;
+  }
+
+  if (PyType_Ready(&MeshInfoType) < 0) {
+    return -1;
+  }
+  if (PyModule_AddObjectRef(m, "MeshInfo", (PyObject *)&MeshInfoType) < 0) {
     return -1;
   }
 
@@ -169,6 +347,8 @@ static PyModuleDef_Slot dragex_backend_slots[] = {
 
 static PyMethodDef dragex_backend_methods[] = {
     {"get_build_id", get_build_id, METH_NOARGS, "get build_id"},
+    {"create_MeshInfo", create_MeshInfo, METH_VARARGS,
+     "create MeshInfo from buffers"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
