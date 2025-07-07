@@ -15,135 +15,59 @@ static PyObject *get_build_id(PyObject *self, PyObject *args) {
   return PyLong_FromLong(BUILD_ID);
 }
 
-struct FloatBufferThingObject {
+struct MaterialInfoObject {
   PyObject_HEAD
 
-      Py_ssize_t n_exports;
-  Py_ssize_t sz;
-  float *vals;
+      struct MaterialInfo mat_info;
 };
 
-static void FloatBufferThing_dealloc(PyObject *_self) {
-  struct FloatBufferThingObject *self = (struct FloatBufferThingObject *)_self;
-
-  free(self->vals);
+static void MaterialInfo_dealloc(PyObject *_self) {
+  struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
+  free(self->mat_info.name);
   Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-static PyObject *FloatBufferThing_new(PyTypeObject *type, PyObject *args,
-                                      PyObject *kwds) {
-  struct FloatBufferThingObject *self;
-
-  self = (struct FloatBufferThingObject *)type->tp_alloc(type, 0);
+static PyObject *MaterialInfo_new(PyTypeObject *type, PyObject *args,
+                                  PyObject *kwds) {
+  struct MaterialInfoObject *self;
+  self = (struct MaterialInfoObject *)type->tp_alloc(type, 0);
   if (self != NULL) {
-    self->n_exports = 0;
-    self->sz = -1;
-    self->vals = NULL;
+    self->mat_info.name = NULL;
   }
   return (PyObject *)self;
 }
 
-static int FloatBufferThing_init(PyObject *_self, PyObject *args,
-                                 PyObject *kwds) {
+static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
+  struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
   static char *kwlist[] = {
-      "length",
-      "value",
+      "name",
+      "lighting",
       NULL,
   };
+  char *name = NULL;
+  int lighting = 0;
 
-  struct FloatBufferThingObject *self = (struct FloatBufferThingObject *)_self;
-  Py_ssize_t length;
-  float value = 0.0f;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "n|f", kwlist, &length, &value))
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "sp", kwlist, &name, &lighting))
     return -1;
 
-  printf("%s: length = %zd\n", __FUNCTION__, length);
-
-  if (self->n_exports != 0) {
-    PyErr_SetString(PyExc_BufferError,
-                    "Existing exports of data, cannot re-init");
-    return -1;
+  if (name != NULL) {
+    self->mat_info.name = strdup(name);
   }
-
-  if (self->vals != NULL) {
-
-    free(self->vals);
-  }
-
-  self->sz = length;
-  self->vals = malloc(sizeof(float[length]));
-  if (self->vals == NULL) {
-    PyErr_SetString(PyExc_MemoryError, "Could not allocate buffer");
-    return -1;
-  }
-
-  // TODO initializing values is potentially slow and useless
-  for (Py_ssize_t i = 0; i < length; i++)
-    self->vals[i] = value;
-
+  self->mat_info.lighting = !!lighting;
   return 0;
 }
 
-int FloatBufferThing_getbuffer(PyObject *exporter, Py_buffer *view, int flags) {
-  struct FloatBufferThingObject *self =
-      (struct FloatBufferThingObject *)exporter;
-
-  // we want to set format="f" but are only allowed so if PyBUF_FORMAT is
-  // passed?
-  if (!(flags & PyBUF_FORMAT)) {
-    PyErr_SetString(PyExc_BufferError, "PyBUF_FORMAT required.");
-    return -1; // failure?
-  }
-
-  self->n_exports++;
-
-  view->buf = self->vals;
-  Py_INCREF(exporter);  // ?
-  view->obj = exporter; // ?
-  view->len = self->sz * sizeof(self->vals[0]);
-  view->readonly = false; // ignore flags & PyBUF_WRITABLE ?
-  view->itemsize = sizeof(self->vals[0]);
-  view->format = "f";
-  view->ndim = 1;
-  view->shape = malloc(sizeof(Py_ssize_t[1]));
-  view->shape[0] = self->sz;
-  view->strides = &view->itemsize;
-
-  // Note: required to not segfault in bytes() conversion
-  view->suboffsets = NULL;
-
-  view->internal = NULL;
-
-  return 0;
-}
-
-void FloatBufferThing_releasebuffer(PyObject *exporter, Py_buffer *view) {
-  struct FloatBufferThingObject *self =
-      (struct FloatBufferThingObject *)exporter;
-
-  free(view->shape);
-  self->n_exports--;
-  assert(self->n_exports >= 0);
-}
-
-static PyBufferProcs FloatBufferThing_bufferprocs = {
-    .bf_getbuffer = FloatBufferThing_getbuffer,
-    .bf_releasebuffer = FloatBufferThing_releasebuffer,
-};
-
-static PyTypeObject FloatBufferThingType = {
+static PyTypeObject MaterialInfoType = {
     .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
 
-                   .tp_name = "dragex_backend.FloatBufferThing",
-    .tp_doc = PyDoc_STR("float buffer thing"),
-    .tp_basicsize = sizeof(struct FloatBufferThingObject),
+                   .tp_name = "dragex_backend.MaterialInfo",
+    .tp_doc = PyDoc_STR("material info"),
+    .tp_basicsize = sizeof(struct MaterialInfoObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = FloatBufferThing_new,
-    .tp_init = FloatBufferThing_init,
-    .tp_dealloc = FloatBufferThing_dealloc,
-    .tp_as_buffer = &FloatBufferThing_bufferprocs,
+    .tp_new = MaterialInfo_new,
+    .tp_init = MaterialInfo_init,
+    .tp_dealloc = MaterialInfo_dealloc,
 };
 
 struct MeshInfoObject {
@@ -218,75 +142,139 @@ static PyTypeObject MeshInfoType = {
     .tp_methods = MeshInfo_methods,
 };
 
+int converter_contiguous_buffer_impl(PyObject *obj, void *result,
+                                     const char *required_format,
+                                     size_t expected_itemsize) {
+  if (obj == NULL) {
+    PyBuffer_Release(result);
+    return 0;
+  }
+
+  Py_buffer view;
+
+  if (PyObject_GetBuffer(obj, &view, PyBUF_ND | PyBUF_FORMAT) < 0)
+    return 0;
+  if (strcmp(view.format, required_format) != 0) {
+    PyBuffer_Release(&view);
+    PyErr_Format(PyExc_TypeError, "view.format != %s", required_format);
+    return 0;
+  }
+  if (view.ndim != 1) {
+    PyBuffer_Release(&view);
+    PyErr_SetString(PyExc_TypeError, "view.ndim != 1");
+    return 0;
+  }
+  assert(view.itemsize == sizeof(unsigned int));
+  assert(view.len == view.itemsize * view.shape[0]);
+
+  *(Py_buffer *)result = view;
+
+  return Py_CLEANUP_SUPPORTED;
+}
+
+int converter_contiguous_uint_buffer(PyObject *obj, void *result) {
+  return converter_contiguous_buffer_impl(obj, result, "I",
+                                          sizeof(unsigned int));
+}
+
+int converter_contiguous_float_buffer(PyObject *obj, void *result) {
+  return converter_contiguous_buffer_impl(obj, result, "f", sizeof(float));
+}
+
+int converter_contiguous_float_buffer_optional(PyObject *obj, void *result) {
+  if (obj == Py_None) {
+    ((Py_buffer *)result)->buf = NULL;
+    return 1;
+  }
+  return converter_contiguous_buffer_impl(obj, result, "f", sizeof(float));
+}
+
+struct MaterialInfoSequenceInfo {
+  struct MaterialInfo **buffer;
+  Py_ssize_t len;
+};
+
+void free_MaterialInfoSequenceInfo(
+    struct MaterialInfoSequenceInfo *material_infos) {
+  free(material_infos->buffer);
+}
+
+int converter_MaterialInfo_or_None_sequence(PyObject *obj, void *_result) {
+  Py_ssize_t len = PySequence_Length(obj);
+  if (len < 0)
+    return 0;
+
+  struct MaterialInfo **buffer = malloc(sizeof(struct MaterialInfo *[len]));
+  for (Py_ssize_t i = 0; i < len; i++) {
+    PyObject *item = PySequence_GetItem(obj, i);
+    if (item == NULL) {
+      free(buffer);
+      return 0;
+    }
+
+    if (item == Py_None) {
+      buffer[i] = NULL;
+    } else if (PyObject_TypeCheck(item, &MaterialInfoType)) {
+      buffer[i] = &((struct MaterialInfoObject *)item)->mat_info;
+    } else {
+      PyErr_Format(PyExc_TypeError,
+                   "Object in sequence at index %ld is not None or a %s",
+                   (long)i, MaterialInfoType.tp_name);
+      free(buffer);
+      return 0;
+    }
+  }
+
+  struct MaterialInfoSequenceInfo *result =
+      (struct MaterialInfoSequenceInfo *)_result;
+  result->buffer = buffer;
+  result->len = len;
+  return 1;
+}
+
 static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
-  struct FloatBufferThingObject *buf_vertices_co, *buf_loops_normal;
-  PyObject *buf_triangles_loops, *buf_loops_vertex_index;
+  Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
+      buf_triangles_material_index_view, buf_loops_vertex_index_view,
+      buf_loops_normal_view, buf_corners_color_view;
+  struct MaterialInfoSequenceInfo material_infos;
+  PyObject *default_material_info;
 
-  if (!PyArg_ParseTuple(args, "O!OOO!", &FloatBufferThingType, &buf_vertices_co,
-                        &buf_triangles_loops, &buf_loops_vertex_index,
-                        &FloatBufferThingType, &buf_loops_normal))
+  if (!PyArg_ParseTuple(
+          args, "O&O&O&O&O&O&O&O!",                                      //
+          converter_contiguous_float_buffer, &buf_vertices_co_view,    //
+          converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
+          converter_contiguous_uint_buffer, &buf_triangles_material_index_view,
+          converter_contiguous_uint_buffer, &buf_loops_vertex_index_view, //
+          converter_contiguous_float_buffer, &buf_loops_normal_view,      //
+          converter_contiguous_float_buffer_optional,
+          &buf_corners_color_view,                                  //
+          converter_MaterialInfo_or_None_sequence, &material_infos, //
+          &MaterialInfoType, &default_material_info))
     return NULL;
-
-  Py_buffer buf_triangles_loops_view;
-  if (PyObject_GetBuffer(buf_triangles_loops, &buf_triangles_loops_view,
-                         PyBUF_ND | PyBUF_FORMAT) < 0)
-    return NULL;
-  if (strcmp(buf_triangles_loops_view.format, "I") != 0) {
-    PyBuffer_Release(&buf_triangles_loops_view);
-    PyErr_SetString(PyExc_TypeError, "buf_triangles_loops_view.format != I");
-    return NULL;
-  }
-  if (buf_triangles_loops_view.ndim != 1) {
-    PyBuffer_Release(&buf_triangles_loops_view);
-    PyErr_SetString(PyExc_TypeError, "buf_triangles_loops_view.ndim != 1");
-    return NULL;
-  }
-  assert(buf_triangles_loops_view.itemsize == sizeof(unsigned int));
-  assert(buf_triangles_loops_view.len ==
-         buf_triangles_loops_view.itemsize * buf_triangles_loops_view.shape[0]);
-  unsigned int *buf_triangles_loops_view_buf = buf_triangles_loops_view.buf;
-  printf("buf_triangles_loops_view_buf = {\n");
-  for (Py_ssize_t i = 0; i < buf_triangles_loops_view.shape[0]; i++)
-    printf(" %u,", buf_triangles_loops_view_buf[i]);
-  printf("\n}\n");
-
-  Py_buffer buf_loops_vertex_index_view;
-  if (PyObject_GetBuffer(buf_loops_vertex_index, &buf_loops_vertex_index_view,
-                         PyBUF_ND | PyBUF_FORMAT) < 0)
-    return NULL;
-  if (strcmp(buf_loops_vertex_index_view.format, "I") != 0) {
-    PyBuffer_Release(&buf_triangles_loops_view);
-    PyBuffer_Release(&buf_loops_vertex_index_view);
-    PyErr_SetString(PyExc_TypeError, "buf_loops_vertex_index_view.format != I");
-    return NULL;
-  }
-  if (buf_loops_vertex_index_view.ndim != 1) {
-    PyBuffer_Release(&buf_triangles_loops_view);
-    PyBuffer_Release(&buf_loops_vertex_index_view);
-    PyErr_SetString(PyExc_TypeError, "buf_loops_vertex_index_view.ndim != 1");
-    return NULL;
-  }
-  assert(buf_loops_vertex_index_view.itemsize == sizeof(unsigned int));
-  assert(buf_loops_vertex_index_view.len ==
-         buf_loops_vertex_index_view.itemsize *
-             buf_loops_vertex_index_view.shape[0]);
-  unsigned int *buf_loops_vertex_index_view_buf =
-      buf_loops_vertex_index_view.buf;
-  printf("buf_loops_vertex_index_view_buf = {\n");
-  for (Py_ssize_t i = 0; i < buf_loops_vertex_index_view.shape[0]; i++)
-    printf(" %u,", buf_loops_vertex_index_view_buf[i]);
-  printf("\n}\n");
 
   struct MeshInfo *mesh;
 
   mesh = create_MeshInfo_from_buffers(
-      buf_vertices_co->vals, buf_vertices_co->sz, buf_triangles_loops_view_buf,
-      buf_triangles_loops_view.shape[0], buf_loops_vertex_index_view_buf,
-      buf_loops_vertex_index_view.shape[0], buf_loops_normal->vals,
-      buf_loops_normal->sz);
+      buf_vertices_co_view.buf, buf_vertices_co_view.shape[0],         //
+      buf_triangles_loops_view.buf, buf_triangles_loops_view.shape[0], //
+      buf_triangles_material_index_view.buf,
+      buf_triangles_material_index_view.shape[0],                            //
+      buf_loops_vertex_index_view.buf, buf_loops_vertex_index_view.shape[0], //
+      buf_loops_normal_view.buf, buf_loops_normal_view.shape[0],             //
+      buf_corners_color_view.buf,
+      buf_corners_color_view.buf == NULL ? 0
+                                         : buf_corners_color_view.shape[0], //
+      material_infos.buffer, material_infos.len,                            //
+      &((struct MaterialInfoObject *)default_material_info)->mat_info);
 
+  PyBuffer_Release(&buf_vertices_co_view);
   PyBuffer_Release(&buf_triangles_loops_view);
+  PyBuffer_Release(&buf_triangles_material_index_view);
   PyBuffer_Release(&buf_loops_vertex_index_view);
+  PyBuffer_Release(&buf_loops_normal_view);
+  if (buf_corners_color_view.buf != NULL)
+    PyBuffer_Release(&buf_corners_color_view);
+  free_MaterialInfoSequenceInfo(&material_infos);
 
   if (mesh == NULL) {
     PyErr_SetString(PyExc_MemoryError, "create_MeshInfo_from_buffers failed");
@@ -297,7 +285,8 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
 
   // TODO is this how to create objects?
   printf("%s: PyObject_New...\n", __FUNCTION__);
-  // FIXME PyObject_New does not call MeshInfo_new so must be wrong
+  // FIXME PyObject_New does not call MeshInfo_new so must be wrong (no it's not
+  // necessarily wrong)
   mesh_info_object = PyObject_New(struct MeshInfoObject, &MeshInfoType);
   if (mesh_info_object == NULL) {
     PyErr_SetString(PyExc_MemoryError, "PyObject_New failed");
@@ -306,12 +295,10 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
   printf("%s: PyObject_Init...\n", __FUNCTION__);
   if (PyObject_Init((PyObject *)mesh_info_object, Py_TYPE(mesh_info_object)) ==
       NULL) {
-    // ? (can init even return NULL?)
+    // ? (can init even return NULL?) (no it can't)
     Py_DECREF(mesh_info_object);
     return NULL;
   }
-
-  printf("%s: REFCNT = %zd\n", __FUNCTION__, Py_REFCNT(mesh_info_object));
 
   mesh_info_object->mesh = mesh;
 
@@ -319,11 +306,11 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
 }
 
 static int dragex_backend_exec(PyObject *m) {
-  if (PyType_Ready(&FloatBufferThingType) < 0) {
+  if (PyType_Ready(&MaterialInfoType) < 0) {
     return -1;
   }
-  if (PyModule_AddObjectRef(m, "FloatBufferThing",
-                            (PyObject *)&FloatBufferThingType) < 0) {
+  if (PyModule_AddObjectRef(m, "MaterialInfo", (PyObject *)&MaterialInfoType) <
+      0) {
     return -1;
   }
 

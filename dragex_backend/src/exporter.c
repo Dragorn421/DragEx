@@ -11,13 +11,22 @@
 
 #include "../meshoptimizer/src/meshoptimizer.h"
 
+float clampf(float f, float min, float max) {
+  return f < min ? min : f > max ? max : f;
+}
+
+void copy_MaterialInfo(struct MaterialInfo *dest, struct MaterialInfo *src) {
+  *dest = *src;
+  dest->name = strdup(dest->name);
+}
+
 void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
   if (mesh != NULL) {
     free(mesh->name);
     free(mesh->verts);
     free(mesh->faces);
     if (mesh->materials != NULL) {
-      for (int i = 0; i < mesh->n_materials; i++) {
+      for (unsigned int i = 0; i < mesh->n_materials; i++) {
         free(mesh->materials[i].name);
       }
       free(mesh->materials);
@@ -27,13 +36,73 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
 }
 
 struct MeshInfo *create_MeshInfo_from_buffers(
-    float *buf_vertices_co, size_t buf_vertices_co_len,
-    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len,
-    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len,
-    float *buf_loops_normal, size_t buf_loops_normal_len) {
+    float *buf_vertices_co, size_t buf_vertices_co_len,                //
+    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
+    unsigned int *buf_triangles_material_index,
+    size_t buf_triangles_material_index_len,                                 //
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
+    float *buf_loops_normal, size_t buf_loops_normal_len,                    //
+    float *buf_corners_color, size_t buf_corners_color_len,                  //
+    struct MaterialInfo **material_infos, size_t n_material_infos,           //
+    struct MaterialInfo *default_material) {
+
+  printf("buf_corners_color = %p\n", buf_corners_color);
+
   unsigned int n_loops = buf_loops_vertex_index_len;
   if (buf_loops_normal_len != n_loops * 3)
     return NULL;
+  if (buf_corners_color != NULL && buf_corners_color_len != n_loops * 4)
+    return NULL;
+
+  unsigned int n_faces = (unsigned int)(buf_triangles_loops_len / 3);
+  if (buf_triangles_material_index_len != n_faces)
+    return NULL;
+
+  unsigned int n_materials = 0;
+  bool use_default_material = false;
+  unsigned int default_material_index = ~0u;
+  unsigned int material_index_map_len = n_material_infos;
+  unsigned int *material_index_map =
+      malloc(sizeof(unsigned int[material_index_map_len]));
+  if (material_index_map_len != 0 && material_index_map == NULL)
+    return NULL;
+  for (unsigned int i = 0; i < material_index_map_len; i++) {
+    material_index_map[i] = ~0u;
+  }
+  for (unsigned int i_face = 0; i_face < n_faces; i_face++) {
+    unsigned int mat_index = buf_triangles_material_index[i_face];
+
+    if (mat_index >= material_index_map_len) {
+      unsigned int prev_material_index_map_len = material_index_map_len;
+      material_index_map_len = mat_index + 1;
+      void *tmp = realloc(material_index_map,
+                          sizeof(unsigned int[material_index_map_len]));
+      if (tmp == NULL) {
+        free(material_index_map);
+        return NULL;
+      }
+      material_index_map = tmp;
+      for (unsigned int i = prev_material_index_map_len;
+           i < material_index_map_len; i++) {
+        material_index_map[i] = ~0u;
+      }
+    }
+
+    if (mat_index >= n_material_infos || material_infos[mat_index] == NULL) {
+      if (!use_default_material) {
+        use_default_material = true;
+        default_material_index = n_materials;
+        n_materials++;
+      }
+      assert(default_material_index != ~0u);
+      material_index_map[mat_index] = default_material_index;
+    } else {
+      if (material_index_map[mat_index] == ~0u) {
+        material_index_map[mat_index] = n_materials;
+        n_materials++;
+      }
+    }
+  }
 
   struct MeshInfo *mesh = malloc(sizeof(struct MeshInfo));
   if (mesh == NULL)
@@ -43,24 +112,28 @@ struct MeshInfo *create_MeshInfo_from_buffers(
   mesh->n_verts = n_loops;
   mesh->verts = malloc(sizeof(struct VertexInfo[n_loops]));
 
-  int n_faces = (int)(buf_triangles_loops_len / 3);
   mesh->n_faces = n_faces;
   mesh->faces = malloc(sizeof(struct VertexInfo[n_faces]));
 
-  mesh->n_materials = 1;
-  mesh->materials = malloc(sizeof(struct MaterialInfo[1]));
+  mesh->n_materials = n_materials;
+  mesh->materials = malloc(sizeof(struct MaterialInfo[n_materials]));
 
-  mesh->materials[0].name = strdup("material");
+  if (mesh->materials != NULL) {
+    // for free_create_MeshInfo_from_buffers
+    for (unsigned int i = 0; i < n_materials; i++) {
+      mesh->materials[i].name = NULL;
+    }
+  }
 
   if (mesh->name == NULL || mesh->verts == NULL || mesh->faces == NULL ||
-      mesh->materials == NULL || mesh->materials[0].name == NULL) {
+      mesh->materials == NULL) {
     free_create_MeshInfo_from_buffers(mesh);
     return NULL;
   }
 
   for (unsigned int i_loop = 0; i_loop < n_loops; i_loop++) {
     for (int j = 0; j < 3; j++) {
-      int v = buf_loops_vertex_index[i_loop] * 3 + j;
+      unsigned int v = buf_loops_vertex_index[i_loop] * 3 + j;
       if (v >= buf_vertices_co_len) {
         free_create_MeshInfo_from_buffers(mesh);
         return NULL;
@@ -71,10 +144,17 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     for (int j = 0; j < 3; j++)
       mesh->verts[i_loop].normal[j] = buf_loops_normal[i_loop * 3 + j];
 
-    mesh->verts[i_loop].alpha = 255;
+    for (int j = 0; j < 4; j++) {
+      if (buf_corners_color != NULL) {
+        mesh->verts[i_loop].color[j] =
+            (uint8_t)clampf(buf_corners_color[i_loop * 4 + j] * 255, 0, 255);
+      } else {
+        mesh->verts[i_loop].color[j] = 255;
+      }
+    }
   }
 
-  for (int i = 0; i < n_faces; i++) {
+  for (unsigned int i = 0; i < n_faces; i++) {
     for (int j = 0; j < 3; j++) {
       unsigned int loop = buf_triangles_loops[i * 3 + j];
       if (loop >= n_loops) {
@@ -83,7 +163,27 @@ struct MeshInfo *create_MeshInfo_from_buffers(
       }
       mesh->faces[i].verts[j] = loop;
     }
-    mesh->faces[i].material = 0;
+    mesh->faces[i].material =
+        material_index_map[buf_triangles_material_index[i]];
+  }
+
+  for (unsigned int i = 0; i < n_material_infos; i++) {
+    if (material_index_map[i] == ~0u ||
+        (use_default_material &&
+         material_index_map[i] == default_material_index))
+      continue;
+    struct MaterialInfo *mat_info = material_infos[i];
+
+    // because material_index_map[i] != default_material_index
+    assert(mat_info != NULL);
+
+    copy_MaterialInfo(&mesh->materials[material_index_map[i]], mat_info);
+  }
+
+  if (use_default_material) {
+    assert(default_material_index != ~0u);
+    copy_MaterialInfo(&mesh->materials[default_material_index],
+                      default_material);
   }
 
   return mesh;
@@ -119,7 +219,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
   if (out_meshes == NULL)
     return NULL;
 
-  for (int i_mat = 0; i_mat < in_mesh->n_materials; i_mat++) {
+  for (unsigned int i_mat = 0; i_mat < in_mesh->n_materials; i_mat++) {
     struct MeshInfo *m = malloc(sizeof(struct MeshInfo));
     if (m == NULL) {
       free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
@@ -132,7 +232,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
 
     memset(vertices_used, 0, in_mesh->n_verts);
 
-    for (int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
+    for (unsigned int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
       struct TriInfo *f = &in_mesh->faces[i_face];
 
       if (f->material == i_mat) {
@@ -144,7 +244,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
     }
 
     int n_vertices_used = 0;
-    for (int i_vert = 0; i_vert < in_mesh->n_verts; i_vert++) {
+    for (unsigned int i_vert = 0; i_vert < in_mesh->n_verts; i_vert++) {
       n_vertices_used += vertices_used[i_vert];
     }
 
@@ -167,30 +267,36 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
     m->n_faces = n_faces_used;
     m->n_materials = 1;
 
-    int i_face_new = 0;
-    int i_vert_new = 0;
+    unsigned int i_face_new = 0;
+    unsigned int i_vert_new = 0;
     memset(vertices_used, 0, in_mesh->n_verts);
 
-    for (int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
+    unsigned int verts_remap[in_mesh->n_verts];
+
+    for (unsigned int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
       struct TriInfo *f = &in_mesh->faces[i_face];
 
       if (f->material == i_mat) {
-        m->faces[i_face_new] = *f;
+        struct TriInfo *f_new = &m->faces[i_face_new];
+        *f_new = *f;
         i_face_new++;
         for (int i = 0; i < 3; i++) {
           int v = f->verts[i];
 
           if (!vertices_used[v]) {
             m->verts[i_vert_new] = in_mesh->verts[v];
+            verts_remap[v] = i_vert_new;
             i_vert_new++;
             vertices_used[v] = 1;
           }
+
+          f_new->verts[i] = verts_remap[v];
+          assert(f_new->verts[i] < m->n_verts);
         }
       }
     }
 
-    m->materials[0] = in_mesh->materials[i_mat];
-    m->materials[0].name = strdup(m->materials[0].name);
+    copy_MaterialInfo(&m->materials[0], &in_mesh->materials[i_mat]);
   }
 
   return out_meshes;
@@ -209,16 +315,24 @@ void free_mesh_to_f3d_mesh(struct f3d_mesh *mesh) {
   }
 }
 
-struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh) {
+enum shading_type { SHADING_NULL, SHADING_COLORS, SHADING_NORMALS };
+
+struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh,
+                                  enum shading_type shading_type) {
   unsigned int indices[mesh->n_faces * 3];
   unsigned int remap[mesh->n_verts];
 
-  for (int i_face = 0; i_face < mesh->n_faces; i_face++) {
-    for (int j = 0; j < 3; j++)
+  for (unsigned int i_face = 0; i_face < mesh->n_faces; i_face++) {
+    for (int j = 0; j < 3; j++) {
       indices[i_face * 3 + j] = mesh->faces[i_face].verts[j];
+      assert(indices[i_face * 3 + j] < mesh->n_verts);
+    }
   }
 
   // TODO convert VertexInfo.coords to int16_t somewhere before doing the remap
+  // actually just convert VertexInfo to f3d_vertex entirely before doing the
+  // remap as VertexInfo contains more data than is relevant (eg both color and
+  // normal)
 
   size_t n_unique_verts = meshopt_generateVertexRemap(
       remap, indices, mesh->n_faces * 3, mesh->verts, mesh->n_verts,
@@ -252,7 +366,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh) {
   f3d_entries[0].n_tris = 0;
   unsigned int vertex_cache[VERTEX_CACHE];
   int i_vertex_cache_next = 0;
-  int i_tri = 0;
+  unsigned int i_tri = 0;
   while (i_tri < mesh->n_faces) {
     // count vertices in tri already in cache
     int in_vertex_cache[3] = {0};
@@ -298,10 +412,23 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh) {
           f3d_v->coords[2] = (int16_t)vi->coords[2];
           f3d_v->st[0] = 0;
           f3d_v->st[1] = 0;
-          f3d_v->cn[0] = (uint8_t)(int)(vi->normal[0] * 0x7F);
-          f3d_v->cn[1] = (uint8_t)(int)(vi->normal[1] * 0x7F);
-          f3d_v->cn[2] = (uint8_t)(int)(vi->normal[2] * 0x7F);
-          f3d_v->alpha = vi->alpha;
+          switch (shading_type) {
+          case SHADING_COLORS:
+            for (int j = 0; j < 3; j++)
+              f3d_v->cn[j] = vi->color[j];
+            break;
+          case SHADING_NORMALS:
+            for (int j = 0; j < 3; j++) {
+              f3d_v->cn[j] =
+                  (uint8_t)(int)clampf(vi->normal[j] * 0x7F, -0x7F, 0x7F);
+            }
+            break;
+          case SHADING_NULL:
+          default:
+            f3d_v->cn[0] = f3d_v->cn[1] = f3d_v->cn[2] = 0;
+            break;
+          }
+          f3d_v->alpha = vi->color[3];
           i_f3d_vertices++;
         }
       }
@@ -365,8 +492,22 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh) {
   return f3d_mesh;
 }
 
+int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
+  fprintf(f, "Gfx %s_mat_dl[] = {\n", name);
+
+  if (mat_info->lighting)
+    fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");
+  else
+    fprintf(f, "    gsSPClearGeometryMode(G_LIGHTING),\n");
+
+  fprintf(f, "    gsSPEndDisplayList(),\n");
+  fprintf(f, "};\n");
+
+  return 0;
+}
+
 int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
-  fprintf(f, "Vtx %s_vtx[] = {\n", name);
+  fprintf(f, "Vtx %s_mesh_vtx[] = {\n", name);
   for (int i = 0; i < mesh->n_vertices; i++) {
     struct f3d_vertex *v = &mesh->vertices[i];
 
@@ -382,13 +523,13 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
   }
   fprintf(f, "};\n");
 
-  fprintf(f, "Gfx %s_dl[] = {\n", name);
+  fprintf(f, "Gfx %s_mesh_dl[] = {\n", name);
   for (int i = 0; i < mesh->n_entries; i++) {
     struct f3d_mesh_load_entry *e = &mesh->entries[i];
 
     fprintf(f,
             "    gsSPVertex("
-            "&%s_vtx[%d], %" PRIu8 ", %" PRIu8 "),\n",
+            "&%s_mesh_vtx[%d], %" PRIu8 ", %" PRIu8 "),\n",
             name, e->buffer_i, e->n, e->v0);
 
     for (int j = 0; j + 1 < e->n_tris; j += 2) {
@@ -429,12 +570,26 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
   if (meshes == NULL) {
     return -2;
   }
-  for (int i_mesh = 0; i_mesh < mesh_info->n_materials; i_mesh++) {
+  for (unsigned int i_mesh = 0; i_mesh < mesh_info->n_materials; i_mesh++) {
+    struct MaterialInfo *mat_info = &mesh_info->materials[i_mesh];
     struct MeshInfo *mesh = meshes[i_mesh];
-    struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(mesh);
+    write_f3d_mat(f, mat_info, mesh->name);
+    enum shading_type shading_type =
+        mat_info->lighting ? SHADING_NORMALS : SHADING_COLORS;
+    struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(mesh, shading_type);
     write_f3d_mesh(f, f3d_mesh, mesh->name);
     free_mesh_to_f3d_mesh(f3d_mesh);
   }
+
+  fprintf(f, "Gfx %s_dl[] = {\n", mesh_info->name);
+  for (unsigned int i_mesh = 0; i_mesh < mesh_info->n_materials; i_mesh++) {
+    struct MeshInfo *mesh = meshes[i_mesh];
+    fprintf(f, "    gsSPDisplayList(%s_mat_dl),\n", mesh->name);
+    fprintf(f, "    gsSPDisplayList(%s_mesh_dl),\n", mesh->name);
+  }
+  fprintf(f, "    gsSPEndDisplayList(),\n");
+  fprintf(f, "};\n");
+
   free_split_mesh_by_material(meshes, mesh_info->n_materials);
   fclose(f);
   return 0;

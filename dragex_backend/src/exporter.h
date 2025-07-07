@@ -1,6 +1,7 @@
 #ifndef DRAGEX_BACKEND_EXPORTER_H
 #define DRAGEX_BACKEND_EXPORTER_H
 
+#include "stdbool.h"
 #include "stddef.h"
 #include "stdint.h"
 
@@ -9,16 +10,17 @@
 struct VertexInfo {
   float coords[3];
   float normal[3];
-  uint8_t alpha;
+  uint8_t color[4]; // RGBA
 };
 
 struct TriInfo {
-  int verts[3];
-  int material;
+  unsigned int verts[3];
+  unsigned int material;
 };
 
 struct MaterialInfo {
   char *name;
+  bool lighting;
 };
 
 struct MeshInfo {
@@ -26,16 +28,21 @@ struct MeshInfo {
   struct VertexInfo *verts;
   struct TriInfo *faces;
   struct MaterialInfo *materials;
-  int n_verts, n_faces, n_materials;
+  unsigned int n_verts, n_faces, n_materials;
 };
 
 void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh);
 
 struct MeshInfo *create_MeshInfo_from_buffers(
-    float *buf_vertices_co, size_t buf_vertices_co_len,
-    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len,
-    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len,
-    float *buf_loops_normal, size_t buf_loops_normal_len);
+    float *buf_vertices_co, size_t buf_vertices_co_len,                //
+    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
+    unsigned int *buf_triangles_material_index,
+    size_t buf_triangles_material_index_len,                                 //
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
+    float *buf_loops_normal, size_t buf_loops_normal_len,                    //
+    float *buf_corners_color, size_t buf_corners_color_len,                  //
+    struct MaterialInfo **material_infos, size_t n_material_infos,           //
+    struct MaterialInfo *default_material);
 
 // f3d
 

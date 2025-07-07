@@ -16,7 +16,15 @@ setup(
                 "meshoptimizer/src/indexgenerator.cpp",
                 "meshoptimizer/src/vcacheoptimizer.cpp",
             ],
-            extra_compile_args=["-Og"],
+            extra_compile_args=[
+                # TODO only pass these args in ""development mode""
+                "-Og",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-Wno-unused-parameter",
+                "-UNDEBUG",
+            ],
         ),
     ],
 )
