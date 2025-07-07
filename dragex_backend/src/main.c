@@ -40,20 +40,20 @@ static PyObject *MaterialInfo_new(PyTypeObject *type, PyObject *args,
 static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
     static char *kwlist[] = {
-        "name",
-        "lighting",
-        NULL,
+        "name", "uv_basis_s", "uv_basis_t", "lighting", NULL,
     };
-    char *name = NULL;
-    int lighting = 0;
+    char *name;
+    int uv_basis_s, uv_basis_t, lighting;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sp", kwlist, &name,
-                                     &lighting))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "siip", kwlist, &name,
+                                     &uv_basis_s, &uv_basis_t, &lighting))
         return -1;
 
     if (name != NULL) {
         self->mat_info.name = strdup(name);
     }
+    self->mat_info.uv_basis_s = uv_basis_s;
+    self->mat_info.uv_basis_t = uv_basis_t;
     self->mat_info.lighting = !!lighting;
     return 0;
 }
@@ -237,12 +237,12 @@ int converter_MaterialInfo_or_None_sequence(PyObject *obj, void *_result) {
 static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
         buf_triangles_material_index_view, buf_loops_vertex_index_view,
-        buf_loops_normal_view, buf_corners_color_view;
+        buf_loops_normal_view, buf_corners_color_view, buf_loops_uv_view;
     struct MaterialInfoSequenceInfo material_infos;
     PyObject *default_material_info;
 
     if (!PyArg_ParseTuple(
-            args, "O&O&O&O&O&O&O&O!",                                    //
+            args, "O&O&O&O&O&O&O&O&O!",                                  //
             converter_contiguous_float_buffer, &buf_vertices_co_view,    //
             converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
             converter_contiguous_uint_buffer,
@@ -250,8 +250,9 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
             converter_contiguous_uint_buffer, &buf_loops_vertex_index_view, //
             converter_contiguous_float_buffer, &buf_loops_normal_view,      //
             converter_contiguous_float_buffer_optional,
-            &buf_corners_color_view,                                  //
-            converter_MaterialInfo_or_None_sequence, &material_infos, //
+            &buf_corners_color_view,                                        //
+            converter_contiguous_float_buffer_optional, &buf_loops_uv_view, //
+            converter_MaterialInfo_or_None_sequence, &material_infos,       //
             &MaterialInfoType, &default_material_info))
         return NULL;
 
@@ -268,7 +269,9 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
         buf_corners_color_view.buf,
         buf_corners_color_view.buf == NULL ? 0
                                            : buf_corners_color_view.shape[0], //
-        material_infos.buffer, material_infos.len,                            //
+        buf_loops_uv_view.buf,
+        buf_loops_uv_view.buf == NULL ? 0 : buf_loops_uv_view.shape[0], //
+        material_infos.buffer, material_infos.len,                      //
         &((struct MaterialInfoObject *)default_material_info)->mat_info);
 
     PyBuffer_Release(&buf_vertices_co_view);
@@ -278,6 +281,8 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     PyBuffer_Release(&buf_loops_normal_view);
     if (buf_corners_color_view.buf != NULL)
         PyBuffer_Release(&buf_corners_color_view);
+    if (buf_loops_uv_view.buf != NULL)
+        PyBuffer_Release(&buf_loops_uv_view);
     free_MaterialInfoSequenceInfo(&material_infos);
 
     if (mesh == NULL) {

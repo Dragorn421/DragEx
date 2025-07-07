@@ -55,8 +55,16 @@ buf_corners_color = np.zeros(
 )
 buf_corners_color[1] = 1.0
 
+buf_loops_uv = np.zeros(
+    shape=3 * 2,
+    dtype=np.float32,
+    order="C",
+)
+
 default_mat_info = dragex_backend.MaterialInfo(
     name="mymaterial",
+    uv_basis_s=1,
+    uv_basis_t=1,
     lighting=False,
 )
 
@@ -67,6 +75,7 @@ mi = dragex_backend.create_MeshInfo(
     buf_loops_vertex_index,
     buf_loops_normal,
     buf_corners_color,
+    buf_loops_uv,
     [],
     default_mat_info,
 )

@@ -95,6 +95,13 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 # TODO at least POINT (vertex) colors?
                 raise NotImplementedError(active_color_attribute.domain)
 
+        active_uv_layer = mesh.uv_layers.active
+        if active_uv_layer is None:
+            buf_loops_uv = None
+        else:
+            buf_loops_uv = new_float_buf(2 * len(mesh.loops))
+            active_uv_layer.uv.foreach_get("vector", buf_loops_uv)
+
         material_infos = list[dragex_backend.MaterialInfo | None]()
         for mat_index in range(len(context.object.material_slots)):
             mat = context.object.material_slots[mat_index].material
@@ -105,11 +112,15 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 mat_geomode = mat_dragex.geometry_mode
                 mat_info = dragex_backend.MaterialInfo(
                     name=make_c_identifier(mat.name),
+                    uv_basis_s=mat_dragex.uv_basis_s,
+                    uv_basis_t=mat_dragex.uv_basis_t,
                     lighting=mat_geomode.lighting,
                 )
             material_infos.append(mat_info)
         default_material_info = dragex_backend.MaterialInfo(
             name="DEFAULT_MATERIAL",
+            uv_basis_s=1,
+            uv_basis_t=1,
             lighting=True,
         )
         mesh_info = dragex_backend.create_MeshInfo(
@@ -119,6 +130,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             buf_loops_vertex_index,
             buf_loops_normal,
             buf_corners_color,
+            buf_loops_uv,
             material_infos,
             default_material_info,
         )
@@ -140,6 +152,9 @@ class DragExMaterialGeometryModeProperties(bpy.types.PropertyGroup):
 
 
 class DragExMaterialProperties(bpy.types.PropertyGroup):
+    uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
+    uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
+
     geometry_mode_: bpy.props.PointerProperty(type=DragExMaterialGeometryModeProperties)
 
     @property
@@ -165,6 +180,8 @@ class DragExMaterialPanel(bpy.types.Panel):
         mat_dragex: DragExMaterialProperties = mat.dragex
         mat_geomode = mat_dragex.geometry_mode
         self.layout.prop(mat_geomode, "lighting")
+        self.layout.prop(mat_dragex, "uv_basis_s")
+        self.layout.prop(mat_dragex, "uv_basis_t")
 
 
 classes = (

@@ -43,6 +43,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
     float *buf_loops_normal, size_t buf_loops_normal_len,                    //
     float *buf_corners_color, size_t buf_corners_color_len,                  //
+    float *buf_loops_uv, size_t buf_loops_uv_len,                            //
     struct MaterialInfo **material_infos, size_t n_material_infos,           //
     struct MaterialInfo *default_material) {
 
@@ -52,6 +53,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     if (buf_loops_normal_len != n_loops * 3)
         return NULL;
     if (buf_corners_color != NULL && buf_corners_color_len != n_loops * 4)
+        return NULL;
+    if (buf_loops_uv != NULL && buf_loops_uv_len != n_loops * 2)
         return NULL;
 
     unsigned int n_faces = (unsigned int)(buf_triangles_loops_len / 3);
@@ -141,6 +144,9 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             }
             mesh->verts[i_loop].coords[j] = buf_vertices_co[v];
         }
+
+        for (int j = 0; j < 2; j++)
+            mesh->verts[i_loop].uv[j] = buf_loops_uv[i_loop * 2 + j];
 
         for (int j = 0; j < 3; j++)
             mesh->verts[i_loop].normal[j] = buf_loops_normal[i_loop * 3 + j];
@@ -318,7 +324,8 @@ void free_mesh_to_f3d_mesh(struct f3d_mesh *mesh) {
 
 enum shading_type { SHADING_NULL, SHADING_COLORS, SHADING_NORMALS };
 
-struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh,
+struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
+                                  int uv_basis_t,
                                   enum shading_type shading_type) {
     unsigned int indices[mesh->n_faces * 3];
     unsigned int remap[mesh->n_verts];
@@ -412,8 +419,14 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh,
                     f3d_v->coords[0] = (int16_t)vi->coords[0];
                     f3d_v->coords[1] = (int16_t)vi->coords[1];
                     f3d_v->coords[2] = (int16_t)vi->coords[2];
-                    f3d_v->st[0] = 0;
-                    f3d_v->st[1] = 0;
+
+                    // TODO uv -> st conversion
+                    // (this seems correct for basic UVing and clamping)
+                    f3d_v->st[0] =
+                        (int16_t)(int)(vi->uv[0] * uv_basis_s * (1 << 5));
+                    f3d_v->st[1] = (int16_t)(int)((1.0f - vi->uv[1]) *
+                                                  uv_basis_t * (1 << 5));
+
                     switch (shading_type) {
                     case SHADING_COLORS:
                         for (int j = 0; j < 3; j++)
@@ -578,7 +591,8 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
         write_f3d_mat(f, mat_info, mesh->name);
         enum shading_type shading_type =
             mat_info->lighting ? SHADING_NORMALS : SHADING_COLORS;
-        struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(mesh, shading_type);
+        struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(
+            mesh, mat_info->uv_basis_s, mat_info->uv_basis_t, shading_type);
         write_f3d_mesh(f, f3d_mesh, mesh->name);
         free_mesh_to_f3d_mesh(f3d_mesh);
     }

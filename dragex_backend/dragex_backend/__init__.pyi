@@ -7,6 +7,8 @@ class MaterialInfo:
     def __init__(
         self,
         name: str,
+        uv_basis_s: int,
+        uv_basis_t: int,
         lighting: bool,
     ) -> None: ...
 
@@ -20,6 +22,7 @@ def create_MeshInfo(
     buf_loops_vertex_index: Buffer,
     buf_loops_normal: Buffer,
     buf_corners_color: Buffer | None,
+    buf_loops_uv: Buffer | None,
     material_infos: Sequence[MaterialInfo | None],
     default_material: MaterialInfo,
     /,
