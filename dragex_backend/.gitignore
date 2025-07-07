@@ -2,3 +2,5 @@ build
 dist
 dragex_backend.egg-info
 wheelhouse
+build_id.h
+build_id.txt
