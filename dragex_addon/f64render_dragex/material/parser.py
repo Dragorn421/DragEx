@@ -12,6 +12,7 @@ from .tile import get_tile_conf, F64Texture
 from .cc import SOLID_CC, get_cc_settings
 from .blender import get_blender_settings
 from ..globals import F64_GLOBALS
+from . import pydefines
 
 if TYPE_CHECKING:
     from ... import DragExMaterialProperties
@@ -406,11 +407,9 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     state.render_mode
     state.flags
 
-    geo_mode = 0
-    geo_mode_attrs = {"g_shade", "g_shade_smooth"}
-    assert geo_mode_attrs.issubset(GEO_MODE_ATTRS)
-    for i, attr in enumerate(GEO_MODE_ATTRS):
-        geo_mode |= int(attr in geo_mode_attrs) << i
+    geo_mode = pydefines.G_SHADE | pydefines.G_SHADE_SMOOTH
+    if f3d_mat.geometry_mode.lighting:
+        geo_mode |= pydefines.G_LIGHTING
     state.geo_mode = geo_mode
 
     othermode_l = 0
@@ -418,10 +417,7 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     #    othermode_l |= getattr(gbi, getattr(rdp, attr))
     state.othermode_l = othermode_l
 
-    othermode_h = 0
-    G_MDSFT_CYCLETYPE = 20
-    G_CYC_2CYCLE = 1 << G_MDSFT_CYCLETYPE
-    othermode_h |= G_CYC_2CYCLE
+    othermode_h = pydefines.G_CYC_2CYCLE
     # for i, attr in enumerate(OTHERMODE_H_ATTRS):
     #    othermode_h |= getattr(gbi, getattr(rdp, attr))
     # if rdp.g_mdsft_cycletype == "G_CYC_COPY":

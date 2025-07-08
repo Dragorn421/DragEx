@@ -6,13 +6,10 @@ import gpu
 from dataclasses import dataclass
 import numpy as np
 
+from . import pydefines
+
 if TYPE_CHECKING:
     from ... import quick_and_dirty
-
-
-TEX_FLAG_MONO = 1 << 0
-TEX_FLAG_4BIT = 1 << 1
-TEX_FLAG_3BIT = 1 << 2
 
 
 @dataclass
@@ -27,14 +24,14 @@ def get_tile_conf(tex: "quick_and_dirty.TextureProperty") -> F64Texture:
         # Note: doing 'gpu.texture.from_image' seems to cost nothing, caching is not needed
         buff = gpu.texture.from_image(tex.image)
         if tex.tex_format in {"I4", "I8"}:
-            flags |= TEX_FLAG_MONO
+            flags |= pydefines.TEX_FLAG_MONO
         if tex.tex_format in {"I4", "IA8"}:
-            flags |= TEX_FLAG_4BIT
+            flags |= pydefines.TEX_FLAG_4BIT
         if tex.tex_format == "IA4":
-            flags |= TEX_FLAG_3BIT
+            flags |= pydefines.TEX_FLAG_3BIT
     else:
         buff = gpu.texture.from_image(bpy.data.images["f64render_missing_texture"])
-        flags |= TEX_FLAG_MONO
+        flags |= pydefines.TEX_FLAG_MONO
 
     conf = np.array(
         [
