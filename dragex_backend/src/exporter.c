@@ -510,7 +510,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
 int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
     fprintf(f, "Gfx %s_mat_dl[] = {\n", name);
 
-    if (mat_info->lighting)
+    if (mat_info->geometry_mode.lighting)
         fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");
     else
         fprintf(f, "    gsSPClearGeometryMode(G_LIGHTING),\n");
@@ -590,7 +590,7 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
         struct MeshInfo *mesh = meshes[i_mesh];
         write_f3d_mat(f, mat_info, mesh->name);
         enum shading_type shading_type =
-            mat_info->lighting ? SHADING_NORMALS : SHADING_COLORS;
+            mat_info->geometry_mode.lighting ? SHADING_NORMALS : SHADING_COLORS;
         struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(
             mesh, mat_info->uv_basis_s, mat_info->uv_basis_t, shading_type);
         write_f3d_mesh(f, f3d_mesh, mesh->name);

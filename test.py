@@ -65,7 +65,9 @@ default_mat_info = dragex_backend.MaterialInfo(
     name="mymaterial",
     uv_basis_s=1,
     uv_basis_t=1,
-    lighting=False,
+    geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+        lighting=False,
+    ),
 )
 
 mi = dragex_backend.create_MeshInfo(

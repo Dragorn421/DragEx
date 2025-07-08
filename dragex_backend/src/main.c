@@ -15,6 +15,41 @@ static PyObject *get_build_id(PyObject *self, PyObject *args) {
     return PyLong_FromLong(BUILD_ID);
 }
 
+struct MaterialInfoGeometryModeObject {
+    PyObject_HEAD
+
+        struct MaterialInfoGeometryMode geometry_mode;
+};
+
+static int MaterialInfoGeometryMode_init(PyObject *_self, PyObject *args,
+                                         PyObject *kwds) {
+    struct MaterialInfoGeometryModeObject *self =
+        (struct MaterialInfoGeometryModeObject *)_self;
+    static char *kwlist[] = {
+        "lighting",
+        NULL,
+    };
+    int lighting;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &lighting))
+        return -1;
+
+    self->geometry_mode.lighting = !!lighting;
+    return 0;
+}
+
+static PyTypeObject MaterialInfoGeometryModeType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MaterialInfoGeometryMode",
+    .tp_doc = PyDoc_STR("material info geometry mode"),
+    .tp_basicsize = sizeof(struct MaterialInfoGeometryModeObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_init = MaterialInfoGeometryMode_init,
+};
+
 struct MaterialInfoObject {
     PyObject_HEAD
 
@@ -40,21 +75,27 @@ static PyObject *MaterialInfo_new(PyTypeObject *type, PyObject *args,
 static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
     static char *kwlist[] = {
-        "name", "uv_basis_s", "uv_basis_t", "lighting", NULL,
+        "name", "uv_basis_s", "uv_basis_t", "geometry_mode", NULL,
     };
     char *name;
-    int uv_basis_s, uv_basis_t, lighting;
+    int uv_basis_s, uv_basis_t;
+    PyObject *_geometry_mode;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "siip", kwlist, &name,
-                                     &uv_basis_s, &uv_basis_t, &lighting))
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "siiO!", kwlist, &name, &uv_basis_s, &uv_basis_t,
+            &MaterialInfoGeometryModeType, &_geometry_mode))
         return -1;
 
-    if (name != NULL) {
-        self->mat_info.name = strdup(name);
+    struct MaterialInfoGeometryModeObject *geometry_mode =
+        (struct MaterialInfoGeometryModeObject *)_geometry_mode;
+
+    if (self->mat_info.name != NULL) {
+        free(self->mat_info.name);
     }
+    self->mat_info.name = strdup(name);
     self->mat_info.uv_basis_s = uv_basis_s;
     self->mat_info.uv_basis_t = uv_basis_t;
-    self->mat_info.lighting = !!lighting;
+    self->mat_info.geometry_mode = geometry_mode->geometry_mode;
     return 0;
 }
 
@@ -316,6 +357,14 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
 }
 
 static int dragex_backend_exec(PyObject *m) {
+    if (PyType_Ready(&MaterialInfoGeometryModeType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MaterialInfoGeometryMode",
+                              (PyObject *)&MaterialInfoGeometryModeType) < 0) {
+        return -1;
+    }
+
     if (PyType_Ready(&MaterialInfoType) < 0) {
         return -1;
     }

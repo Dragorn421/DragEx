@@ -19,11 +19,15 @@ struct TriInfo {
     unsigned int material;
 };
 
+struct MaterialInfoGeometryMode {
+    bool lighting;
+};
+
 struct MaterialInfo {
     char *name;
     int uv_basis_s;
     int uv_basis_t;
-    bool lighting;
+    struct MaterialInfoGeometryMode geometry_mode;
 };
 
 struct MeshInfo {

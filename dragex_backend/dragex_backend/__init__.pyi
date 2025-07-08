@@ -3,13 +3,19 @@ import os
 
 def get_build_id() -> int: ...
 
+class MaterialInfoGeometryMode:
+    def __init__(
+        self,
+        lighting: bool,
+    ) -> None: ...
+
 class MaterialInfo:
     def __init__(
         self,
         name: str,
         uv_basis_s: int,
         uv_basis_t: int,
-        lighting: bool,
+        geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...
 
 class MeshInfo:

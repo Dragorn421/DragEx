@@ -115,14 +115,18 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                     name=make_c_identifier(mat.name),
                     uv_basis_s=mat_dragex.uv_basis_s,
                     uv_basis_t=mat_dragex.uv_basis_t,
-                    lighting=mat_geomode.lighting,
+                    geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+                        lighting=mat_geomode.lighting,
+                    ),
                 )
             material_infos.append(mat_info)
         default_material_info = dragex_backend.MaterialInfo(
             name="DEFAULT_MATERIAL",
             uv_basis_s=1,
             uv_basis_t=1,
-            lighting=True,
+            geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+                lighting=True,
+            ),
         )
         mesh_info = dragex_backend.create_MeshInfo(
             buf_vertices_co,
