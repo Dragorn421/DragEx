@@ -6,12 +6,16 @@ import struct
 import bpy
 import mathutils
 import numpy as np
+from typing import TYPE_CHECKING
 
 from .tile import get_tile_conf, F64Texture
 from .cc import SOLID_CC, get_cc_settings
 from .blender import get_blender_settings
 from ..globals import F64_GLOBALS
 
+if TYPE_CHECKING:
+    from ... import DragExMaterialProperties
+    from ... import quick_and_dirty
 
 @functools.cache
 def quantize(x: float, bits: int, mi=0.0, ma=1.0):  # quantize in a range
@@ -109,6 +113,8 @@ class RenderMode:  # one class for all rendermodes
 
 @functools.cache
 def parse_f3d_rendermode_preset(preset_cycle1: str, preset_cycle2: str | None):
+    return RenderMode()  # TODO-tmp_porting
+
     # TODO: If/When porting to fast64 reuse this in rendermode_preset_to_advanced (where the logic is sourced)
     from fast64_internal.f3d.f3d_gbi import get_F3D_GBI
 
@@ -327,6 +333,9 @@ class F64RenderState:
         )
 
     def set_values_from_cache(self, other: "F64RenderState"):
+        assert self.cached_values is not None
+        assert other.cached_mask is not None
+        assert other.cached_values is not None
         self.cached_values = (self.cached_values & other.cached_mask) | other.cached_values
         for i, other_conf in enumerate(other.tex_confs):
             if other_conf is not None:
@@ -379,7 +388,52 @@ def f64_parse_obj_light(f64_light: F64Light, obj: bpy.types.Object, set_light_di
 DEFAULT_LIGHT_DIR = quantize_direction(mathutils.Vector((0x49, 0x49, 0x49)).normalized())
 
 
-def f64_material_parse(f3d_mat: "F3DMaterialProperty", always_set: bool, set_light_dir: bool) -> F64Material:
+def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, set_light_dir: bool) -> F64Material:
+    print("f64_material_parse")
+
+    state = F64RenderState()
+    f64mat = F64Material(state=state)
+
+    state.tex_size = (f3d_mat.uv_basis_s, f3d_mat.uv_basis_t)
+
+    f64mat.state.tex_confs[0] = get_tile_conf(f3d_mat.quickanddirty.texture0)
+
+    state.cc = get_cc_settings(f3d_mat.quickanddirty)
+    state.prim_color = quantize_srgb(f3d_mat.quickanddirty.prim_color)
+    state.env_color = quantize_srgb(f3d_mat.quickanddirty.env_color)
+
+    state.render_mode
+    state.flags
+    
+    geo_mode = 0
+    geo_mode_attrs = {"g_shade", "g_shade_smooth"}
+    assert geo_mode_attrs.issubset(GEO_MODE_ATTRS)
+    for i, attr in enumerate(GEO_MODE_ATTRS):
+        geo_mode |= int(attr in geo_mode_attrs) << i
+    state.geo_mode = geo_mode
+
+    othermode_l = 0
+    #for i, attr in enumerate(OTHERMODE_L_ATTRS):
+    #    othermode_l |= getattr(gbi, getattr(rdp, attr))
+    state.othermode_l = othermode_l
+
+    othermode_h = 0
+    G_MDSFT_CYCLETYPE = 20
+    G_CYC_2CYCLE = 1 << G_MDSFT_CYCLETYPE
+    othermode_h |= G_CYC_2CYCLE
+    #for i, attr in enumerate(OTHERMODE_H_ATTRS):
+    #    othermode_h |= getattr(gbi, getattr(rdp, attr))
+    #if rdp.g_mdsft_cycletype == "G_CYC_COPY":
+    #    othermode_h ^= gbi.G_TF_BILERP | gbi.G_TF_AVERAGE
+    #othermode_h |= getattr(gbi, get_textlut_mode(f3d_mat))
+    state.othermode_h = othermode_h
+
+    # TODO-tmp_porting
+
+    state.save_cache()
+
+    return f64mat
+
     from fast64_internal.f3d.f3d_material import all_combiner_uses
     from fast64_internal.f3d.f3d_writer import lightDataToObj
 

@@ -66,6 +66,10 @@ class TextureProperty(PropertyGroup):
         update=simplified_tex_update,
     )
 
+    @property
+    def image(self):
+        return self.tex
+
     tex_format: bpy.props.EnumProperty(
         name="Format",
         items=enumTexFormat,
@@ -136,7 +140,7 @@ def rebuild_shaders(_scene, _context):
 class F64RenderSettings(bpy.types.PropertyGroup):
     use_atomic_rendering: bpy.props.BoolProperty(
         name="Use Atomic Rendering",
-        default=True,
+        default=False,
         description="Atomic rendering will draw to a depth and color buffer seperately, which allows for proper blender and decal emulation.\n"
         "This may cause artifacts if your GPU does not support the interlock extension",
         update=rebuild_shaders,

@@ -1,8 +1,14 @@
+from typing import TYPE_CHECKING
+
 import bpy
 import gpu
 
 from dataclasses import dataclass
 import numpy as np
+
+if TYPE_CHECKING:
+    from ... import quick_and_dirty
+
 
 TEX_FLAG_MONO = 1 << 0
 TEX_FLAG_4BIT = 1 << 1
@@ -15,11 +21,11 @@ class F64Texture:
     buff: gpu.types.GPUTexture
 
 
-def get_tile_conf(tex: "TextureProperty") -> F64Texture:
+def get_tile_conf(tex: "quick_and_dirty.TextureProperty") -> F64Texture:
     flags = 0
-    if tex.tex is not None:
+    if tex.image is not None:
         # Note: doing 'gpu.texture.from_image' seems to cost nothing, caching is not needed
-        buff = gpu.texture.from_image(tex.tex)
+        buff = gpu.texture.from_image(tex.image)
         if tex.tex_format in {"I4", "I8"}:
             flags |= TEX_FLAG_MONO
         if tex.tex_format in {"I4", "IA8"}:

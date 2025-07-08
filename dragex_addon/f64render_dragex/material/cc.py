@@ -1,7 +1,12 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import bpy
+
+if TYPE_CHECKING:
+    from ... import quick_and_dirty
+
 
 CC1_C = {
     "0": 0,
@@ -81,12 +86,13 @@ SOLID_CC = (0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 0, 5)
 
 
 # Fetches CC settings from a given fast64-material
-def get_cc_settings(f3d_mat) -> np.ndarray:
+def get_cc_settings(f3d_mat: "quick_and_dirty.QADProps") -> np.ndarray:
     c0 = f3d_mat.combiner1
     c1 = f3d_mat.combiner2
 
-    if f3d_mat.rdp_settings.g_mdsft_cycletype == "G_CYC_1CYCLE":
-        c1 = c0
+    if 0:  # TODO-tmp_porting
+        if f3d_mat.rdp_settings.g_mdsft_cycletype == "G_CYC_1CYCLE":
+            c1 = c0
 
     return np.array(
         [

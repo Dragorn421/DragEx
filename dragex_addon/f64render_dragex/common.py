@@ -25,6 +25,7 @@ from .mesh.mesh import MeshBuffers, mesh_to_buffers
 from .mesh.gpu_batch import batch_for_shader, create_vert_buf
 from .properties import F64RenderSettings
 from .globals import F64_GLOBALS
+from . import tmp_porting
 
 if typing.TYPE_CHECKING:
     from .renderer import Fast64RenderEngine
@@ -50,11 +51,10 @@ class ObjRenderInfo:
 
 
 def get_scene_render_state(scene: bpy.types.Scene):
-    fast64_rs = scene.fast64.renderSettings
     f64render_rs: F64RenderSettings = scene.f64render.render_settings
     state = F64RenderState(
         lights=[F64Light(direction=(0, 0, 0)) for _x in range(0, 8)],
-        ambient_color=quantize_srgb(fast64_rs.ambientColor, force_alpha=True),
+        ambient_color=quantize_srgb(tmp_porting.ambientColor, force_alpha=True),
         light_count=2,
         prim_color=quantize_srgb(f64render_rs.default_prim_color),
         prim_lod=(f64render_rs.default_lod_frac, f64render_rs.default_lod_min),
@@ -71,10 +71,10 @@ def get_scene_render_state(scene: bpy.types.Scene):
         tex_confs=([get_tile_conf(getattr(f64render_rs, f"default_tex{i}")) for i in range(0, 8)]),
     )
     state.lights[0] = F64Light(
-        quantize_srgb(fast64_rs.light0Color, force_alpha=True), quantize_direction(fast64_rs.light0Direction)
+        quantize_srgb(tmp_porting.light0Color, force_alpha=True), quantize_direction(tmp_porting.light0Direction)
     )
     state.lights[1] = F64Light(
-        quantize_srgb(fast64_rs.light1Color, force_alpha=True), quantize_direction(fast64_rs.light1Direction)
+        quantize_srgb(tmp_porting.light1Color, force_alpha=True), quantize_direction(tmp_porting.light1Direction)
     )
     state.set_from_rendermode(parse_f3d_rendermode_preset("G_RM_AA_ZB_OPA_SURF", "G_RM_AA_ZB_OPA_SURF2"))
     state.save_cache()
@@ -218,9 +218,10 @@ def collect_obj_info(
 
         if slot.material not in F64_GLOBALS.materials_cache:
             try:
-                if slot.material.is_f3d:
+                # TODO-tmp_porting
+                if tmp_porting.is_dragex_material(slot.material):
                     F64_GLOBALS.materials_cache[slot.material] = f64_material_parse(
-                        slot.material.f3d_mat, always_set, set_light_dir
+                        slot.material.dragex, always_set, set_light_dir
                     )
                 else:  # fallback
                     F64_GLOBALS.materials_cache[slot.material] = node_material_parse(slot.material)

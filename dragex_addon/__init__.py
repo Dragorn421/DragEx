@@ -3,6 +3,7 @@ import numpy as np
 import bpy
 
 from .build_id import BUILD_ID
+from . import quick_and_dirty
 
 
 def new_float_buf(len):
@@ -161,6 +162,13 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
     def geometry_mode(self) -> DragExMaterialGeometryModeProperties:
         return self.geometry_mode_
 
+    # temp properties for helping with f64render porting
+    quickanddirty_: bpy.props.PointerProperty(type=quick_and_dirty.QADProps)
+
+    @property
+    def quickanddirty(self) -> quick_and_dirty.QADProps:
+        return self.quickanddirty_
+
 
 class DragExMaterialPanel(bpy.types.Panel):
     bl_idname = "MATERIAL_PT_dragex"
@@ -182,6 +190,7 @@ class DragExMaterialPanel(bpy.types.Panel):
         self.layout.prop(mat_geomode, "lighting")
         self.layout.prop(mat_dragex, "uv_basis_s")
         self.layout.prop(mat_dragex, "uv_basis_t")
+        mat_dragex.quickanddirty.draw(self.layout)
 
 
 classes = (
@@ -194,6 +203,8 @@ classes = (
 
 def register():
     print("Hi from", __package__)
+
+    quick_and_dirty.register()
 
     # TODO trying to not import at the module level, see if this is less jank this way
     # TODO catch ImportError
@@ -211,8 +222,19 @@ def register():
 
     bpy.types.Material.dragex = bpy.props.PointerProperty(type=DragExMaterialProperties)
 
+    from . import f64render_dragex
+
+    f64render_dragex.register()
+
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+    from . import f64render_dragex
+
+    f64render_dragex.unregister()
+
+    quick_and_dirty.unregister()
+
     print("Bye from", __package__)

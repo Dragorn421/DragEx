@@ -11,6 +11,7 @@ from .material.parser import f64_parse_obj_light
 from .common import ObjRenderInfo, draw_f64_obj, get_scene_render_state, collect_obj_info
 from .properties import F64RenderProperties, F64RenderSettings
 from .globals import F64_GLOBALS
+from . import tmp_porting
 
 from .sm64 import draw_sm64_scene
 from .oot import draw_oot_scene
@@ -39,8 +40,8 @@ def materials_set_light_direction(scene):
 
 
 class Fast64RenderEngine(bpy.types.RenderEngine):
-    bl_idname = "FAST64_RENDER_ENGINE"
-    bl_label = "Fast64 Renderer"
+    bl_idname = "DRAGEX_RENDER_ENGINE"
+    bl_label = "DragEx"
     bl_use_preview = False
 
     def __init__(self):
@@ -52,7 +53,7 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
         self.shader_fallback = None
         self.vbo_format = None
         self.draw_handler = None
-        self.use_atomic_rendering = True
+        self.use_atomic_rendering = False
 
         self.last_used_textures: dict[int, gpu.types.GPUTexture] = {}
 
@@ -135,7 +136,7 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
             shader_info.define("BLEND_EMULATION", "1")
         # Using the already calculated view space normals instead of transforming the light direction makes
         # for cleaner and faster code
-        shader_info.define("VIEWSPACE_LIGHTING", "0" if scene.fast64.renderSettings.useWorldSpaceLighting else "1")
+        shader_info.define("VIEWSPACE_LIGHTING", "0" if tmp_porting.useWorldSpaceLighting else "1")
         shader_info.define("SIMULATE_LOW_PRECISION", "1")
 
         shader_info.push_constant("MAT4", "matMVP")
@@ -209,15 +210,15 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
         for update in depsgraph.updates:
             if isinstance(update.id, bpy.types.Scene):
                 if (
-                    F64_GLOBALS.current_ucode != update.id.f3d_type
-                    or F64_GLOBALS.current_gamemode != update.id.gameEditorMode
+                    F64_GLOBALS.current_ucode != tmp_porting.f3d_type
+                    or F64_GLOBALS.current_gamemode != tmp_porting.gameEditorMode
                 ):
                     F64_GLOBALS.materials_cache = {}
                     F64_GLOBALS.current_ucode, F64_GLOBALS.current_gamemode = (
-                        update.id.f3d_type,
-                        update.id.gameEditorMode,
+                        tmp_porting.f3d_type,
+                        tmp_porting.gameEditorMode,
                     )
-                world_lighting = update.id.fast64.renderSettings.useWorldSpaceLighting
+                world_lighting = tmp_porting.useWorldSpaceLighting
                 if world_lighting != F64_GLOBALS.world_lighting:
                     F64_GLOBALS.world_lighting = world_lighting
                     F64_GLOBALS.rebuid_shaders = True
@@ -307,11 +308,11 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
         hidden_objs = {ob.name for ob in bpy.context.view_layer.objects if not ob.visible_get() and ob.data is not None}
 
         self.last_used_textures.clear()
-        match depsgraph.scene.gameEditorMode:  # game mode implmentations
-            case "SM64":
-                draw_sm64_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
-            case "OOT":
-                draw_oot_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
+        match "":#depsgraph.scene.gameEditorMode:  # game mode implmentations
+            #case "SM64":
+            #    draw_sm64_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
+            #case "OOT":
+            #    draw_oot_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
             case _:
                 render_state = get_scene_render_state(depsgraph.scene)
                 for obj in depsgraph.objects:
