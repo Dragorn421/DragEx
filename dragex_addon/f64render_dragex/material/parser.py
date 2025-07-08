@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ... import DragExMaterialProperties
     from ... import quick_and_dirty
 
+
 @functools.cache
 def quantize(x: float, bits: int, mi=0.0, ma=1.0):  # quantize in a range
     value_count = 2**bits - 1
@@ -404,7 +405,7 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     state.render_mode
     state.flags
-    
+
     geo_mode = 0
     geo_mode_attrs = {"g_shade", "g_shade_smooth"}
     assert geo_mode_attrs.issubset(GEO_MODE_ATTRS)
@@ -413,7 +414,7 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     state.geo_mode = geo_mode
 
     othermode_l = 0
-    #for i, attr in enumerate(OTHERMODE_L_ATTRS):
+    # for i, attr in enumerate(OTHERMODE_L_ATTRS):
     #    othermode_l |= getattr(gbi, getattr(rdp, attr))
     state.othermode_l = othermode_l
 
@@ -421,11 +422,11 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     G_MDSFT_CYCLETYPE = 20
     G_CYC_2CYCLE = 1 << G_MDSFT_CYCLETYPE
     othermode_h |= G_CYC_2CYCLE
-    #for i, attr in enumerate(OTHERMODE_H_ATTRS):
+    # for i, attr in enumerate(OTHERMODE_H_ATTRS):
     #    othermode_h |= getattr(gbi, getattr(rdp, attr))
-    #if rdp.g_mdsft_cycletype == "G_CYC_COPY":
+    # if rdp.g_mdsft_cycletype == "G_CYC_COPY":
     #    othermode_h ^= gbi.G_TF_BILERP | gbi.G_TF_AVERAGE
-    #othermode_h |= getattr(gbi, get_textlut_mode(f3d_mat))
+    # othermode_h |= getattr(gbi, get_textlut_mode(f3d_mat))
     state.othermode_h = othermode_h
 
     # TODO-tmp_porting

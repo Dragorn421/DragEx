@@ -1,0 +1,11 @@
+[tool.black]
+target-version = [
+    'py311', # used by Blender 4.2.11
+]
+extend-exclude = '''
+^(
+/.*\.venv/.*
+| /dragex_addon/f64render_dragex/.*
+| /dragex_backend/meshoptimizer/.*
+)$
+'''

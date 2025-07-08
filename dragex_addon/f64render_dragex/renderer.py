@@ -308,10 +308,10 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
         hidden_objs = {ob.name for ob in bpy.context.view_layer.objects if not ob.visible_get() and ob.data is not None}
 
         self.last_used_textures.clear()
-        match "":#depsgraph.scene.gameEditorMode:  # game mode implmentations
-            #case "SM64":
+        match "":  # depsgraph.scene.gameEditorMode:  # game mode implmentations
+            # case "SM64":
             #    draw_sm64_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
-            #case "OOT":
+            # case "OOT":
             #    draw_oot_scene(self, depsgraph, hidden_objs, space_view_3d, projection_matrix, view_matrix, always_set)
             case _:
                 render_state = get_scene_render_state(depsgraph.scene)
