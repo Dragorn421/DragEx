@@ -93,9 +93,6 @@ OTHERMODE_H_ATTRS = [
     # tlut
 ]
 
-DRAW_FLAG_DECAL = 1 << 0
-DRAW_FLAG_ALPHA_BLEND = 1 << 1
-
 
 @dataclass
 class RenderMode:  # one class for all rendermodes
@@ -163,7 +160,13 @@ def parse_f3d_rendermode_preset(preset_cycle1: str, preset_cycle2: str | None):
     )
 
 
-def parse_f3d_mat_rendermode(f3d_mat):
+def parse_f3d_mat_rendermode(f3d_mat: "DragExMaterialProperties"):
+    # TODO-tmp_porting
+    return RenderMode(
+        force_bl=True,
+        blend_cycle1=("G_BL_CLR_IN", "G_BL_0", "G_BL_CLR_IN", "G_BL_1"),
+        blend_cycle2=("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA"),
+    )
     rdp = f3d_mat.rdp_settings
     if not rdp.rendermode_advanced_enabled:
         return parse_f3d_rendermode_preset(
@@ -356,14 +359,14 @@ class F64RenderState:
         )
         if rendermode.zmode == "ZMODE_DEC":
             self.render_mode.depth_test = "EQUAL"
-            self.render_mode.flags |= DRAW_FLAG_DECAL
+            self.render_mode.flags |= pydefines.DRAW_FLAG_DECAL
         if rendermode.cvg_x_alpha:
             self.render_mode.alpha_clip = 0.49
         else:
             self.render_mode.alpha_clip = -1
         if rendermode.force_bl and rendermode.blend_cycle2 == ("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA"):
             self.render_mode.blend = "ALPHA"
-            self.render_mode.flags |= DRAW_FLAG_ALPHA_BLEND
+            self.render_mode.flags |= pydefines.DRAW_FLAG_ALPHA_BLEND
 
 
 @dataclass
@@ -411,6 +414,8 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     state.cc = get_cc_settings(f3d_mat.quickanddirty)
     state.prim_color = quantize_srgb(f3d_mat.quickanddirty.prim_color)
     state.env_color = quantize_srgb(f3d_mat.quickanddirty.env_color)
+
+    state.set_from_rendermode(parse_f3d_mat_rendermode(f3d_mat))
 
     state.render_mode
     state.flags

@@ -249,13 +249,11 @@ class F64RenderSettings(bpy.types.PropertyGroup):
     )
 
     def draw_props(self, layout: bpy.types.UILayout, gameEditorMode: str):
-
         # copied from fast64
         def prop_split(layout, data, field, name, **prop_kwargs):
             split = layout.split(factor=0.5)
             split.label(text=name)
             split.prop(data, field, text="", **prop_kwargs)
-
 
         # copied from fast64
         def multilineLabel(layout: bpy.types.UILayout, text: str, icon: str = "NONE"):
@@ -264,7 +262,6 @@ class F64RenderSettings(bpy.types.PropertyGroup):
                 r = layout.row()
                 r.label(text=line, icon=icon if i == 0 else "NONE")
                 r.scale_y = 0.75
-
 
         layout = layout.column()
         if gameEditorMode in {"SM64", "OOT"}:

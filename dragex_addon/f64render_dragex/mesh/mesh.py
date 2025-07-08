@@ -84,29 +84,24 @@ def mesh_to_buffers(mesh: bpy.types.Mesh) -> MeshBuffers:
     else:
         uvs.fill(0.0)
 
-    # HACK: color and alpha layer must be read after the other is used, old blends break otherwise?
-    color_layer = getColorLayer(mesh, layer="Col")
-    if color_layer is not None:
-        colors_tmp = np.empty((len(color_layer), 4), dtype=np.float32)
-        if bpy.app.version > (3, 2, 0):
-            color_layer.foreach_get("color_srgb", colors_tmp.ravel())
-        else:  # vectorized linear -> sRGB conversion
-            color_layer.foreach_get("color", colors_tmp.ravel())
-            mask = colors_tmp > 0.0031308
-            colors_tmp[mask] = 1.055 * (np.power(colors_tmp[mask], (1.0 / 2.4))) - 0.055
-            colors_tmp[~mask] *= 12.92
+    color_layer = mesh.color_attributes.active_color
+    if (
+        color_layer is not None
+        and color_layer.domain == "CORNER"
+        and isinstance(
+            color_layer,
+            (
+                bpy.types.FloatColorAttribute,
+                bpy.types.ByteColorAttribute,
+            ),
+        )
+    ):
+        colors_tmp = np.empty((len(color_layer.data), 4), dtype=np.float32)
+        color_layer.data.foreach_get("color_srgb", colors_tmp.ravel())
         colors = colors_tmp[indices]
 
     else:
         colors.fill(1.0)
-
-    alpha_layer = getColorLayer(mesh, layer="Alpha")
-    if alpha_layer is not None:
-        alpha_tmp = np.empty((len(alpha_layer), 4), dtype=np.float32)
-        alpha_layer.foreach_get("color", alpha_tmp.ravel())
-        colors[:, 3] = alpha_tmp[indices, 0]  # TODO: use blender lum convert to match exports?
-    else:
-        colors[:, 3] = 1.0
 
     # create map of hidden polygons (we need to map that to triangles)
     poly_hidden = np.empty(len(mesh.polygons), dtype=np.int32)
