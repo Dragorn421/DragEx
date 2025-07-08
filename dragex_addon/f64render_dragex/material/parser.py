@@ -377,9 +377,17 @@ def quantize_direction(direction):
     return tuple(quantize(x, 8, -1, 1) for x in direction)
 
 
-def f64_parse_obj_light(f64_light: F64Light, obj: bpy.types.Object, set_light_dir: bool):
-    from fast64_internal.utility import getObjDirectionVec
+# copied from fast64
+def getObjDirectionVec(obj, toExport: bool):
+    rotation = getObjectQuaternion(obj)
+    if toExport:
+        spaceRot = mathutils.Euler((-pi / 2, 0, 0)).to_quaternion()
+        rotation = spaceRot @ rotation
+    normal = (rotation @ mathutils.Vector((0, 0, 1))).normalized()
+    return normal
 
+
+def f64_parse_obj_light(f64_light: F64Light, obj: bpy.types.Object, set_light_dir: bool):
     f64_light.color = quantize_srgb(obj.data.color, force_alpha=True)
     if set_light_dir:
         f64_light.direction = quantize_direction(getObjDirectionVec(obj, False))

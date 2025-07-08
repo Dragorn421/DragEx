@@ -6,7 +6,6 @@ import bpy
 import mathutils
 import gpu
 
-from .utils.addon import addon_set_fast64_path
 from .material.parser import f64_parse_obj_light
 from .common import ObjRenderInfo, draw_f64_obj, get_scene_render_state, collect_obj_info
 from .properties import F64RenderProperties, F64RenderSettings
@@ -46,7 +45,6 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        addon_set_fast64_path()
 
         self.shader = None
         self.shader_2d = None

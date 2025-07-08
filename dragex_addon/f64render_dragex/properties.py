@@ -1,3 +1,5 @@
+import math
+
 import bpy
 from bpy.types import PropertyGroup, Image
 
@@ -24,9 +26,24 @@ enumCIFormat = [
 ]
 
 
-def simplified_tex_update(self, context):
-    from fast64_internal.f3d.f3d_material import setAutoProp
+# copied from fast64
+def log2iRoundUp(n):
+    assert n > 0
+    return int(math.ceil(math.log2(n)))
 
+
+# copied from fast64
+def setAutoProp(fieldProperty, pixelLength):
+    fieldProperty.mask = log2iRoundUp(pixelLength)
+    fieldProperty.shift = 0
+    fieldProperty.low = 0
+    fieldProperty.high = pixelLength
+    if fieldProperty.clamp and fieldProperty.mirror:
+        fieldProperty.high *= 2
+    fieldProperty.high -= 1
+
+
+def simplified_tex_update(self, context):
     tex_size = self.get_tex_size()
     if self.tex is not None and self.autoprop:
         setAutoProp(self.S, tex_size[0])
@@ -232,7 +249,22 @@ class F64RenderSettings(bpy.types.PropertyGroup):
     )
 
     def draw_props(self, layout: bpy.types.UILayout, gameEditorMode: str):
-        from fast64_internal.utility import prop_split, multilineLabel
+
+        # copied from fast64
+        def prop_split(layout, data, field, name, **prop_kwargs):
+            split = layout.split(factor=0.5)
+            split.label(text=name)
+            split.prop(data, field, text="", **prop_kwargs)
+
+
+        # copied from fast64
+        def multilineLabel(layout: bpy.types.UILayout, text: str, icon: str = "NONE"):
+            layout = layout.column()
+            for i, line in enumerate(text.split("\n")):
+                r = layout.row()
+                r.label(text=line, icon=icon if i == 0 else "NONE")
+                r.scale_y = 0.75
+
 
         layout = layout.column()
         if gameEditorMode in {"SM64", "OOT"}:

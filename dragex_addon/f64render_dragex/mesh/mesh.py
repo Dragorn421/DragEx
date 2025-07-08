@@ -25,12 +25,19 @@ class MeshBuffers:
     mesh_name: str = ""  # multiple obj. can share the same mesh, store to allow deletion by name
 
 
+# copied from fast64
+def getColorLayer(mesh: bpy.types.Mesh, layer="Col"):
+    if layer in mesh.attributes and getattr(mesh.attributes[layer], "data", None):
+        return mesh.attributes[layer].data
+    if layer in mesh.vertex_colors:
+        return mesh.vertex_colors[layer].data
+    return None
+
+
 # Converts a blender mesh into buffers to be used by the GPU renderer
 # Note that this can be a slow process, so it should be cached externally
 # This will only handle mesh data itself, materials are not read out here
 def mesh_to_buffers(mesh: bpy.types.Mesh) -> MeshBuffers:
-    from fast64_internal.f3d.f3d_writer import getColorLayer
-
     tDes = time.process_time()
     mesh.calc_loop_triangles()
 
