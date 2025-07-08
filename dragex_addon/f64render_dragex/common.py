@@ -51,7 +51,7 @@ class ObjRenderInfo:
 
 
 def get_scene_render_state(scene: bpy.types.Scene):
-    f64render_rs: F64RenderSettings = scene.f64render.render_settings
+    f64render_rs: F64RenderSettings = scene.dragex_render.render_settings
     state = F64RenderState(
         lights=[F64Light(direction=(0, 0, 0)) for _x in range(0, 8)],
         ambient_color=quantize_srgb(tmp_porting.ambientColor, force_alpha=True),

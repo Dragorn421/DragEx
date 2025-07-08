@@ -79,7 +79,7 @@ def draw_oot_scene(
     view_matrix: mathutils.Matrix,
     always_set: bool,
 ):
-    f64render_rs: F64RenderSettings = depsgraph.scene.f64render.render_settings
+    f64render_rs: F64RenderSettings = depsgraph.scene.dragex_render.render_settings
 
     layer_rendermodes = {}  # TODO: should this be cached globally?
     world = depsgraph.scene.world

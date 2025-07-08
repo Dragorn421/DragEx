@@ -276,7 +276,7 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
         t = time.process_time()
 
         space_view_3d = context.space_data
-        f64render_rs: F64RenderSettings = depsgraph.scene.f64render.render_settings
+        f64render_rs: F64RenderSettings = depsgraph.scene.dragex_render.render_settings
         always_set = f64render_rs.always_set
         projection_matrix, view_matrix = context.region_data.perspective_matrix, context.region_data.view_matrix
         self.use_atomic_rendering = bpy.app.version >= (4, 1, 0) and f64render_rs.use_atomic_rendering
@@ -357,12 +357,12 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
 
 class F64RenderSettingsPanel(bpy.types.Panel):
     bl_label = "f64render"
-    bl_idname = "OBJECT_PT_F64RENDER_SETTINGS_PANEL"
+    bl_idname = "OBJECT_PT_DRAGEX_RENDER_SETTINGS_PANEL"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
 
     def draw(self, context):
-        f64render_rs: F64RenderSettings = context.scene.f64render.render_settings
+        f64render_rs: F64RenderSettings = context.scene.dragex_render.render_settings
         f64render_rs.draw_props(self.layout, context.scene.gameEditorMode)
 
 
@@ -398,11 +398,11 @@ def get_panels():
 
 
 def register():
-    bpy.types.RenderEngine.f64_render_engine = bpy.props.PointerProperty(type=Fast64RenderEngine)
+    bpy.types.RenderEngine.dragex_render_engine = bpy.props.PointerProperty(type=Fast64RenderEngine)
     for panel in get_panels():
-        panel.COMPAT_ENGINES.add("FAST64_RENDER_ENGINE")
+        panel.COMPAT_ENGINES.add(Fast64RenderEngine.bl_idname)
 
-    bpy.types.Scene.f64render = bpy.props.PointerProperty(type=F64RenderProperties)
+    bpy.types.Scene.dragex_render = bpy.props.PointerProperty(type=F64RenderProperties)
 
     bpy.types.VIEW3D_HT_header.append(draw_render_settings)
 
@@ -412,10 +412,10 @@ def register():
 def unregister():
     bpy.types.VIEW3D_HT_header.remove(draw_render_settings)
 
-    del bpy.types.RenderEngine.f64_render_engine
+    del bpy.types.RenderEngine.dragex_render_engine
 
     for panel in get_panels():
-        if "FAST64_RENDER_ENGINE" in panel.COMPAT_ENGINES:
-            panel.COMPAT_ENGINES.remove("FAST64_RENDER_ENGINE")
+        if Fast64RenderEngine.bl_idname in panel.COMPAT_ENGINES:
+            panel.COMPAT_ENGINES.remove(Fast64RenderEngine.bl_idname)
 
-    del bpy.types.Scene.f64render
+    del bpy.types.Scene.dragex_render
