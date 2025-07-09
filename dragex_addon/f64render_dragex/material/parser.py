@@ -73,25 +73,6 @@ GEO_MODE_ATTRS = [
     "g_clipping",
 ]
 
-OTHERMODE_L_ATTRS = [
-    "g_mdsft_alpha_compare",
-    "g_mdsft_zsrcsel",
-]
-
-OTHERMODE_H_ATTRS = [
-    "g_mdsft_alpha_dither",
-    "g_mdsft_rgb_dither",
-    "g_mdsft_combkey",
-    "g_mdsft_textconv",
-    "g_mdsft_text_filt",
-    "g_mdsft_textlod",
-    "g_mdsft_textdetail",
-    "g_mdsft_textpersp",
-    "g_mdsft_cycletype",
-    "g_mdsft_pipeline",
-    # tlut
-]
-
 
 @dataclass
 class RenderMode:  # one class for all rendermodes
@@ -186,6 +167,25 @@ BL_INP = {
 
 def parse_f3d_mat_rendermode(f3d_mat: "DragExMaterialProperties"):
     other_modes = f3d_mat.other_modes
+
+    blend_cycle1 = (
+        BL_INP[other_modes.bl_m1a_0],
+        BL_INP[other_modes.bl_m1b_0],
+        BL_INP[other_modes.bl_m2a_0],
+        BL_INP[other_modes.bl_m2b_0],
+    )
+    if other_modes.cycle_type == "2CYCLE":
+        blend_cycle2 = (
+            BL_INP[other_modes.bl_m1a_1],
+            BL_INP[other_modes.bl_m1b_1],
+            BL_INP[other_modes.bl_m2a_1],
+            BL_INP[other_modes.bl_m2b_1],
+        )
+    else:
+        # Note: This allows F64RenderState.set_from_rendermode to detect alpha blend by checking blend_cycle2 even in 1-cycle mode
+        # Also note: the shader doesn't implement 1-cycle blending. See blendColor in main3d.frag.glsl
+        blend_cycle2 = blend_cycle1
+
     return RenderMode(
         aa_en=other_modes.antialias_en,
         z_cmp=other_modes.z_compare_en,
@@ -197,18 +197,8 @@ def parse_f3d_mat_rendermode(f3d_mat: "DragExMaterialProperties"):
         cvg_x_alpha=other_modes.cvg_x_alpha,
         alpha_cvg_sel=other_modes.alpha_cvg_select,
         force_bl=other_modes.force_blend,
-        blend_cycle1=(
-            BL_INP[other_modes.bl_m1a_0],
-            BL_INP[other_modes.bl_m1b_0],
-            BL_INP[other_modes.bl_m2a_0],
-            BL_INP[other_modes.bl_m2b_0],
-        ),
-        blend_cycle2=(
-            BL_INP[other_modes.bl_m1a_1],
-            BL_INP[other_modes.bl_m1b_1],
-            BL_INP[other_modes.bl_m2a_1],
-            BL_INP[other_modes.bl_m2b_1],
-        ),
+        blend_cycle1=blend_cycle1,
+        blend_cycle2=blend_cycle2,
     )
 
 
@@ -433,14 +423,11 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     f64mat.state.tex_confs[0] = get_tile_conf(f3d_mat.quickanddirty.texture0)
 
-    state.cc = get_cc_settings(f3d_mat.quickanddirty)
+    state.cc = get_cc_settings(f3d_mat)
     state.prim_color = quantize_srgb(f3d_mat.quickanddirty.prim_color)
     state.env_color = quantize_srgb(f3d_mat.quickanddirty.env_color)
 
     state.set_from_rendermode(parse_f3d_mat_rendermode(f3d_mat))
-
-    state.render_mode
-    state.flags
 
     geo_mode = pydefines.G_SHADE | pydefines.G_SHADE_SMOOTH
     if f3d_mat.geometry_mode.lighting:
@@ -448,16 +435,97 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     state.geo_mode = geo_mode
 
     othermode_l = 0
-    # for i, attr in enumerate(OTHERMODE_L_ATTRS):
-    #    othermode_l |= getattr(gbi, getattr(rdp, attr))
+
+    if f3d_mat.other_modes.alpha_compare_en:
+        if f3d_mat.other_modes.dither_alpha_en:
+            othermode_l |= pydefines.G_AC_DITHER
+        else:
+            othermode_l |= pydefines.G_AC_THRESHOLD
+    else:
+        othermode_l |= pydefines.G_AC_NONE
+
+    if f3d_mat.other_modes.z_source_sel:
+        othermode_l |= pydefines.G_ZS_PRIM
+    else:
+        othermode_l |= pydefines.G_ZS_PIXEL
+
     state.othermode_l = othermode_l
 
-    othermode_h = pydefines.G_CYC_2CYCLE
-    # for i, attr in enumerate(OTHERMODE_H_ATTRS):
-    #    othermode_h |= getattr(gbi, getattr(rdp, attr))
-    # if rdp.g_mdsft_cycletype == "G_CYC_COPY":
-    #    othermode_h ^= gbi.G_TF_BILERP | gbi.G_TF_AVERAGE
-    # othermode_h |= getattr(gbi, get_textlut_mode(f3d_mat))
+    othermode_h = 0
+
+    othermode_h |= {
+        "SAME_AS_RGB": pydefines.G_AD_PATTERN,
+        "INVERSE_OF_RGB": pydefines.G_AD_NOTPATTERN,
+        "RANDOM_NOISE": pydefines.G_AD_NOISE,
+        "NONE": pydefines.G_AD_DISABLE,
+    }[f3d_mat.other_modes.alpha_dither_sel]
+
+    othermode_h |= {
+        "MAGIC_SQUARE": pydefines.G_CD_MAGICSQ,
+        "BAYER": pydefines.G_CD_BAYER,
+        "RANDOM_NOISE": pydefines.G_CD_NOISE,
+        "NONE": pydefines.G_CD_DISABLE,
+    }[f3d_mat.other_modes.rgb_dither_sel]
+
+    othermode_h |= pydefines.G_CK_KEY if f3d_mat.other_modes.key_en else pydefines.G_CK_NONE
+
+    """
+    f3d_mat.other_modes.bi_lerp_0    # 4
+    f3d_mat.other_modes.bi_lerp_1    # 2
+    f3d_mat.other_modes.convert_one  # 1
+    pydefines.G_TC_CONV     # 0
+    pydefines.G_TC_FILTCONV # 5 = bi_lerp_0 | convert_one
+    pydefines.G_TC_FILT     # 6 = bi_lerp_0 | bi_lerp_1
+    """
+    # this is approximate but the shader doesn't use this anyway
+    if f3d_mat.other_modes.bi_lerp_0 and f3d_mat.other_modes.bi_lerp_1:
+        othermode_h |= pydefines.G_TC_FILT
+    elif f3d_mat.other_modes.bi_lerp_0 and f3d_mat.other_modes.convert_one:
+        othermode_h |= pydefines.G_TC_FILTCONV
+    else:
+        othermode_h |= pydefines.G_TC_CONV
+
+    if f3d_mat.other_modes.sample_type:
+        if f3d_mat.other_modes.mid_texel:
+            othermode_h |= pydefines.G_TF_AVERAGE
+        else:
+            othermode_h |= pydefines.G_TF_BILERP
+    else:
+        othermode_h |= pydefines.G_TF_POINT
+
+    othermode_h |= pydefines.G_TL_LOD if f3d_mat.other_modes.tex_lod_en else pydefines.G_TL_TILE
+
+    # Note: having both detail and sharpen at once is invalid
+    # N64brew discord: https://discord.com/channels/205520502922543113/205520502922543113/1392399686819774575
+    if f3d_mat.other_modes.detail_tex_en:
+        othermode_h |= pydefines.G_TD_DETAIL
+    elif f3d_mat.other_modes.sharpen_tex_en:
+        othermode_h |= pydefines.G_TD_SHARPEN
+    else:
+        othermode_h |= pydefines.G_TD_CLAMP
+
+    othermode_h |= pydefines.G_TP_PERSP if f3d_mat.other_modes.persp_tex_en else pydefines.G_TP_NONE
+
+    othermode_h |= {
+        "1CYCLE": pydefines.G_CYC_1CYCLE,
+        "2CYCLE": pydefines.G_CYC_2CYCLE,
+        "COPY": pydefines.G_CYC_COPY,
+        "FILL": pydefines.G_CYC_FILL,
+    }[f3d_mat.other_modes.cycle_type]
+
+    othermode_h |= pydefines.G_PM_1PRIMITIVE if f3d_mat.other_modes.atomic_prim else pydefines.G_PM_NPRIMITIVE
+
+    if f3d_mat.other_modes.tlut_en:
+        if f3d_mat.other_modes.tlut_type:
+            othermode_h |= pydefines.G_TT_IA16
+        else:
+            othermode_h |= pydefines.G_TT_RGBA16
+    else:
+        othermode_h |= pydefines.G_TT_NONE
+
+    if f3d_mat.other_modes.cycle_type == "COPY":
+        othermode_h &= ~(pydefines.G_TF_BILERP | pydefines.G_TF_AVERAGE)
+
     state.othermode_h = othermode_h
 
     # TODO-tmp_porting

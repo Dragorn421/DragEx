@@ -7,7 +7,7 @@ import bpy
 from . import pydefines
 
 if TYPE_CHECKING:
-    from ... import quick_and_dirty
+    from ... import DragExMaterialProperties
 
 
 CC1_C = {
@@ -93,13 +93,16 @@ SOLID_CC = (
 
 
 # Fetches CC settings from a given fast64-material
-def get_cc_settings(f3d_mat: "quick_and_dirty.QADProps") -> np.ndarray:
-    c0 = f3d_mat.combiner1
-    c1 = f3d_mat.combiner2
+def get_cc_settings(f3d_mat: "DragExMaterialProperties") -> np.ndarray:
+    c0 = f3d_mat.quickanddirty.combiner1
+    c1 = f3d_mat.quickanddirty.combiner2
 
-    if 0:  # TODO-tmp_porting
-        if f3d_mat.rdp_settings.g_mdsft_cycletype == "G_CYC_1CYCLE":
-            c1 = c0
+    if f3d_mat.other_modes.cycle_type == "1CYCLE":
+        # Note: this is the opposite of what the RDP does which is ignore c0 and read c1 in 1-cycle mode
+        # https://n64brew.dev/wiki/Reality_Display_Processor/Commands?oldid=5601#0x3C_-_Set_Combine_Mode
+        # > In 1-Cycle mode only the second cycle configuration is used, the first cycle configuration is ignored.
+        # Also note: this is useless as the shader ignores c1 in 1-cycle mode
+        c1 = c0
 
     return np.array(
         [
