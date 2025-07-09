@@ -15,6 +15,30 @@
 #define ARRAY_COUNT(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif
 
+/*
+ * Given a string in the `var##_name` variable, find the string in the
+ * `names` array and store its index into the `var` variable.
+ * If the string is not found, raise a Python exception and return.
+ */
+#define NAME_TO_ENUM(var, names)                                               \
+    {                                                                          \
+        var = 0;                                                               \
+        bool success = false;                                                  \
+        for (size_t i = 0; i < ARRAY_COUNT(names); i++) {                      \
+            if (names[i] == NULL)                                              \
+                continue;                                                      \
+            if (strcmp(var##_name, names[i]) == 0) {                           \
+                success = true;                                                \
+                var = i;                                                       \
+            }                                                                  \
+        }                                                                      \
+        if (!success) {                                                        \
+            PyErr_Format(PyExc_ValueError, "Bad " #var " name: %s",            \
+                         var##_name);                                          \
+            return -1;                                                         \
+        }                                                                      \
+    }
+
 static PyObject *get_build_id(PyObject *self, PyObject *args) {
     return PyLong_FromLong(BUILD_ID);
 }
@@ -121,30 +145,6 @@ static int MaterialInfoOtherModes_init(PyObject *_self, PyObject *args,
             &z_source_sel, &dither_alpha_en, &alpha_compare_en))
         return -1;
 
-        /*
-         * Given a string in the `var##_name` variable, find the string in the
-         * `names` array and store its index into the `var` variable.
-         * If the string is not found, raise a Python exception and return.
-         */
-#define NAME_TO_ENUM(var, names)                                               \
-    {                                                                          \
-        var = 0;                                                               \
-        bool success = false;                                                  \
-        for (size_t i = 0; i < ARRAY_COUNT(names); i++) {                      \
-            if (names[i] == NULL)                                              \
-                continue;                                                      \
-            if (strcmp(var##_name, names[i]) == 0) {                           \
-                success = true;                                                \
-                var = i;                                                       \
-            }                                                                  \
-        }                                                                      \
-        if (!success) {                                                        \
-            PyErr_Format(PyExc_ValueError, "Bad " #var " name: %s",            \
-                         var##_name);                                          \
-            return -1;                                                         \
-        }                                                                      \
-    }
-
     static const char *cycle_type_names[] = {
         [RDP_OM_CYCLE_TYPE_1CYCLE] = "1CYCLE",
         [RDP_OM_CYCLE_TYPE_2CYCLE] = "2CYCLE",
@@ -225,8 +225,6 @@ static int MaterialInfoOtherModes_init(PyObject *_self, PyObject *args,
     enum rdp_om_cvg_dest cvg_dest;
     NAME_TO_ENUM(cvg_dest, cvg_dest_names);
 
-#undef NAME_TO_ENUM
-
     self->other_modes.atomic_prim = atomic_prim;
     self->other_modes.cycle_type = cycle_type;
     self->other_modes.persp_tex_en = persp_tex_en;
@@ -282,6 +280,211 @@ static PyTypeObject MaterialInfoOtherModesType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_init = MaterialInfoOtherModes_init,
+};
+
+struct MaterialInfoCombinerObject {
+    PyObject_HEAD
+
+        struct MaterialInfoCombiner combiner;
+};
+
+static int MaterialInfoCombiner_init(PyObject *_self, PyObject *args,
+                                     PyObject *kwds) {
+    struct MaterialInfoCombinerObject *self =
+        (struct MaterialInfoCombinerObject *)_self;
+    static char *kwlist[] = {
+        "rgb_A_0",   "rgb_B_0",   "rgb_C_0",   "rgb_D_0",   "alpha_A_0",
+        "alpha_B_0", "alpha_C_0", "alpha_D_0", "rgb_A_1",   "rgb_B_1",
+        "rgb_C_1",   "rgb_D_1",   "alpha_A_1", "alpha_B_1", "alpha_C_1",
+        "alpha_D_1", NULL,
+    };
+    char *rgb_A_0_name;
+    char *rgb_B_0_name;
+    char *rgb_C_0_name;
+    char *rgb_D_0_name;
+    char *alpha_A_0_name;
+    char *alpha_B_0_name;
+    char *alpha_C_0_name;
+    char *alpha_D_0_name;
+    char *rgb_A_1_name;
+    char *rgb_B_1_name;
+    char *rgb_C_1_name;
+    char *rgb_D_1_name;
+    char *alpha_A_1_name;
+    char *alpha_B_1_name;
+    char *alpha_C_1_name;
+    char *alpha_D_1_name;
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds,
+            "ssss"
+            "ssss"
+            "ssss"
+            "ssss",
+            kwlist,
+
+            &rgb_A_0_name, &rgb_B_0_name, &rgb_C_0_name, &rgb_D_0_name,
+            &alpha_A_0_name, &alpha_B_0_name, &alpha_C_0_name, &alpha_D_0_name,
+            &rgb_A_1_name, &rgb_B_1_name, &rgb_C_1_name, &rgb_D_1_name,
+            &alpha_A_1_name, &alpha_B_1_name, &alpha_C_1_name, &alpha_D_1_name))
+        return -1;
+
+    static const char *rgb_A_names[] = {
+        [RDP_COMBINER_RGB_A_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_A_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_RGB_A_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_RGB_A_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_A_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_A_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_A_INPUTS_1] = "1",
+        [RDP_COMBINER_RGB_A_INPUTS_NOISE] = "NOISE",
+        [RDP_COMBINER_RGB_A_INPUTS_0] = "0",
+    };
+    static const char *rgb_B_names[] = {
+        [RDP_COMBINER_RGB_B_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_B_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_RGB_B_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_RGB_B_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_B_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_B_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_B_INPUTS_CENTER] = "CENTER",
+        [RDP_COMBINER_RGB_B_INPUTS_K4] = "K4",
+        [RDP_COMBINER_RGB_B_INPUTS_0] = "0",
+    };
+    static const char *rgb_C_names[] = {
+        [RDP_COMBINER_RGB_C_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_C_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_C_INPUTS_SCALE] = "SCALE",
+        [RDP_COMBINER_RGB_C_INPUTS_COMBINED_ALPHA] = "COMBINED_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX0_ALPHA] = "TEX0_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX1_ALPHA] = "TEX1_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE_ALPHA] = "PRIMITIVE_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_SHADE_ALPHA] = "SHADE_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT_ALPHA] = "ENVIRONMENT_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_LOD_FRACTION] = "LOD_FRACTION",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIM_LOD_FRAC] = "PRIM_LOD_FRAC",
+        [RDP_COMBINER_RGB_C_INPUTS_K5] = "K5",
+        [RDP_COMBINER_RGB_C_INPUTS_0] = "0",
+    };
+    static const char *rgb_D_names[] = {
+        [RDP_COMBINER_RGB_D_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_D_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_RGB_D_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_RGB_D_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_D_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_D_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_D_INPUTS_1] = "1",
+        [RDP_COMBINER_RGB_D_INPUTS_0] = "0",
+    };
+
+    static const char *alpha_A_names[] = {
+        [RDP_COMBINER_ALPHA_A_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_A_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_ALPHA_A_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_ALPHA_A_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_A_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_A_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_A_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_A_INPUTS_0] = "0",
+    };
+    static const char *alpha_B_names[] = {
+        [RDP_COMBINER_ALPHA_B_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_B_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_ALPHA_B_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_ALPHA_B_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_B_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_B_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_B_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_B_INPUTS_0] = "0",
+    };
+    static const char *alpha_C_names[] = {
+        [RDP_COMBINER_ALPHA_C_INPUTS_LOD_FRACTION] = "LOD_FRACTION",
+        [RDP_COMBINER_ALPHA_C_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_ALPHA_C_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_ALPHA_C_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_C_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_C_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_C_INPUTS_PRIM_LOD_FRAC] = "PRIM_LOD_FRAC",
+        [RDP_COMBINER_ALPHA_C_INPUTS_0] = "0",
+    };
+    static const char *alpha_D_names[] = {
+        [RDP_COMBINER_ALPHA_D_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_D_INPUTS_TEX0] = "TEX0",
+        [RDP_COMBINER_ALPHA_D_INPUTS_TEX1] = "TEX1",
+        [RDP_COMBINER_ALPHA_D_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_D_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_D_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_D_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_D_INPUTS_0] = "0",
+    };
+
+    enum rdp_combiner_rgb_A_inputs rgb_A_0;
+    NAME_TO_ENUM(rgb_A_0, rgb_A_names);
+    enum rdp_combiner_rgb_B_inputs rgb_B_0;
+    NAME_TO_ENUM(rgb_B_0, rgb_B_names);
+    enum rdp_combiner_rgb_C_inputs rgb_C_0;
+    NAME_TO_ENUM(rgb_C_0, rgb_C_names);
+    enum rdp_combiner_rgb_D_inputs rgb_D_0;
+    NAME_TO_ENUM(rgb_D_0, rgb_D_names);
+    enum rdp_combiner_alpha_A_inputs alpha_A_0;
+    NAME_TO_ENUM(alpha_A_0, alpha_A_names);
+    enum rdp_combiner_alpha_B_inputs alpha_B_0;
+    NAME_TO_ENUM(alpha_B_0, alpha_B_names);
+    enum rdp_combiner_alpha_C_inputs alpha_C_0;
+    NAME_TO_ENUM(alpha_C_0, alpha_C_names);
+    enum rdp_combiner_alpha_D_inputs alpha_D_0;
+    NAME_TO_ENUM(alpha_D_0, alpha_D_names);
+    enum rdp_combiner_rgb_A_inputs rgb_A_1;
+    NAME_TO_ENUM(rgb_A_1, rgb_A_names);
+    enum rdp_combiner_rgb_B_inputs rgb_B_1;
+    NAME_TO_ENUM(rgb_B_1, rgb_B_names);
+    enum rdp_combiner_rgb_C_inputs rgb_C_1;
+    NAME_TO_ENUM(rgb_C_1, rgb_C_names);
+    enum rdp_combiner_rgb_D_inputs rgb_D_1;
+    NAME_TO_ENUM(rgb_D_1, rgb_D_names);
+    enum rdp_combiner_alpha_A_inputs alpha_A_1;
+    NAME_TO_ENUM(alpha_A_1, alpha_A_names);
+    enum rdp_combiner_alpha_B_inputs alpha_B_1;
+    NAME_TO_ENUM(alpha_B_1, alpha_B_names);
+    enum rdp_combiner_alpha_C_inputs alpha_C_1;
+    NAME_TO_ENUM(alpha_C_1, alpha_C_names);
+    enum rdp_combiner_alpha_D_inputs alpha_D_1;
+    NAME_TO_ENUM(alpha_D_1, alpha_D_names);
+
+    self->combiner.rgb_A_0 = rgb_A_0;
+    self->combiner.rgb_B_0 = rgb_B_0;
+    self->combiner.rgb_C_0 = rgb_C_0;
+    self->combiner.rgb_D_0 = rgb_D_0;
+    self->combiner.alpha_A_0 = alpha_A_0;
+    self->combiner.alpha_B_0 = alpha_B_0;
+    self->combiner.alpha_C_0 = alpha_C_0;
+    self->combiner.alpha_D_0 = alpha_D_0;
+    self->combiner.rgb_A_1 = rgb_A_1;
+    self->combiner.rgb_B_1 = rgb_B_1;
+    self->combiner.rgb_C_1 = rgb_C_1;
+    self->combiner.rgb_D_1 = rgb_D_1;
+    self->combiner.alpha_A_1 = alpha_A_1;
+    self->combiner.alpha_B_1 = alpha_B_1;
+    self->combiner.alpha_C_1 = alpha_C_1;
+    self->combiner.alpha_D_1 = alpha_D_1;
+
+    return 0;
+}
+
+static PyTypeObject MaterialInfoCombinerType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MaterialInfoCombiner",
+    .tp_doc = PyDoc_STR("material info geometry mode"),
+    .tp_basicsize = sizeof(struct MaterialInfoCombinerObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_init = MaterialInfoCombiner_init,
 };
 
 struct MaterialInfoGeometryModeObject {
@@ -344,21 +547,25 @@ static PyObject *MaterialInfo_new(PyTypeObject *type, PyObject *args,
 static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
     static char *kwlist[] = {
-        "name",        "uv_basis_s",    "uv_basis_t",
-        "other_modes", "geometry_mode", NULL,
+        "name",     "uv_basis_s",    "uv_basis_t", "other_modes",
+        "combiner", "geometry_mode", NULL,
     };
     char *name;
     int uv_basis_s, uv_basis_t;
-    PyObject *_other_modes, *_geometry_mode;
+    PyObject *_other_modes, *_combiner,*_geometry_mode;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "siiO!O!", kwlist, &name, &uv_basis_s, &uv_basis_t,
+            args, kwds, "siiO!O!O!", kwlist, &name, &uv_basis_s, &uv_basis_t,
             &MaterialInfoOtherModesType, &_other_modes,
+            &MaterialInfoCombinerType, &_combiner,
             &MaterialInfoGeometryModeType, &_geometry_mode))
         return -1;
 
     struct MaterialInfoOtherModesObject *other_modes =
         (struct MaterialInfoOtherModesObject *)_other_modes;
+
+    struct MaterialInfoCombinerObject *combiner =
+        (struct MaterialInfoCombinerObject *)_combiner;
 
     struct MaterialInfoGeometryModeObject *geometry_mode =
         (struct MaterialInfoGeometryModeObject *)_geometry_mode;
@@ -370,6 +577,7 @@ static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     self->mat_info.uv_basis_s = uv_basis_s;
     self->mat_info.uv_basis_t = uv_basis_t;
     self->mat_info.other_modes = other_modes->other_modes;
+    self->mat_info.combiner = combiner->combiner;
     self->mat_info.geometry_mode = geometry_mode->geometry_mode;
     return 0;
 }
@@ -637,6 +845,14 @@ static int dragex_backend_exec(PyObject *m) {
     }
     if (PyModule_AddObjectRef(m, "MaterialInfoOtherModes",
                               (PyObject *)&MaterialInfoOtherModesType) < 0) {
+        return -1;
+    }
+
+    if (PyType_Ready(&MaterialInfoCombinerType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MaterialInfoCombiner",
+                              (PyObject *)&MaterialInfoCombinerType) < 0) {
         return -1;
     }
 

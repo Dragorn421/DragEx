@@ -119,6 +119,118 @@ struct MaterialInfoOtherModes {
     bool alpha_compare_en;
 };
 
+enum rdp_combiner_rgb_A_inputs {
+    RDP_COMBINER_RGB_A_INPUTS_COMBINED,
+    RDP_COMBINER_RGB_A_INPUTS_TEX0,
+    RDP_COMBINER_RGB_A_INPUTS_TEX1,
+    RDP_COMBINER_RGB_A_INPUTS_PRIMITIVE,
+    RDP_COMBINER_RGB_A_INPUTS_SHADE,
+    RDP_COMBINER_RGB_A_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_RGB_A_INPUTS_1,
+    RDP_COMBINER_RGB_A_INPUTS_NOISE,
+    RDP_COMBINER_RGB_A_INPUTS_0
+};
+enum rdp_combiner_rgb_B_inputs {
+    RDP_COMBINER_RGB_B_INPUTS_COMBINED,
+    RDP_COMBINER_RGB_B_INPUTS_TEX0,
+    RDP_COMBINER_RGB_B_INPUTS_TEX1,
+    RDP_COMBINER_RGB_B_INPUTS_PRIMITIVE,
+    RDP_COMBINER_RGB_B_INPUTS_SHADE,
+    RDP_COMBINER_RGB_B_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_RGB_B_INPUTS_CENTER,
+    RDP_COMBINER_RGB_B_INPUTS_K4,
+    RDP_COMBINER_RGB_B_INPUTS_0
+};
+enum rdp_combiner_rgb_C_inputs {
+    RDP_COMBINER_RGB_C_INPUTS_COMBINED,
+    RDP_COMBINER_RGB_C_INPUTS_TEX0,
+    RDP_COMBINER_RGB_C_INPUTS_TEX1,
+    RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE,
+    RDP_COMBINER_RGB_C_INPUTS_SHADE,
+    RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_RGB_C_INPUTS_SCALE,
+    RDP_COMBINER_RGB_C_INPUTS_COMBINED_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_TEX0_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_TEX1_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_SHADE_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT_ALPHA,
+    RDP_COMBINER_RGB_C_INPUTS_LOD_FRACTION,
+    RDP_COMBINER_RGB_C_INPUTS_PRIM_LOD_FRAC,
+    RDP_COMBINER_RGB_C_INPUTS_K5,
+    RDP_COMBINER_RGB_C_INPUTS_0
+};
+enum rdp_combiner_rgb_D_inputs {
+    RDP_COMBINER_RGB_D_INPUTS_COMBINED,
+    RDP_COMBINER_RGB_D_INPUTS_TEX0,
+    RDP_COMBINER_RGB_D_INPUTS_TEX1,
+    RDP_COMBINER_RGB_D_INPUTS_PRIMITIVE,
+    RDP_COMBINER_RGB_D_INPUTS_SHADE,
+    RDP_COMBINER_RGB_D_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_RGB_D_INPUTS_1,
+    RDP_COMBINER_RGB_D_INPUTS_0
+};
+
+enum rdp_combiner_alpha_A_inputs {
+    RDP_COMBINER_ALPHA_A_INPUTS_COMBINED,
+    RDP_COMBINER_ALPHA_A_INPUTS_TEX0,
+    RDP_COMBINER_ALPHA_A_INPUTS_TEX1,
+    RDP_COMBINER_ALPHA_A_INPUTS_PRIMITIVE,
+    RDP_COMBINER_ALPHA_A_INPUTS_SHADE,
+    RDP_COMBINER_ALPHA_A_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_ALPHA_A_INPUTS_1,
+    RDP_COMBINER_ALPHA_A_INPUTS_0
+};
+enum rdp_combiner_alpha_B_inputs {
+    RDP_COMBINER_ALPHA_B_INPUTS_COMBINED,
+    RDP_COMBINER_ALPHA_B_INPUTS_TEX0,
+    RDP_COMBINER_ALPHA_B_INPUTS_TEX1,
+    RDP_COMBINER_ALPHA_B_INPUTS_PRIMITIVE,
+    RDP_COMBINER_ALPHA_B_INPUTS_SHADE,
+    RDP_COMBINER_ALPHA_B_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_ALPHA_B_INPUTS_1,
+    RDP_COMBINER_ALPHA_B_INPUTS_0
+};
+enum rdp_combiner_alpha_C_inputs {
+    RDP_COMBINER_ALPHA_C_INPUTS_LOD_FRACTION,
+    RDP_COMBINER_ALPHA_C_INPUTS_TEX0,
+    RDP_COMBINER_ALPHA_C_INPUTS_TEX1,
+    RDP_COMBINER_ALPHA_C_INPUTS_PRIMITIVE,
+    RDP_COMBINER_ALPHA_C_INPUTS_SHADE,
+    RDP_COMBINER_ALPHA_C_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_ALPHA_C_INPUTS_PRIM_LOD_FRAC,
+    RDP_COMBINER_ALPHA_C_INPUTS_0
+};
+enum rdp_combiner_alpha_D_inputs {
+    RDP_COMBINER_ALPHA_D_INPUTS_COMBINED,
+    RDP_COMBINER_ALPHA_D_INPUTS_TEX0,
+    RDP_COMBINER_ALPHA_D_INPUTS_TEX1,
+    RDP_COMBINER_ALPHA_D_INPUTS_PRIMITIVE,
+    RDP_COMBINER_ALPHA_D_INPUTS_SHADE,
+    RDP_COMBINER_ALPHA_D_INPUTS_ENVIRONMENT,
+    RDP_COMBINER_ALPHA_D_INPUTS_1,
+    RDP_COMBINER_ALPHA_D_INPUTS_0
+};
+
+struct MaterialInfoCombiner {
+    enum rdp_combiner_rgb_A_inputs rgb_A_0;
+    enum rdp_combiner_rgb_B_inputs rgb_B_0;
+    enum rdp_combiner_rgb_C_inputs rgb_C_0;
+    enum rdp_combiner_rgb_D_inputs rgb_D_0;
+    enum rdp_combiner_alpha_A_inputs alpha_A_0;
+    enum rdp_combiner_alpha_B_inputs alpha_B_0;
+    enum rdp_combiner_alpha_C_inputs alpha_C_0;
+    enum rdp_combiner_alpha_D_inputs alpha_D_0;
+    enum rdp_combiner_rgb_A_inputs rgb_A_1;
+    enum rdp_combiner_rgb_B_inputs rgb_B_1;
+    enum rdp_combiner_rgb_C_inputs rgb_C_1;
+    enum rdp_combiner_rgb_D_inputs rgb_D_1;
+    enum rdp_combiner_alpha_A_inputs alpha_A_1;
+    enum rdp_combiner_alpha_B_inputs alpha_B_1;
+    enum rdp_combiner_alpha_C_inputs alpha_C_1;
+    enum rdp_combiner_alpha_D_inputs alpha_D_1;
+};
+
 struct MaterialInfoGeometryMode {
     bool lighting;
 };
@@ -128,6 +240,7 @@ struct MaterialInfo {
     int uv_basis_s;
     int uv_basis_t;
     struct MaterialInfoOtherModes other_modes;
+    struct MaterialInfoCombiner combiner;
     struct MaterialInfoGeometryMode geometry_mode;
 };
 

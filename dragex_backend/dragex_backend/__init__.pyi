@@ -50,6 +50,27 @@ class MaterialInfoOtherModes:
         alpha_compare_en: bool,
     ) -> None: ...
 
+class MaterialInfoCombiner:
+    def __init__(
+        self,
+        rgb_A_0: str,
+        rgb_B_0: str,
+        rgb_C_0: str,
+        rgb_D_0: str,
+        alpha_A_0: str,
+        alpha_B_0: str,
+        alpha_C_0: str,
+        alpha_D_0: str,
+        rgb_A_1: str,
+        rgb_B_1: str,
+        rgb_C_1: str,
+        rgb_D_1: str,
+        alpha_A_1: str,
+        alpha_B_1: str,
+        alpha_C_1: str,
+        alpha_D_1: str,
+    ) -> None: ...
+
 class MaterialInfoGeometryMode:
     def __init__(
         self,
@@ -63,6 +84,7 @@ class MaterialInfo:
         uv_basis_s: int,
         uv_basis_t: int,
         other_modes: MaterialInfoOtherModes,
+        combiner: MaterialInfoCombiner,
         geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...
 

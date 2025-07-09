@@ -645,6 +645,125 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
                 ? om->dither_alpha_en ? "G_AC_DITHER" : "G_AC_THRESHOLD"
                 : "G_AC_NONE");
 
+    static const char *combiner_rgb_A_names[] = {
+        [RDP_COMBINER_RGB_A_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_A_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_RGB_A_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_RGB_A_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_A_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_A_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_A_INPUTS_1] = "1",
+        [RDP_COMBINER_RGB_A_INPUTS_NOISE] = "NOISE",
+        [RDP_COMBINER_RGB_A_INPUTS_0] = "0",
+    };
+    static const char *combiner_rgb_B_names[] = {
+        [RDP_COMBINER_RGB_B_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_B_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_RGB_B_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_RGB_B_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_B_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_B_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_B_INPUTS_CENTER] = "CENTER",
+        [RDP_COMBINER_RGB_B_INPUTS_K4] = "K4",
+        [RDP_COMBINER_RGB_B_INPUTS_0] = "0",
+    };
+    static const char *combiner_rgb_C_names[] = {
+        [RDP_COMBINER_RGB_C_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_C_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_C_INPUTS_SCALE] = "SCALE",
+        [RDP_COMBINER_RGB_C_INPUTS_COMBINED_ALPHA] = "COMBINED_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX0_ALPHA] = "TEXEL0_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_TEX1_ALPHA] = "TEXEL1_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIMITIVE_ALPHA] = "PRIMITIVE_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_SHADE_ALPHA] = "SHADE_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_ENVIRONMENT_ALPHA] = "ENVIRONMENT_ALPHA",
+        [RDP_COMBINER_RGB_C_INPUTS_LOD_FRACTION] = "LOD_FRACTION",
+        [RDP_COMBINER_RGB_C_INPUTS_PRIM_LOD_FRAC] = "PRIM_LOD_FRAC",
+        [RDP_COMBINER_RGB_C_INPUTS_K5] = "K5",
+        [RDP_COMBINER_RGB_C_INPUTS_0] = "0",
+    };
+    static const char *combiner_rgb_D_names[] = {
+        [RDP_COMBINER_RGB_D_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_RGB_D_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_RGB_D_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_RGB_D_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_RGB_D_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_RGB_D_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_RGB_D_INPUTS_1] = "1",
+        [RDP_COMBINER_RGB_D_INPUTS_0] = "0",
+    };
+
+    static const char *combiner_alpha_A_names[] = {
+        [RDP_COMBINER_ALPHA_A_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_A_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_ALPHA_A_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_ALPHA_A_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_A_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_A_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_A_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_A_INPUTS_0] = "0",
+    };
+    static const char *combiner_alpha_B_names[] = {
+        [RDP_COMBINER_ALPHA_B_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_B_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_ALPHA_B_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_ALPHA_B_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_B_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_B_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_B_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_B_INPUTS_0] = "0",
+    };
+    static const char *combiner_alpha_C_names[] = {
+        [RDP_COMBINER_ALPHA_C_INPUTS_LOD_FRACTION] = "LOD_FRACTION",
+        [RDP_COMBINER_ALPHA_C_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_ALPHA_C_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_ALPHA_C_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_C_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_C_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_C_INPUTS_PRIM_LOD_FRAC] = "PRIM_LOD_FRAC",
+        [RDP_COMBINER_ALPHA_C_INPUTS_0] = "0",
+    };
+    static const char *combiner_alpha_D_names[] = {
+        [RDP_COMBINER_ALPHA_D_INPUTS_COMBINED] = "COMBINED",
+        [RDP_COMBINER_ALPHA_D_INPUTS_TEX0] = "TEXEL0",
+        [RDP_COMBINER_ALPHA_D_INPUTS_TEX1] = "TEXEL1",
+        [RDP_COMBINER_ALPHA_D_INPUTS_PRIMITIVE] = "PRIMITIVE",
+        [RDP_COMBINER_ALPHA_D_INPUTS_SHADE] = "SHADE",
+        [RDP_COMBINER_ALPHA_D_INPUTS_ENVIRONMENT] = "ENVIRONMENT",
+        [RDP_COMBINER_ALPHA_D_INPUTS_1] = "1",
+        [RDP_COMBINER_ALPHA_D_INPUTS_0] = "0",
+    };
+
+    struct MaterialInfoCombiner *comb = &mat_info->combiner;
+
+    fprintf(f,
+            "    gsDPSetCombineLERP("
+            "%s, %s, %s, %s, "
+            "%s, %s, %s, %s, "
+            "%s, %s, %s, %s, "
+            "%s, %s, %s, %s"
+            "),\n",
+            combiner_rgb_A_names[comb->rgb_A_0],
+            combiner_rgb_B_names[comb->rgb_B_0],
+            combiner_rgb_C_names[comb->rgb_C_0],
+            combiner_rgb_D_names[comb->rgb_D_0],
+            combiner_alpha_A_names[comb->alpha_A_0],
+            combiner_alpha_B_names[comb->alpha_B_0],
+            combiner_alpha_C_names[comb->alpha_C_0],
+            combiner_alpha_D_names[comb->alpha_D_0],
+            combiner_rgb_A_names[comb->rgb_A_1],
+            combiner_rgb_B_names[comb->rgb_B_1],
+            combiner_rgb_C_names[comb->rgb_C_1],
+            combiner_rgb_D_names[comb->rgb_D_1],
+            combiner_alpha_A_names[comb->alpha_A_1],
+            combiner_alpha_B_names[comb->alpha_B_1],
+            combiner_alpha_C_names[comb->alpha_C_1],
+            combiner_alpha_D_names[comb->alpha_D_1]);
+
     if (mat_info->geometry_mode.lighting)
         fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");
     else

@@ -14,16 +14,16 @@ CC1_C = {
     "0": pydefines.CC_C_0,
     "1": pydefines.CC_C_1,
     "COMBINED": pydefines.CC_C_COMB,
-    "TEXEL0": pydefines.CC_C_TEX0,
-    "TEXEL1": pydefines.CC_C_TEX1,
+    "TEX0": pydefines.CC_C_TEX0,
+    "TEX1": pydefines.CC_C_TEX1,
     "PRIMITIVE": pydefines.CC_C_PRIM,
     "SHADE": pydefines.CC_C_SHADE,
     "ENVIRONMENT": pydefines.CC_C_ENV,
     "CENTER": pydefines.CC_C_CENTER,
     "SCALE": pydefines.CC_C_SCALE,
     "COMBINED_ALPHA": pydefines.CC_C_COMB_ALPHA,
-    "TEXEL0_ALPHA": pydefines.CC_C_TEX0_ALPHA,
-    "TEXEL1_ALPHA": pydefines.CC_C_TEX1_ALPHA,
+    "TEX0_ALPHA": pydefines.CC_C_TEX0_ALPHA,
+    "TEX1_ALPHA": pydefines.CC_C_TEX1_ALPHA,
     "PRIMITIVE_ALPHA": pydefines.CC_C_PRIM_ALPHA,
     "SHADE_ALPHA": pydefines.CC_C_SHADE_ALPHA,
     "ENV_ALPHA": pydefines.CC_C_ENV_ALPHA,
@@ -38,16 +38,16 @@ CC2_C = {  # TEX0 and TEX1 are swapped
     "0": pydefines.CC_C_0,
     "1": pydefines.CC_C_1,
     "COMBINED": pydefines.CC_C_COMB,
-    "TEXEL1": pydefines.CC_C_TEX0,
-    "TEXEL0": pydefines.CC_C_TEX1,
+    "TEX1": pydefines.CC_C_TEX0,
+    "TEX0": pydefines.CC_C_TEX1,
     "PRIMITIVE": pydefines.CC_C_PRIM,
     "SHADE": pydefines.CC_C_SHADE,
     "ENVIRONMENT": pydefines.CC_C_ENV,
     "CENTER": pydefines.CC_C_CENTER,
     "SCALE": pydefines.CC_C_SCALE,
     "COMBINED_ALPHA": pydefines.CC_C_COMB_ALPHA,
-    "TEXEL1_ALPHA": pydefines.CC_C_TEX0_ALPHA,
-    "TEXEL0_ALPHA": pydefines.CC_C_TEX1_ALPHA,
+    "TEX1_ALPHA": pydefines.CC_C_TEX0_ALPHA,
+    "TEX0_ALPHA": pydefines.CC_C_TEX1_ALPHA,
     "PRIMITIVE_ALPHA": pydefines.CC_C_PRIM_ALPHA,
     "SHADE_ALPHA": pydefines.CC_C_SHADE_ALPHA,
     "ENV_ALPHA": pydefines.CC_C_ENV_ALPHA,
@@ -62,8 +62,8 @@ CC1_A = {
     "0": pydefines.CC_A_0,
     "1": pydefines.CC_A_1,
     "COMBINED": pydefines.CC_A_COMB,
-    "TEXEL0": pydefines.CC_A_TEX0,
-    "TEXEL1": pydefines.CC_A_TEX1,
+    "TEX0": pydefines.CC_A_TEX0,
+    "TEX1": pydefines.CC_A_TEX1,
     "PRIMITIVE": pydefines.CC_A_PRIM,
     "SHADE": pydefines.CC_A_SHADE,
     "ENVIRONMENT": pydefines.CC_A_ENV,
@@ -75,8 +75,8 @@ CC2_A = {  # TEX0 and TEX1 are swapped
     "0": pydefines.CC_A_0,
     "1": pydefines.CC_A_1,
     "COMBINED": pydefines.CC_A_COMB,
-    "TEXEL1": pydefines.CC_A_TEX0,
-    "TEXEL0": pydefines.CC_A_TEX1,
+    "TEX1": pydefines.CC_A_TEX0,
+    "TEX0": pydefines.CC_A_TEX1,
     "PRIMITIVE": pydefines.CC_A_PRIM,
     "SHADE": pydefines.CC_A_SHADE,
     "ENVIRONMENT": pydefines.CC_A_ENV,
@@ -94,8 +94,18 @@ SOLID_CC = (
 
 # Fetches CC settings from a given fast64-material
 def get_cc_settings(f3d_mat: "DragExMaterialProperties") -> np.ndarray:
-    c0 = f3d_mat.quickanddirty.combiner1
-    c1 = f3d_mat.quickanddirty.combiner2
+    combiner = f3d_mat.combiner
+
+    c0 = (
+        CC1_C[combiner.rgb_A_0],
+        CC1_C[combiner.rgb_B_0],
+        CC1_C[combiner.rgb_C_0],
+        CC1_C[combiner.rgb_D_0],
+        CC1_A[combiner.alpha_A_0],
+        CC1_A[combiner.alpha_B_0],
+        CC1_A[combiner.alpha_C_0],
+        CC1_A[combiner.alpha_D_0],
+    )
 
     if f3d_mat.other_modes.cycle_type == "1CYCLE":
         # Note: this is the opposite of what the RDP does which is ignore c0 and read c1 in 1-cycle mode
@@ -103,25 +113,19 @@ def get_cc_settings(f3d_mat: "DragExMaterialProperties") -> np.ndarray:
         # > In 1-Cycle mode only the second cycle configuration is used, the first cycle configuration is ignored.
         # Also note: this is useless as the shader ignores c1 in 1-cycle mode
         c1 = c0
+    else:
+        c1 = (
+            CC2_C[combiner.rgb_A_1],
+            CC2_C[combiner.rgb_B_1],
+            CC2_C[combiner.rgb_C_1],
+            CC2_C[combiner.rgb_D_1],
+            CC2_A[combiner.alpha_A_1],
+            CC2_A[combiner.alpha_B_1],
+            CC2_A[combiner.alpha_C_1],
+            CC2_A[combiner.alpha_D_1],
+        )
 
     return np.array(
-        [
-            CC1_C[c0.A],
-            CC1_C[c0.B],
-            CC1_C[c0.C],
-            CC1_C[c0.D],
-            CC1_A[c0.A_alpha],
-            CC1_A[c0.B_alpha],
-            CC1_A[c0.C_alpha],
-            CC1_A[c0.D_alpha],
-            CC2_C[c1.A],
-            CC2_C[c1.B],
-            CC2_C[c1.C],
-            CC2_C[c1.D],
-            CC2_A[c1.A_alpha],
-            CC2_A[c1.B_alpha],
-            CC2_A[c1.C_alpha],
-            CC2_A[c1.D_alpha],
-        ],
+        c0 + c1,
         dtype=np.int32,
     )
