@@ -3,6 +3,53 @@ import os
 
 def get_build_id() -> int: ...
 
+class MaterialInfoOtherModes:
+    def __init__(
+        self,
+        #
+        atomic_prim: bool,
+        cycle_type: str,
+        persp_tex_en: bool,
+        detail_tex_en: bool,
+        sharpen_tex_en: bool,
+        tex_lod_en: bool,
+        tlut_en: bool,
+        tlut_type: bool,
+        #
+        sample_type: bool,
+        mid_texel: bool,
+        bi_lerp_0: bool,
+        bi_lerp_1: bool,
+        convert_one: bool,
+        key_en: bool,
+        rgb_dither_sel: str,
+        alpha_dither_sel: str,
+        #
+        bl_m1a_0: str,
+        bl_m1a_1: str,
+        bl_m1b_0: str,
+        bl_m1b_1: str,
+        bl_m2a_0: str,
+        bl_m2a_1: str,
+        bl_m2b_0: str,
+        bl_m2b_1: str,
+        #
+        force_blend: bool,
+        alpha_cvg_select: bool,
+        cvg_x_alpha: bool,
+        z_mode: str,
+        cvg_dest: str,
+        color_on_cvg: bool,
+        #
+        image_read_en: bool,
+        z_update_en: bool,
+        z_compare_en: bool,
+        antialias_en: bool,
+        z_source_sel: bool,
+        dither_alpha_en: bool,
+        alpha_compare_en: bool,
+    ) -> None: ...
+
 class MaterialInfoGeometryMode:
     def __init__(
         self,
@@ -15,6 +62,7 @@ class MaterialInfo:
         name: str,
         uv_basis_s: int,
         uv_basis_t: int,
+        other_modes: MaterialInfoOtherModes,
         geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...
 

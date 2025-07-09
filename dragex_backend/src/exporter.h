@@ -19,6 +19,106 @@ struct TriInfo {
     unsigned int material;
 };
 
+enum rdp_om_cycle_type {
+    RDP_OM_CYCLE_TYPE_1CYCLE,
+    RDP_OM_CYCLE_TYPE_2CYCLE,
+    RDP_OM_CYCLE_TYPE_COPY,
+    RDP_OM_CYCLE_TYPE_FILL
+};
+
+enum rdp_om_rgb_dither {
+    RDP_OM_RGB_DITHER_MAGIC_SQUARE,
+    RDP_OM_RGB_DITHER_BAYER,
+    RDP_OM_RGB_DITHER_RANDOM_NOISE,
+    RDP_OM_RGB_DITHER_NONE
+};
+
+enum rdp_om_alpha_dither {
+    RDP_OM_ALPHA_DITHER_SAME_AS_RGB,
+    RDP_OM_ALPHA_DITHER_INVERSE_OF_RGB,
+    RDP_OM_ALPHA_DITHER_RANDOM_NOISE,
+    RDP_OM_ALPHA_DITHER_NONE
+};
+
+enum rdp_om_blender_P_M_inputs {
+    RDP_OM_BLENDER_P_M_INPUTS_INPUT,
+    RDP_OM_BLENDER_P_M_INPUTS_MEMORY,
+    RDP_OM_BLENDER_P_M_INPUTS_BLEND_COLOR,
+    RDP_OM_BLENDER_P_M_INPUTS_FOG_COLOR
+};
+
+enum rdp_om_blender_A_inputs {
+    RDP_OM_BLENDER_A_INPUTS_INPUT_ALPHA,
+    RDP_OM_BLENDER_A_INPUTS_FOG_ALPHA,
+    RDP_OM_BLENDER_A_INPUTS_SHADE_ALPHA,
+    RDP_OM_BLENDER_A_INPUTS_0
+};
+
+enum rdp_om_blender_B_inputs {
+    RDP_OM_BLENDER_B_INPUTS_1_MINUS_A,
+    RDP_OM_BLENDER_B_INPUTS_MEMORY_COVERAGE,
+    RDP_OM_BLENDER_B_INPUTS_1,
+    RDP_OM_BLENDER_B_INPUTS_0
+};
+
+enum rdp_om_z_mode {
+    RDP_OM_Z_MODE_OPAQUE,
+    RDP_OM_Z_MODE_INTERPENETRATING,
+    RDP_OM_Z_MODE_TRANSPARENT,
+    RDP_OM_Z_MODE_DECAL
+};
+
+enum rdp_om_cvg_dest {
+    RDP_OM_CVG_DEST_CLAMP,
+    RDP_OM_CVG_DEST_WRAP,
+    RDP_OM_CVG_DEST_FULL,
+    RDP_OM_CVG_DEST_SAVE
+};
+
+struct MaterialInfoOtherModes {
+    bool atomic_prim;
+    enum rdp_om_cycle_type cycle_type;
+    bool persp_tex_en;
+    bool detail_tex_en;
+    bool sharpen_tex_en;
+    bool tex_lod_en;
+    bool tlut_en;
+    bool tlut_type;
+
+    bool sample_type;
+    bool mid_texel;
+    bool bi_lerp_0;
+    bool bi_lerp_1;
+    bool convert_one;
+    bool key_en;
+    enum rdp_om_rgb_dither rgb_dither_sel;
+    enum rdp_om_alpha_dither alpha_dither_sel;
+
+    enum rdp_om_blender_P_M_inputs bl_m1a_0;
+    enum rdp_om_blender_P_M_inputs bl_m1a_1;
+    enum rdp_om_blender_A_inputs bl_m1b_0;
+    enum rdp_om_blender_A_inputs bl_m1b_1;
+    enum rdp_om_blender_P_M_inputs bl_m2a_0;
+    enum rdp_om_blender_P_M_inputs bl_m2a_1;
+    enum rdp_om_blender_B_inputs bl_m2b_0;
+    enum rdp_om_blender_B_inputs bl_m2b_1;
+
+    bool force_blend;
+    bool alpha_cvg_select;
+    bool cvg_x_alpha;
+    enum rdp_om_z_mode z_mode;
+    enum rdp_om_cvg_dest cvg_dest;
+    bool color_on_cvg;
+
+    bool image_read_en;
+    bool z_update_en;
+    bool z_compare_en;
+    bool antialias_en;
+    bool z_source_sel;
+    bool dither_alpha_en;
+    bool alpha_compare_en;
+};
+
 struct MaterialInfoGeometryMode {
     bool lighting;
 };
@@ -27,6 +127,7 @@ struct MaterialInfo {
     char *name;
     int uv_basis_s;
     int uv_basis_t;
+    struct MaterialInfoOtherModes other_modes;
     struct MaterialInfoGeometryMode geometry_mode;
 };
 

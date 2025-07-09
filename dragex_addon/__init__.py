@@ -110,11 +110,55 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 mat_info = None
             else:
                 mat_dragex: DragExMaterialProperties = mat.dragex
+                other_modes = mat_dragex.other_modes
                 mat_geomode = mat_dragex.geometry_mode
                 mat_info = dragex_backend.MaterialInfo(
                     name=make_c_identifier(mat.name),
                     uv_basis_s=mat_dragex.uv_basis_s,
                     uv_basis_t=mat_dragex.uv_basis_t,
+                    other_modes=dragex_backend.MaterialInfoOtherModes(
+                        atomic_prim=other_modes.atomic_prim,
+                        cycle_type=other_modes.cycle_type,
+                        persp_tex_en=other_modes.persp_tex_en,
+                        detail_tex_en=other_modes.detail_tex_en,
+                        sharpen_tex_en=other_modes.sharpen_tex_en,
+                        tex_lod_en=other_modes.tex_lod_en,
+                        tlut_en=other_modes.tlut_en,
+                        tlut_type=other_modes.tlut_type,
+                        #
+                        sample_type=other_modes.sample_type,
+                        mid_texel=other_modes.mid_texel,
+                        bi_lerp_0=other_modes.bi_lerp_0,
+                        bi_lerp_1=other_modes.bi_lerp_1,
+                        convert_one=other_modes.convert_one,
+                        key_en=other_modes.key_en,
+                        rgb_dither_sel=other_modes.rgb_dither_sel,
+                        alpha_dither_sel=other_modes.alpha_dither_sel,
+                        #
+                        bl_m1a_0=other_modes.bl_m1a_0,
+                        bl_m1a_1=other_modes.bl_m1a_1,
+                        bl_m1b_0=other_modes.bl_m1b_0,
+                        bl_m1b_1=other_modes.bl_m1b_1,
+                        bl_m2a_0=other_modes.bl_m2a_0,
+                        bl_m2a_1=other_modes.bl_m2a_1,
+                        bl_m2b_0=other_modes.bl_m2b_0,
+                        bl_m2b_1=other_modes.bl_m2b_1,
+                        #
+                        force_blend=other_modes.force_blend,
+                        alpha_cvg_select=other_modes.alpha_cvg_select,
+                        cvg_x_alpha=other_modes.cvg_x_alpha,
+                        z_mode=other_modes.z_mode,
+                        cvg_dest=other_modes.cvg_dest,
+                        color_on_cvg=other_modes.color_on_cvg,
+                        #
+                        image_read_en=other_modes.image_read_en,
+                        z_update_en=other_modes.z_update_en,
+                        z_compare_en=other_modes.z_compare_en,
+                        antialias_en=other_modes.antialias_en,
+                        z_source_sel=other_modes.z_source_sel,
+                        dither_alpha_en=other_modes.dither_alpha_en,
+                        alpha_compare_en=other_modes.alpha_compare_en,
+                    ),
                     geometry_mode=dragex_backend.MaterialInfoGeometryMode(
                         lighting=mat_geomode.lighting,
                     ),
@@ -124,6 +168,50 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             name="DEFAULT_MATERIAL",
             uv_basis_s=1,
             uv_basis_t=1,
+            other_modes=dragex_backend.MaterialInfoOtherModes(
+                # TODO put more thought into default material
+                atomic_prim=False,
+                cycle_type="1CYCLE",
+                persp_tex_en=False,
+                detail_tex_en=False,
+                sharpen_tex_en=False,
+                tex_lod_en=False,
+                tlut_en=False,
+                tlut_type=False,
+                #
+                sample_type=False,
+                mid_texel=False,
+                bi_lerp_0=False,
+                bi_lerp_1=False,
+                convert_one=False,
+                key_en=False,
+                rgb_dither_sel="MAGIC_SQUARE",
+                alpha_dither_sel="NONE",
+                #
+                bl_m1a_0="INPUT",
+                bl_m1a_1="INPUT",
+                bl_m1b_0="0",
+                bl_m1b_1="0",
+                bl_m2a_0="INPUT",
+                bl_m2a_1="INPUT",
+                bl_m2b_0="1",
+                bl_m2b_1="1",
+                #
+                force_blend=False,
+                alpha_cvg_select=False,
+                cvg_x_alpha=False,
+                z_mode="OPAQUE",
+                cvg_dest="CLAMP",
+                color_on_cvg=False,
+                #
+                image_read_en=False,
+                z_update_en=False,
+                z_compare_en=False,
+                antialias_en=False,
+                z_source_sel=False,
+                dither_alpha_en=False,
+                alpha_compare_en=False,
+            ),
             geometry_mode=dragex_backend.MaterialInfoGeometryMode(
                 lighting=True,
             ),
