@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from .tile import get_tile_conf, F64Texture
 from .cc import SOLID_CC, get_cc_settings
-from .blender import get_blender_settings
 from ..globals import F64_GLOBALS
 from . import pydefines
 
@@ -106,8 +105,18 @@ class RenderMode:  # one class for all rendermodes
     cvg_x_alpha: bool = False
     alpha_cvg_sel: bool = False
     force_bl: bool = False
-    blend_cycle1: tuple[str, str, str, str] = ("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_IN", "G_BL_1MA")
-    blend_cycle2: tuple[str, str, str, str] = ("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_IN", "G_BL_1MA")
+    blend_cycle1: tuple[int, int, int, int] = (
+        pydefines.BLENDER_CLR_IN,
+        pydefines.BLENDER_A_IN,
+        pydefines.BLENDER_CLR_IN,
+        pydefines.BLENDER_1MA,
+    )
+    blend_cycle2: tuple[int, int, int, int] = (
+        pydefines.BLENDER_CLR_IN,
+        pydefines.BLENDER_A_IN,
+        pydefines.BLENDER_CLR_IN,
+        pydefines.BLENDER_1MA,
+    )
 
 
 @functools.cache
@@ -160,39 +169,47 @@ def parse_f3d_rendermode_preset(preset_cycle1: str, preset_cycle2: str | None):
     )
 
 
+BL_INP = {
+    "0": pydefines.BLENDER_0,
+    "1": pydefines.BLENDER_1,
+    "INPUT": pydefines.BLENDER_CLR_IN,
+    "MEMORY": pydefines.BLENDER_CLR_MEM,
+    "BLEND_COLOR": pydefines.BLENDER_CLR_BL,
+    "FOG_COLOR": pydefines.BLENDER_CLR_FOG,
+    "INPUT_ALPHA": pydefines.BLENDER_A_IN,
+    "FOG_ALPHA": pydefines.BLENDER_A_FOG,
+    "SHADE_ALPHA": pydefines.BLENDER_A_SHADE,
+    "1_MINUS_A": pydefines.BLENDER_1MA,
+    "MEMORY_COVERAGE": pydefines.BLENDER_A_MEM,
+}
+
+
 def parse_f3d_mat_rendermode(f3d_mat: "DragExMaterialProperties"):
-    # TODO-tmp_porting
+    other_modes = f3d_mat.other_modes
     return RenderMode(
-        force_bl=True,
-        blend_cycle1=("G_BL_CLR_IN", "G_BL_0", "G_BL_CLR_IN", "G_BL_1"),
-        blend_cycle2=("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA"),
+        aa_en=other_modes.antialias_en,
+        z_cmp=other_modes.z_compare_en,
+        z_upd=other_modes.z_update_en,
+        im_rd=other_modes.image_read_en,
+        clr_on_cvg=other_modes.color_on_cvg,
+        cvg_dst=other_modes.cvg_dest,
+        zmode=other_modes.z_mode,
+        cvg_x_alpha=other_modes.cvg_x_alpha,
+        alpha_cvg_sel=other_modes.alpha_cvg_select,
+        force_bl=other_modes.force_blend,
+        blend_cycle1=(
+            BL_INP[other_modes.bl_m1a_0],
+            BL_INP[other_modes.bl_m1b_0],
+            BL_INP[other_modes.bl_m2a_0],
+            BL_INP[other_modes.bl_m2b_0],
+        ),
+        blend_cycle2=(
+            BL_INP[other_modes.bl_m1a_1],
+            BL_INP[other_modes.bl_m1b_1],
+            BL_INP[other_modes.bl_m2a_1],
+            BL_INP[other_modes.bl_m2b_1],
+        ),
     )
-    rdp = f3d_mat.rdp_settings
-    if not rdp.rendermode_advanced_enabled:
-        return parse_f3d_rendermode_preset(
-            rdp.rendermode_preset_cycle_1,
-            rdp.rendermode_preset_cycle_2 if rdp.g_mdsft_cycletype == "G_CYC_2CYCLE" else None,
-        )
-    result = RenderMode()
-    for attr in (
-        "aa_en",
-        "z_cmp",
-        "z_cmp",
-        "im_rd",
-        "clr_on_cvg",
-        "cvg_dst",
-        "zmode",
-        "cvg_x_alpha",
-        "alpha_cvg_sel",
-        "force_bl",
-    ):
-        setattr(result, attr, getattr(rdp, attr))
-    result.blend_cycle1 = (rdp.blend_p1, rdp.blend_a1, rdp.blend_m1, rdp.blend_b1)
-    if rdp.g_mdsft_cycletype != "G_CYC_2CYCLE":
-        result.blend_cycle2 = result.blend_cycle1
-    else:
-        result.blend_cycle2 = (rdp.blend_p2, rdp.blend_a2, rdp.blend_m2, rdp.blend_b2)
-    return result
 
 
 LIGHT_STRUCT = "4f 3f 4x"  # color, direction, padding
@@ -355,7 +372,7 @@ class F64RenderState:
 
     def set_from_rendermode(self, rendermode: RenderMode):
         self.render_mode = F64Rendermode(
-            get_blender_settings(rendermode.blend_cycle1, rendermode.blend_cycle2), depth_write=rendermode.z_upd
+            blender=rendermode.blend_cycle1 + rendermode.blend_cycle2, depth_write=rendermode.z_upd
         )
         if rendermode.zmode == "ZMODE_DEC":
             self.render_mode.depth_test = "EQUAL"
@@ -364,7 +381,12 @@ class F64RenderState:
             self.render_mode.alpha_clip = 0.49
         else:
             self.render_mode.alpha_clip = -1
-        if rendermode.force_bl and rendermode.blend_cycle2 == ("G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA"):
+        if rendermode.force_bl and rendermode.blend_cycle2 == (
+            pydefines.BLENDER_CLR_IN,
+            pydefines.BLENDER_A_IN,
+            pydefines.BLENDER_CLR_MEM,
+            pydefines.BLENDER_1MA,
+        ):
             self.render_mode.blend = "ALPHA"
             self.render_mode.flags |= pydefines.DRAW_FLAG_ALPHA_BLEND
 
