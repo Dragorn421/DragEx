@@ -1,5 +1,5 @@
 import argparse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
             in_wheels_list = True
             new_lines.append("    # WHEELS START\n")
             for wheel in wheels:
-                wheel = str(wheel)
+                wheel = str(PurePosixPath(*wheel.parts))
                 assert '"' not in wheel
                 new_lines.append(f'    "{wheel}",\n')
             new_lines.append("    # WHEELS END\n")
