@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 . .venv/bin/activate
 python3 .github/scripts/gen_build_id.py

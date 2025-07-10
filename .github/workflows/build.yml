@@ -42,7 +42,7 @@ jobs:
       - name: Amend blender_manifest.toml wheel list
         run: |
           cd dragex_addon
-          python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml wheels/*.whl
+          python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml 'wheels/*.whl'
 
       - name: Download Blender (Linux)
         if: runner.os == 'Linux'
