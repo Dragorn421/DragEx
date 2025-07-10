@@ -56,7 +56,7 @@ int converter_MaterialInfoTileObject_sequence_len8(PyObject *obj,
     }
 
     struct MaterialInfoTileObject **buffer =
-        malloc(sizeof(struct MaterialInfoTileObject *[len]));
+        malloc(sizeof(struct MaterialInfoTileObject *) * len);
     // TODO check malloc
     for (Py_ssize_t i = 0; i < len; i++) {
         PyObject *item = PySequence_GetItem(obj, i);

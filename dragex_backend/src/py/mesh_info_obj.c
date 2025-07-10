@@ -154,7 +154,7 @@ int converter_MaterialInfoObject_or_None_sequence(PyObject *obj,
         return 0;
 
     struct MaterialInfoObject **buffer =
-        malloc(sizeof(struct MaterialInfoObject *[len]));
+        malloc(sizeof(struct MaterialInfoObject *) * len);
     // TODO check malloc
     for (Py_ssize_t i = 0; i < len; i++) {
         PyObject *item = PySequence_GetItem(obj, i);
@@ -222,8 +222,8 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     // + 1 for default_material_info
     len_image_objects = (n_material_infos + 1) * 8;
     image_objects =
-        malloc(sizeof(struct MaterialInfoImageObject *[len_image_objects]));
-    material_infos = malloc(sizeof(struct MaterialInfo *[n_material_infos]));
+        malloc(sizeof(struct MaterialInfoImageObject *) * len_image_objects);
+    material_infos = malloc(sizeof(struct MaterialInfo *) * n_material_infos);
     // TODO check malloc
 
     for (Py_ssize_t i = 0; i < material_info_objects.len; i++) {
