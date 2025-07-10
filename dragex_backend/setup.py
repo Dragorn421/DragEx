@@ -18,7 +18,7 @@ class CustomBuildExt(build_ext):
                 ext.extra_compile_args = [
                     "/Od",
                     "/W4",
-                    "/WX",
+                    # "/WX",
                     "/U",
                     "NDEBUG",
                 ]
