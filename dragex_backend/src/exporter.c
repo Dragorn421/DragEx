@@ -645,6 +645,78 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
                 ? om->dither_alpha_en ? "G_AC_DITHER" : "G_AC_THRESHOLD"
                 : "G_AC_NONE");
 
+    static const char *tile_format_names[] = {
+        [RDP_TILE_FORMAT_RGBA] = "G_IM_FMT_RGBA",
+        [RDP_TILE_FORMAT_YUV] = "G_IM_FMT_YUV",
+        [RDP_TILE_FORMAT_CI] = "G_IM_FMT_CI",
+        [RDP_TILE_FORMAT_IA] = "G_IM_FMT_IA",
+        [RDP_TILE_FORMAT_I] = "G_IM_FMT_I",
+    };
+    static const char *tile_size_names[] = {
+        [RDP_TILE_SIZE_4] = "G_IM_SIZ_4b",
+        [RDP_TILE_SIZE_8] = "G_IM_SIZ_8b",
+        [RDP_TILE_SIZE_16] = "G_IM_SIZ_16b",
+        [RDP_TILE_SIZE_32] = "G_IM_SIZ_32b",
+    };
+
+    for (int i_tile = 0; i_tile < 8; i_tile++) {
+        struct MaterialInfoTile *tile = &mat_info->tiles[i_tile];
+
+        struct MaterialInfoImage *image = tile->image;
+        if (image != NULL) {
+            // TODO use gsDPLoadMultiTile for textures with line%8!=0 ?
+            fprintf(f,
+                    "    gsDPLoadMultiBlock("
+                    "%s, 0x%03X, %d, "
+                    "%s, %s, %d, %d, %d, "
+                    "%s | %s, %s | %s, "
+                    "%d, %d, %d, %d),\n",
+                    image->c_identifier,
+                    tile->address /* TODO is gsDPLoadMultiBlock's tmem arg in
+                                     bytes or tmem words? */
+                    ,
+                    i_tile,
+
+                    tile_format_names[tile->format],
+                    tile_size_names[tile->size], image->width, image->height,
+                    tile->palette,
+
+                    tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                    tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP",
+                    tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                    tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
+
+                    tile->mask_S, tile->mask_T, tile->shift_S, tile->shift_T);
+        }
+    }
+
+    for (int i_tile = 0; i_tile < 8; i_tile++) {
+        struct MaterialInfoTile *tile = &mat_info->tiles[i_tile];
+
+        fprintf(f,
+                "    gsDPSetTile("
+                "%s, %s, 0x%X, 0x%03X, %d, %d, "
+                "%s | %s, %d, %d, "
+                "%s | %s, %d, %d),\n",
+                tile_format_names[tile->format], tile_size_names[tile->size],
+                tile->line, tile->address, i_tile, tile->palette,
+
+                tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP", tile->mask_T,
+                tile->shift_T,
+
+                tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP", tile->mask_S,
+                tile->shift_S);
+        fprintf(f,
+                "    gsDPSetTileSize("
+                "%d, "
+                "(int)(%.2f * 4), (int)(%.2f * 4), "
+                "(int)(%.2f * 4), (int)(%.2f * 4)),\n",
+                i_tile, tile->upper_left_S, tile->upper_left_T,
+                tile->lower_right_S, tile->lower_right_T);
+    }
+
     static const char *combiner_rgb_A_names[] = {
         [RDP_COMBINER_RGB_A_INPUTS_COMBINED] = "COMBINED",
         [RDP_COMBINER_RGB_A_INPUTS_TEX0] = "TEXEL0",

@@ -43,6 +43,75 @@ static PyObject *get_build_id(PyObject *self, PyObject *args) {
     return PyLong_FromLong(BUILD_ID);
 }
 
+struct MaterialInfoImageObject {
+    PyObject_HEAD
+
+        struct MaterialInfoImage image;
+};
+
+static void MaterialInfoImage_dealloc(PyObject *_self) {
+    struct MaterialInfoImageObject *self =
+        (struct MaterialInfoImageObject *)_self;
+
+    printf("MaterialInfoImage_dealloc %s\n", self->image.c_identifier == NULL
+                                                 ? "(NULL c_identifier)"
+                                                 : self->image.c_identifier);
+
+    free(self->image.c_identifier);
+    Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static PyObject *MaterialInfoImage_new(PyTypeObject *type, PyObject *args,
+                                       PyObject *kwds) {
+    struct MaterialInfoImageObject *self;
+
+    printf("MaterialInfoImage_new\n");
+
+    self = (struct MaterialInfoImageObject *)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->image.c_identifier = NULL;
+    }
+    return (PyObject *)self;
+}
+
+static int MaterialInfoImage_init(PyObject *_self, PyObject *args,
+                                  PyObject *kwds) {
+    struct MaterialInfoImageObject *self =
+        (struct MaterialInfoImageObject *)_self;
+    static char *kwlist[] = {
+        "c_identifier",
+        "width",
+        "height",
+        NULL,
+    };
+    char *c_identifier;
+    int width;
+    int height;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sii", kwlist, &c_identifier,
+                                     &width, &height))
+        return -1;
+
+    self->image.c_identifier = strdup(c_identifier);
+    self->image.width = width;
+    self->image.height = height;
+
+    return 0;
+}
+
+static PyTypeObject MaterialInfoImageType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MaterialInfoImage",
+    .tp_doc = PyDoc_STR("material info image"),
+    .tp_basicsize = sizeof(struct MaterialInfoImageObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = MaterialInfoImage_new,
+    .tp_init = MaterialInfoImage_init,
+    .tp_dealloc = MaterialInfoImage_dealloc,
+};
+
 struct MaterialInfoOtherModesObject {
     PyObject_HEAD
 
@@ -280,6 +349,162 @@ static PyTypeObject MaterialInfoOtherModesType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_init = MaterialInfoOtherModes_init,
+};
+
+struct MaterialInfoTileObject {
+    PyObject_HEAD
+
+        struct MaterialInfoImageObject *image_object;
+    struct MaterialInfoTile tile;
+};
+
+static void MaterialInfoTile_dealloc(PyObject *_self) {
+    struct MaterialInfoTileObject *self =
+        (struct MaterialInfoTileObject *)_self;
+
+    printf("MaterialInfoTile_dealloc\n");
+
+    Py_XDECREF(self->image_object);
+}
+
+static PyObject *MaterialInfoTile_new(PyTypeObject *type, PyObject *args,
+                                      PyObject *kwds) {
+    struct MaterialInfoTileObject *self;
+
+    printf("MaterialInfoTile_new\n");
+
+    self = (struct MaterialInfoTileObject *)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->image_object = NULL;
+    }
+    return (PyObject *)self;
+}
+
+static int converter_MaterialInfoImage_or_None(PyObject *obj, void *_result) {
+    struct MaterialInfoImageObject **result =
+        (struct MaterialInfoImageObject **)_result;
+
+    if (obj == Py_None) {
+        *result = NULL;
+        return 1;
+    }
+
+    if (PyObject_TypeCheck(obj, &MaterialInfoImageType)) {
+        *result = (struct MaterialInfoImageObject *)obj;
+        return 1;
+    } else {
+        PyErr_Format(PyExc_TypeError, "Object is not None or a %s",
+                     MaterialInfoImageType.tp_name);
+        return 0;
+    }
+}
+
+static int MaterialInfoTile_init(PyObject *_self, PyObject *args,
+                                 PyObject *kwds) {
+    struct MaterialInfoTileObject *self =
+        (struct MaterialInfoTileObject *)_self;
+    static char *kwlist[] = {
+        "image",         "format",        "size",         "line",
+        "address",       "palette",       "clamp_T",      "mirror_T",
+        "mask_T",        "shift_T",       "clamp_S",      "mirror_S",
+        "mask_S",        "shift_S",       "upper_left_S", "upper_left_T",
+        "lower_right_S", "lower_right_T", NULL,
+    };
+    struct MaterialInfoImageObject *image;
+    char *format_name;
+    char *size_name;
+    int line;
+    int address;
+    int palette;
+    int clamp_T;
+    int mirror_T;
+    int mask_T;
+    int shift_T;
+    int clamp_S;
+    int mirror_S;
+    int mask_S;
+    int shift_S;
+
+    float upper_left_S;
+    float upper_left_T;
+    float lower_right_S;
+    float lower_right_T;
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds,
+            "O&"
+            "ssiiippiippii"
+            "ffff",
+            kwlist,
+
+            converter_MaterialInfoImage_or_None, &image,
+
+            &format_name, &size_name, &line, &address, &palette, &clamp_T,
+            &mirror_T, &mask_T, &shift_T, &clamp_S, &mirror_S, &mask_S,
+            &shift_S,
+
+            &upper_left_S, &upper_left_T, &lower_right_S, &lower_right_T))
+        return -1;
+
+    static const char *format_names[] = {
+        [RDP_TILE_FORMAT_RGBA] = "RGBA", [RDP_TILE_FORMAT_YUV] = "YUV",
+        [RDP_TILE_FORMAT_CI] = "CI",     [RDP_TILE_FORMAT_IA] = "IA",
+        [RDP_TILE_FORMAT_I] = "I",
+    };
+    enum rdp_tile_format format;
+    NAME_TO_ENUM(format, format_names);
+
+    static const char *size_names[] = {
+        [RDP_TILE_SIZE_4] = "4",
+        [RDP_TILE_SIZE_8] = "8",
+        [RDP_TILE_SIZE_16] = "16",
+        [RDP_TILE_SIZE_32] = "32",
+    };
+    enum rdp_tile_size size;
+    NAME_TO_ENUM(size, size_names);
+
+    if (image == NULL) {
+        self->tile.image = NULL;
+    } else {
+        Py_INCREF(image);
+        self->image_object = image;
+
+        self->tile.image = &image->image;
+    }
+
+    self->tile.format = format;
+    self->tile.size = size;
+    self->tile.line = line;
+    self->tile.address = address;
+    self->tile.palette = palette;
+    self->tile.clamp_T = clamp_T;
+    self->tile.mirror_T = mirror_T;
+    self->tile.mask_T = mask_T;
+    self->tile.shift_T = shift_T;
+    self->tile.clamp_S = clamp_S;
+    self->tile.mirror_S = mirror_S;
+    self->tile.mask_S = mask_S;
+    self->tile.shift_S = shift_S;
+
+    self->tile.upper_left_S = upper_left_S;
+    self->tile.upper_left_T = upper_left_T;
+    self->tile.lower_right_S = lower_right_S;
+    self->tile.lower_right_T = lower_right_T;
+
+    return 0;
+}
+
+static PyTypeObject MaterialInfoTileType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MaterialInfoTile",
+    .tp_doc = PyDoc_STR("material info tile"),
+    .tp_basicsize = sizeof(struct MaterialInfoTileObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = MaterialInfoTile_new,
+    .tp_init = MaterialInfoTile_init,
+    .tp_dealloc = MaterialInfoTile_dealloc,
 };
 
 struct MaterialInfoCombinerObject {
@@ -525,11 +750,16 @@ static PyTypeObject MaterialInfoGeometryModeType = {
 struct MaterialInfoObject {
     PyObject_HEAD
 
-        struct MaterialInfo mat_info;
+        struct MaterialInfoImageObject *image_objects[8];
+    struct MaterialInfo mat_info;
 };
 
 static void MaterialInfo_dealloc(PyObject *_self) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
+
+    for (int i = 0; i < 8; i++)
+        Py_XDECREF(self->image_objects[i]);
+
     free(self->mat_info.name);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
@@ -544,19 +774,78 @@ static PyObject *MaterialInfo_new(PyTypeObject *type, PyObject *args,
     return (PyObject *)self;
 }
 
+struct MaterialInfoTileObjectSequenceInfo {
+    struct MaterialInfoTileObject **buffer;
+    Py_ssize_t len;
+};
+
+void free_MaterialInfoTileSequenceInfo(
+    struct MaterialInfoTileObjectSequenceInfo *tile_infos) {
+
+    for (Py_ssize_t i = 0; i < tile_infos->len; i++)
+        Py_DECREF(tile_infos->buffer[i]);
+
+    free(tile_infos->buffer);
+}
+
+int converter_MaterialInfoTileObject_sequence_len8(PyObject *obj,
+                                                   void *_result) {
+    Py_ssize_t len = PySequence_Length(obj);
+    if (len < 0)
+        return 0;
+    if (len != 8) {
+        PyErr_Format(PyExc_IndexError,
+                     "Expected a sequence of length 8, not %ld", (long)len);
+        return 0;
+    }
+
+    struct MaterialInfoTileObject **buffer =
+        malloc(sizeof(struct MaterialInfoTileObject *[len]));
+    // TODO check malloc
+    for (Py_ssize_t i = 0; i < len; i++) {
+        PyObject *item = PySequence_GetItem(obj, i);
+        if (item == NULL) {
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_DECREF(buffer[j]);
+            free(buffer);
+            return 0;
+        }
+
+        if (PyObject_TypeCheck(item, &MaterialInfoTileType)) {
+            buffer[i] = (struct MaterialInfoTileObject *)item;
+        } else {
+            PyErr_Format(PyExc_TypeError,
+                         "Object in sequence at index %ld is not a %s", (long)i,
+                         MaterialInfoTileType.tp_name);
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_DECREF(buffer[j]);
+            free(buffer);
+            return 0;
+        }
+    }
+
+    struct MaterialInfoTileObjectSequenceInfo *result =
+        (struct MaterialInfoTileObjectSequenceInfo *)_result;
+    result->buffer = buffer;
+    result->len = len;
+    return 1;
+}
+
 static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
     static char *kwlist[] = {
-        "name",     "uv_basis_s",    "uv_basis_t", "other_modes",
-        "combiner", "geometry_mode", NULL,
+        "name",  "uv_basis_s", "uv_basis_t",    "other_modes",
+        "tiles", "combiner",   "geometry_mode", NULL,
     };
     char *name;
     int uv_basis_s, uv_basis_t;
-    PyObject *_other_modes, *_combiner,*_geometry_mode;
+    PyObject *_other_modes, *_combiner, *_geometry_mode;
+    struct MaterialInfoTileObjectSequenceInfo tile_infos;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "siiO!O!O!", kwlist, &name, &uv_basis_s, &uv_basis_t,
+            args, kwds, "siiO!O&O!O!", kwlist, &name, &uv_basis_s, &uv_basis_t,
             &MaterialInfoOtherModesType, &_other_modes,
+            converter_MaterialInfoTileObject_sequence_len8, &tile_infos,
             &MaterialInfoCombinerType, &_combiner,
             &MaterialInfoGeometryModeType, &_geometry_mode))
         return -1;
@@ -577,8 +866,17 @@ static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     self->mat_info.uv_basis_s = uv_basis_s;
     self->mat_info.uv_basis_t = uv_basis_t;
     self->mat_info.other_modes = other_modes->other_modes;
+    assert(tile_infos.len == 8);
+    for (int i = 0; i < 8; i++) {
+        Py_XINCREF(tile_infos.buffer[i]->image_object);
+        self->image_objects[i] = tile_infos.buffer[i]->image_object;
+        self->mat_info.tiles[i] = tile_infos.buffer[i]->tile;
+    }
     self->mat_info.combiner = combiner->combiner;
     self->mat_info.geometry_mode = geometry_mode->geometry_mode;
+
+    free_MaterialInfoTileSequenceInfo(&tile_infos);
+
     return 0;
 }
 
@@ -598,13 +896,22 @@ static PyTypeObject MaterialInfoType = {
 struct MeshInfoObject {
     PyObject_HEAD
 
-        struct MeshInfo *mesh;
+        struct MaterialInfoImageObject **image_objects;
+    size_t len_image_objects;
+    struct MeshInfo *mesh;
 };
 
 static void MeshInfo_dealloc(PyObject *_self) {
     struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
 
     printf("MeshInfo_dealloc\n");
+
+    if (self->image_objects != NULL) {
+        for (size_t i = 0; i < self->len_image_objects; i++) {
+            Py_XDECREF(self->image_objects[i]);
+        }
+        free(self->image_objects);
+    }
 
     if (self->mesh != NULL) {
         free_create_MeshInfo_from_buffers(self->mesh);
@@ -621,6 +928,7 @@ static PyObject *MeshInfo_new(PyTypeObject *type, PyObject *args,
 
     self = (struct MeshInfoObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
+        self->image_objects = NULL;
         self->mesh = NULL;
     }
     return (PyObject *)self;
@@ -715,25 +1023,34 @@ int converter_contiguous_float_buffer_optional(PyObject *obj, void *result) {
     return converter_contiguous_buffer_impl(obj, result, "f", sizeof(float));
 }
 
-struct MaterialInfoSequenceInfo {
-    struct MaterialInfo **buffer;
+struct MaterialInfoObjectSequenceInfo {
+    struct MaterialInfoObject **buffer;
     Py_ssize_t len;
 };
 
 void free_MaterialInfoSequenceInfo(
-    struct MaterialInfoSequenceInfo *material_infos) {
+    struct MaterialInfoObjectSequenceInfo *material_infos) {
+
+    for (Py_ssize_t i = 0; i < material_infos->len; i++)
+        Py_XDECREF(material_infos->buffer[i]);
+
     free(material_infos->buffer);
 }
 
-int converter_MaterialInfo_or_None_sequence(PyObject *obj, void *_result) {
+int converter_MaterialInfoObject_or_None_sequence(PyObject *obj,
+                                                  void *_result) {
     Py_ssize_t len = PySequence_Length(obj);
     if (len < 0)
         return 0;
 
-    struct MaterialInfo **buffer = malloc(sizeof(struct MaterialInfo *[len]));
+    struct MaterialInfoObject **buffer =
+        malloc(sizeof(struct MaterialInfoObject *[len]));
+    // TODO check malloc
     for (Py_ssize_t i = 0; i < len; i++) {
         PyObject *item = PySequence_GetItem(obj, i);
         if (item == NULL) {
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_XDECREF(buffer[j]);
             free(buffer);
             return 0;
         }
@@ -741,18 +1058,20 @@ int converter_MaterialInfo_or_None_sequence(PyObject *obj, void *_result) {
         if (item == Py_None) {
             buffer[i] = NULL;
         } else if (PyObject_TypeCheck(item, &MaterialInfoType)) {
-            buffer[i] = &((struct MaterialInfoObject *)item)->mat_info;
+            buffer[i] = (struct MaterialInfoObject *)item;
         } else {
             PyErr_Format(PyExc_TypeError,
                          "Object in sequence at index %ld is not None or a %s",
                          (long)i, MaterialInfoType.tp_name);
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_XDECREF(buffer[j]);
             free(buffer);
             return 0;
         }
     }
 
-    struct MaterialInfoSequenceInfo *result =
-        (struct MaterialInfoSequenceInfo *)_result;
+    struct MaterialInfoObjectSequenceInfo *result =
+        (struct MaterialInfoObjectSequenceInfo *)_result;
     result->buffer = buffer;
     result->len = len;
     return 1;
@@ -762,8 +1081,8 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
         buf_triangles_material_index_view, buf_loops_vertex_index_view,
         buf_loops_normal_view, buf_corners_color_view, buf_loops_uv_view;
-    struct MaterialInfoSequenceInfo material_infos;
-    PyObject *default_material_info;
+    struct MaterialInfoObjectSequenceInfo material_info_objects;
+    PyObject *_default_material_info;
 
     if (!PyArg_ParseTuple(
             args, "O&O&O&O&O&O&O&O&O!",                                  //
@@ -776,9 +1095,46 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
             converter_contiguous_float_buffer_optional,
             &buf_corners_color_view,                                        //
             converter_contiguous_float_buffer_optional, &buf_loops_uv_view, //
-            converter_MaterialInfo_or_None_sequence, &material_infos,       //
-            &MaterialInfoType, &default_material_info))
+            converter_MaterialInfoObject_or_None_sequence,
+            &material_info_objects, //
+            &MaterialInfoType, &_default_material_info))
         return NULL;
+
+    struct MaterialInfoObject *default_material_info =
+        (struct MaterialInfoObject *)_default_material_info;
+
+    struct MaterialInfoImageObject **image_objects;
+    size_t len_image_objects;
+
+    struct MaterialInfo **material_infos;
+    size_t n_material_infos = material_info_objects.len;
+
+    // + 1 for default_material_info
+    len_image_objects = (n_material_infos + 1) * 8;
+    image_objects =
+        malloc(sizeof(struct MaterialInfoImageObject *[len_image_objects]));
+    material_infos = malloc(sizeof(struct MaterialInfo *[n_material_infos]));
+    // TODO check malloc
+
+    for (Py_ssize_t i = 0; i < material_info_objects.len; i++) {
+        material_infos[i] = &material_info_objects.buffer[i]->mat_info;
+        for (int j = 0; j < 8; j++) {
+            assert((size_t)(i * 8 + j) < len_image_objects);
+            image_objects[i * 8 + j] =
+                material_info_objects.buffer[i]->image_objects[j];
+        }
+    }
+
+    for (int j = 0; j < 8; j++) {
+        assert((size_t)(n_material_infos * 8 + j) < len_image_objects);
+        image_objects[n_material_infos * 8 + j] =
+            default_material_info->image_objects[j];
+    }
+
+    // This also decreases the reference counts of the image_objects before we
+    // increase it below, but that's fine as the objects are still referenced
+    // elsewhere due to being passed as arguments.
+    free_MaterialInfoSequenceInfo(&material_info_objects);
 
     struct MeshInfo *mesh;
 
@@ -795,8 +1151,8 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
                                            : buf_corners_color_view.shape[0], //
         buf_loops_uv_view.buf,
         buf_loops_uv_view.buf == NULL ? 0 : buf_loops_uv_view.shape[0], //
-        material_infos.buffer, material_infos.len,                      //
-        &((struct MaterialInfoObject *)default_material_info)->mat_info);
+        material_infos, n_material_infos,                               //
+        &default_material_info->mat_info);
 
     PyBuffer_Release(&buf_vertices_co_view);
     PyBuffer_Release(&buf_triangles_loops_view);
@@ -807,11 +1163,12 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
         PyBuffer_Release(&buf_corners_color_view);
     if (buf_loops_uv_view.buf != NULL)
         PyBuffer_Release(&buf_loops_uv_view);
-    free_MaterialInfoSequenceInfo(&material_infos);
+    free(material_infos);
 
     if (mesh == NULL) {
         PyErr_SetString(PyExc_MemoryError,
                         "create_MeshInfo_from_buffers failed");
+        free(image_objects);
         return NULL;
     }
 
@@ -824,6 +1181,7 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     mesh_info_object = PyObject_New(struct MeshInfoObject, &MeshInfoType);
     if (mesh_info_object == NULL) {
         PyErr_SetString(PyExc_MemoryError, "PyObject_New failed");
+        free(image_objects);
         return NULL;
     }
     printf("%s: PyObject_Init...\n", __FUNCTION__);
@@ -831,20 +1189,42 @@ static PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
                       Py_TYPE(mesh_info_object)) == NULL) {
         // ? (can init even return NULL?) (no it can't)
         Py_DECREF(mesh_info_object);
+        free(image_objects);
         return NULL;
     }
 
+    for (size_t i = 0; i < len_image_objects; i++)
+        Py_XINCREF(image_objects[i]);
+
+    mesh_info_object->image_objects = image_objects;
+    mesh_info_object->len_image_objects = len_image_objects;
     mesh_info_object->mesh = mesh;
 
     return (PyObject *)mesh_info_object;
 }
 
 static int dragex_backend_exec(PyObject *m) {
+    if (PyType_Ready(&MaterialInfoImageType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MaterialInfoImage",
+                              (PyObject *)&MaterialInfoImageType) < 0) {
+        return -1;
+    }
+
     if (PyType_Ready(&MaterialInfoOtherModesType) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "MaterialInfoOtherModes",
                               (PyObject *)&MaterialInfoOtherModesType) < 0) {
+        return -1;
+    }
+
+    if (PyType_Ready(&MaterialInfoTileType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MaterialInfoTile",
+                              (PyObject *)&MaterialInfoTileType) < 0) {
         return -1;
     }
 

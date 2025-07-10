@@ -1,7 +1,16 @@
 from collections.abc import Buffer, Sequence
 import os
+from typing import Optional
 
 def get_build_id() -> int: ...
+
+class MaterialInfoImage:
+    def __init__(
+        self,
+        c_identifier: str,
+        width: int,
+        height: int,
+    ) -> None: ...
 
 class MaterialInfoOtherModes:
     def __init__(
@@ -50,6 +59,31 @@ class MaterialInfoOtherModes:
         alpha_compare_en: bool,
     ) -> None: ...
 
+class MaterialInfoTile:
+    def __init__(
+        self,
+        image: Optional[MaterialInfoImage],
+        #
+        format: str,
+        size: str,
+        line: int,
+        address: int,
+        palette: int,
+        clamp_T: bool,
+        mirror_T: bool,
+        mask_T: int,
+        shift_T: int,
+        clamp_S: bool,
+        mirror_S: bool,
+        mask_S: int,
+        shift_S: int,
+        #
+        upper_left_S: float,
+        upper_left_T: float,
+        lower_right_S: float,
+        lower_right_T: float,
+    ) -> None: ...
+
 class MaterialInfoCombiner:
     def __init__(
         self,
@@ -84,6 +118,7 @@ class MaterialInfo:
         uv_basis_s: int,
         uv_basis_t: int,
         other_modes: MaterialInfoOtherModes,
+        tiles: Sequence[MaterialInfoTile],
         combiner: MaterialInfoCombiner,
         geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...

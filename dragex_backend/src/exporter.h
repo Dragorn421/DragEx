@@ -19,6 +19,11 @@ struct TriInfo {
     unsigned int material;
 };
 
+struct MaterialInfoImage {
+    char *c_identifier;
+    int width, height;
+};
+
 enum rdp_om_cycle_type {
     RDP_OM_CYCLE_TYPE_1CYCLE,
     RDP_OM_CYCLE_TYPE_2CYCLE,
@@ -117,6 +122,46 @@ struct MaterialInfoOtherModes {
     bool z_source_sel;
     bool dither_alpha_en;
     bool alpha_compare_en;
+};
+
+enum rdp_tile_format {
+    RDP_TILE_FORMAT_RGBA,
+    RDP_TILE_FORMAT_YUV,
+    RDP_TILE_FORMAT_CI,
+    RDP_TILE_FORMAT_IA,
+    RDP_TILE_FORMAT_I
+};
+
+enum rdp_tile_size {
+    RDP_TILE_SIZE_4,
+    RDP_TILE_SIZE_8,
+    RDP_TILE_SIZE_16,
+    RDP_TILE_SIZE_32
+};
+
+struct MaterialInfoTile {
+    // this is a pointer instead of a sub-struct because it can be NULL or
+    // shared with other tiles/materials
+    struct MaterialInfoImage *image;
+
+    enum rdp_tile_format format;
+    enum rdp_tile_size size;
+    int line;
+    int address;
+    int palette;
+    bool clamp_T;
+    bool mirror_T;
+    int mask_T;
+    int shift_T;
+    bool clamp_S;
+    bool mirror_S;
+    int mask_S;
+    int shift_S;
+
+    float upper_left_S;
+    float upper_left_T;
+    float lower_right_S;
+    float lower_right_T;
 };
 
 enum rdp_combiner_rgb_A_inputs {
@@ -240,6 +285,7 @@ struct MaterialInfo {
     int uv_basis_s;
     int uv_basis_t;
     struct MaterialInfoOtherModes other_modes;
+    struct MaterialInfoTile tiles[8];
     struct MaterialInfoCombiner combiner;
     struct MaterialInfoGeometryMode geometry_mode;
 };

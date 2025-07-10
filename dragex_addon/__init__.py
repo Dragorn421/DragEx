@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 
 import bpy
@@ -103,6 +105,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             buf_loops_uv = new_float_buf(2 * len(mesh.loops))
             active_uv_layer.uv.foreach_get("vector", buf_loops_uv)
 
+        image_infos = dict[bpy.types.Image, dragex_backend.MaterialInfoImage]()
         material_infos = list[dragex_backend.MaterialInfo | None]()
         for mat_index in range(len(context.object.material_slots)):
             mat = context.object.material_slots[mat_index].material
@@ -111,8 +114,47 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             else:
                 mat_dragex: DragExMaterialProperties = mat.dragex
                 other_modes = mat_dragex.other_modes
+                tiles = mat_dragex.tiles
                 combiner = mat_dragex.combiner
                 mat_geomode = mat_dragex.geometry_mode
+
+                mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
+                for tile in tiles.tiles:
+                    image: bpy.types.Image | None = tile.image
+                    if image is None:
+                        image_info = None
+                    else:
+                        image_info = image_infos.get(image)
+                        if image_info is None:
+                            width, height = image.size
+                            image_info = dragex_backend.MaterialInfoImage(
+                                c_identifier=make_c_identifier(image.name),
+                                width=width,
+                                height=height,
+                            )
+                    mat_info_tiles.append(
+                        dragex_backend.MaterialInfoTile(
+                            image=image_info,
+                            format=tile.format,
+                            size=tile.size,
+                            line=tile.line,
+                            address=tile.address,
+                            palette=tile.palette,
+                            clamp_T=tile.clamp_T,
+                            mirror_T=tile.mirror_T,
+                            mask_T=tile.mask_T,
+                            shift_T=tile.shift_T,
+                            clamp_S=tile.clamp_S,
+                            mirror_S=tile.mirror_S,
+                            mask_S=tile.mask_S,
+                            shift_S=tile.shift_S,
+                            upper_left_S=tile.upper_left_S,
+                            upper_left_T=tile.upper_left_T,
+                            lower_right_S=tile.lower_right_S,
+                            lower_right_T=tile.lower_right_T,
+                        )
+                    )
+
                 mat_info = dragex_backend.MaterialInfo(
                     name=make_c_identifier(mat.name),
                     uv_basis_s=mat_dragex.uv_basis_s,
@@ -160,6 +202,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                         dither_alpha_en=other_modes.dither_alpha_en,
                         alpha_compare_en=other_modes.alpha_compare_en,
                     ),
+                    tiles=mat_info_tiles,
                     combiner=dragex_backend.MaterialInfoCombiner(
                         combiner.rgb_A_0,
                         combiner.rgb_B_0,
@@ -230,6 +273,31 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 z_source_sel=False,
                 dither_alpha_en=False,
                 alpha_compare_en=False,
+            ),
+            tiles=(
+                [
+                    dragex_backend.MaterialInfoTile(
+                        image=None,
+                        format="RGBA",
+                        size="16",
+                        line=0,
+                        address=0,
+                        palette=0,
+                        clamp_T=False,
+                        mirror_T=False,
+                        mask_T=0,
+                        shift_T=0,
+                        clamp_S=False,
+                        mirror_S=False,
+                        mask_S=0,
+                        shift_S=0,
+                        upper_left_S=0,
+                        upper_left_T=0,
+                        lower_right_S=0,
+                        lower_right_T=0,
+                    )
+                ]
+                * 8
             ),
             combiner=dragex_backend.MaterialInfoCombiner(
                 "0",
@@ -520,6 +588,129 @@ class DragExMaterialOtherModesProperties(bpy.types.PropertyGroup):
     )
 
 
+tile_format_items = (
+    ("RGBA", "RGBA", "RGBA"),
+    ("YUV", "YUV", "YUV"),
+    ("CI", "CI", "Color-Indexed (CI)"),
+    ("IA", "IA", "Intensity-Alpha (IA)"),
+    ("I", "I", "Intensity (I)"),
+)
+
+tile_size_items = (
+    ("4", "4", "4"),
+    ("8", "8", "8"),
+    ("16", "16", "16"),
+    ("32", "32", "32"),
+)
+
+
+# https://n64brew.dev/wiki/Reality_Display_Processor/Commands?oldid=5601#0x35_-_Set_Tile
+# and https://n64brew.dev/wiki/Reality_Display_Processor/Commands?oldid=5601#0x32_-_Set_Tile_Size
+# TODO improve names/descriptions
+class DragExMaterialTileProperties(bpy.types.PropertyGroup):
+    image: bpy.props.PointerProperty(
+        name="Image",
+        description="Tile data to be loaded",
+        type=bpy.types.Image,
+    )
+
+    format: bpy.props.EnumProperty(
+        name="format",
+        description="Tile texel format",
+        items=tile_format_items,
+    )
+    size: bpy.props.EnumProperty(
+        name="size",
+        description="Tile texel size",
+        items=tile_size_items,
+    )
+    line: bpy.props.IntProperty(
+        name="line",
+        description="Tile line length in TMEM words",
+    )
+    address: bpy.props.IntProperty(
+        name="address",
+        description="TMEM address in TMEM words",
+    )
+    palette: bpy.props.IntProperty(
+        name="palette",
+        description="Palette index",
+    )
+    clamp_T: bpy.props.BoolProperty(
+        name="clamp_T",
+        description="Clamp enable (T-axis)",
+    )
+    mirror_T: bpy.props.BoolProperty(
+        name="mirror_T",
+        description="Mirror enable (T-axis)",
+    )
+    mask_T: bpy.props.IntProperty(
+        name="mask_T",
+        description="Mask (T-axis)",
+    )
+    shift_T: bpy.props.IntProperty(
+        name="shift_T",
+        description="Shift (T-axis)",
+    )
+    clamp_S: bpy.props.BoolProperty(
+        name="clamp_S",
+        description="Clamp enable (S-axis)",
+    )
+    mirror_S: bpy.props.BoolProperty(
+        name="mirror_S",
+        description="Mirror enable (S-axis)",
+    )
+    mask_S: bpy.props.IntProperty(
+        name="mask_S",
+        description="Mask (S-axis)",
+    )
+    shift_S: bpy.props.IntProperty(
+        name="shift_S",
+        description="Shift (S-axis)",
+    )
+
+    upper_left_S: bpy.props.FloatProperty(
+        name="upper_left_S",
+        description="Upper-left s coordinate (u10.2 format)",
+    )
+    upper_left_T: bpy.props.FloatProperty(
+        name="upper_left_T",
+        description="Upper-left t coordinate (u10.2 format)",
+    )
+    lower_right_S: bpy.props.FloatProperty(
+        name="lower_right_S",
+        description="Lower-right s coordinate (u10.2 format)",
+    )
+    lower_right_T: bpy.props.FloatProperty(
+        name="lower_right_T",
+        description="Lower-right t coordinate (u10.2 format)",
+    )
+
+
+class DragExMaterialTilesProperties(bpy.types.PropertyGroup):
+    tile_0: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_1: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_2: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_3: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_4: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_5: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_6: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+    tile_7: bpy.props.PointerProperty(type=DragExMaterialTileProperties)
+
+    @property
+    def tiles(self) -> Sequence[DragExMaterialTileProperties]:
+        return (
+            self.tile_0,
+            self.tile_1,
+            self.tile_2,
+            self.tile_3,
+            self.tile_4,
+            self.tile_5,
+            self.tile_6,
+            self.tile_7,
+        )
+
+
 # TODO cleanup names and descriptions of items
 
 rgb_A_inputs_items = (
@@ -796,12 +987,17 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
     uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
 
     other_modes_: bpy.props.PointerProperty(type=DragExMaterialOtherModesProperties)
+    tiles_: bpy.props.PointerProperty(type=DragExMaterialTilesProperties)
     combiner_: bpy.props.PointerProperty(type=DragExMaterialCombinerProperties)
     geometry_mode_: bpy.props.PointerProperty(type=DragExMaterialGeometryModeProperties)
 
     @property
     def other_modes(self) -> DragExMaterialOtherModesProperties:
         return self.other_modes_
+
+    @property
+    def tiles(self) -> DragExMaterialTilesProperties:
+        return self.tiles_
 
     @property
     def combiner(self) -> DragExMaterialCombinerProperties:
@@ -838,6 +1034,7 @@ class DragExMaterialPanel(bpy.types.Panel):
         mat_geomode = mat_dragex.geometry_mode
         other_modes = mat_dragex.other_modes
         combiner = mat_dragex.combiner
+        tiles = mat_dragex.tiles.tiles
         self.layout.prop(mat_geomode, "lighting")
         self.layout.prop(mat_dragex, "uv_basis_s")
         self.layout.prop(mat_dragex, "uv_basis_t")
@@ -896,12 +1093,35 @@ class DragExMaterialPanel(bpy.types.Panel):
         box.prop(combiner, "alpha_B_1")
         box.prop(combiner, "alpha_C_1")
         box.prop(combiner, "alpha_D_1")
+        for i, tile in enumerate(tiles):
+            box = self.layout.box()
+            box.label(text=f"Tile {i}")
+            box.template_ID(tile, "image", new="image.new", open="image.open")
+            box.prop(tile, "format")
+            box.prop(tile, "size")
+            box.prop(tile, "line")
+            box.prop(tile, "address")
+            box.prop(tile, "palette")
+            box.prop(tile, "clamp_T")
+            box.prop(tile, "mirror_T")
+            box.prop(tile, "mask_T")
+            box.prop(tile, "shift_T")
+            box.prop(tile, "clamp_S")
+            box.prop(tile, "mirror_S")
+            box.prop(tile, "mask_S")
+            box.prop(tile, "shift_S")
+            box.prop(tile, "upper_left_S")
+            box.prop(tile, "upper_left_T")
+            box.prop(tile, "lower_right_S")
+            box.prop(tile, "lower_right_T")
         mat_dragex.quickanddirty.draw(self.layout)
 
 
 classes = (
     DragExMaterialGeometryModeProperties,
     DragExMaterialOtherModesProperties,
+    DragExMaterialTileProperties,
+    DragExMaterialTilesProperties,
     DragExMaterialCombinerProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,

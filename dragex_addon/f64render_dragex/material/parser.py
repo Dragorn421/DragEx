@@ -421,7 +421,8 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     state.tex_size = (f3d_mat.uv_basis_s, f3d_mat.uv_basis_t)
 
-    f64mat.state.tex_confs[0] = get_tile_conf(f3d_mat.quickanddirty.texture0)
+    for i, tile in enumerate(f3d_mat.tiles.tiles):
+        f64mat.state.tex_confs[i] = get_tile_conf(tile)
 
     state.cc = get_cc_settings(f3d_mat)
     state.prim_color = quantize_srgb(f3d_mat.quickanddirty.prim_color)

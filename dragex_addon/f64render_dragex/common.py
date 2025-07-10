@@ -20,7 +20,7 @@ from .material.parser import (
     F64Light,
 )
 from .material.cc import SOLID_CC
-from .material.tile import get_tile_conf
+from .material.tile import get_tile_conf_from_default
 from .mesh.mesh import MeshBuffers, mesh_to_buffers
 from .mesh.gpu_batch import batch_for_shader, create_vert_buf
 from .properties import F64RenderSettings
@@ -68,7 +68,7 @@ def get_scene_render_state(scene: bpy.types.Scene):
         ),
         convert=quantize_tuple(f64render_rs.default_convert, 9.0, -1.0, 1.0),
         cc=SOLID_CC,
-        tex_confs=([get_tile_conf(getattr(f64render_rs, f"default_tex{i}")) for i in range(0, 8)]),
+        tex_confs=([get_tile_conf_from_default(getattr(f64render_rs, f"default_tex{i}")) for i in range(0, 8)]),
     )
     state.lights[0] = F64Light(
         quantize_srgb(tmp_porting.light0Color, force_alpha=True), quantize_direction(tmp_porting.light0Direction)

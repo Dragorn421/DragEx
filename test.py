@@ -108,6 +108,35 @@ default_mat_info = dragex_backend.MaterialInfo(
         dither_alpha_en=False,
         alpha_compare_en=False,
     ),
+    tiles=(
+        [
+            dragex_backend.MaterialInfoTile(
+                image=dragex_backend.MaterialInfoImage(
+                    c_identifier="image_c_identifier",
+                    width=32,
+                    height=32,
+                ),
+                format="RGBA",
+                size="16",
+                line=32 * 2,
+                address=0,
+                palette=0,
+                clamp_T=False,
+                mirror_T=False,
+                mask_T=5,
+                shift_T=0,
+                clamp_S=False,
+                mirror_S=False,
+                mask_S=5,
+                shift_S=0,
+                upper_left_S=0,
+                upper_left_T=0,
+                lower_right_S=32 - 1,
+                lower_right_T=32 - 1,
+            )
+        ]
+        * 8
+    ),
     combiner=dragex_backend.MaterialInfoCombiner(
         "0",
         "0",
@@ -142,6 +171,11 @@ mi = dragex_backend.create_MeshInfo(
     [],
     default_mat_info,
 )
+
+print("del default_mat_info")
+del default_mat_info
+print("del default_mat_info done")
+
 print("mi =", mi)
 mi.write_c(Path(__file__).parent / "test_out.c")
 mi.write_c(str(Path(__file__).parent / "test_out.c"))
