@@ -711,17 +711,14 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         struct MaterialInfoImage *image = tile->image;
         if (image != NULL) {
             // TODO use gsDPLoadMultiTile for textures with line%8!=0 ?
+            // TODO use gsDPLoadMultiBlock_4b for RDP_TILE_SIZE_4 images
             fprintf(f,
                     "    gsDPLoadMultiBlock("
                     "%s, 0x%03X, %d, "
                     "%s, %s, %d, %d, %d, "
                     "%s | %s, %s | %s, "
                     "%d, %d, %d, %d),\n",
-                    image->c_identifier,
-                    tile->address /* TODO is gsDPLoadMultiBlock's tmem arg in
-                                     bytes or tmem words? */
-                    ,
-                    i_tile,
+                    image->c_identifier, tile->address, i_tile,
 
                     tile_format_names[tile->format],
                     tile_size_names[tile->size], image->width, image->height,
