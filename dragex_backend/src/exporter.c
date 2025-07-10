@@ -187,6 +187,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         copy_MaterialInfo(&mesh->materials[material_index_map[i]], mat_info);
     }
 
+    free(material_index_map);
+
     if (use_default_material) {
         assert(default_material_index != ~0u);
         copy_MaterialInfo(&mesh->materials[default_material_index],
