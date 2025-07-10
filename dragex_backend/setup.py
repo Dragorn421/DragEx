@@ -11,7 +11,15 @@ setup(
         Extension(
             name="dragex_backend",
             sources=[
-                "src/main.c",
+                "src/py/main.c",
+                "src/py/mat_info_image_obj.c",
+                "src/py/mat_info_other_modes_obj.c",
+                "src/py/mat_info_tile_obj.c",
+                "src/py/mat_info_combiner_obj.c",
+                "src/py/mat_info_vals_obj.c",
+                "src/py/mat_info_geometry_mode_obj.c",
+                "src/py/mat_info_obj.c",
+                "src/py/mesh_info_obj.c",
                 "src/exporter.c",
                 "meshoptimizer/src/indexgenerator.cpp",
                 "meshoptimizer/src/vcacheoptimizer.cpp",
