@@ -75,7 +75,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     unsigned int default_material_index = ~0u;
     unsigned int material_index_map_len = n_material_infos;
     unsigned int *material_index_map =
-        malloc(sizeof(unsigned int[material_index_map_len]));
+        malloc(sizeof(unsigned int) * material_index_map_len);
     if (material_index_map_len != 0 && material_index_map == NULL)
         return NULL;
     for (unsigned int i = 0; i < material_index_map_len; i++) {
@@ -88,7 +88,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             unsigned int prev_material_index_map_len = material_index_map_len;
             material_index_map_len = mat_index + 1;
             void *tmp = realloc(material_index_map,
-                                sizeof(unsigned int[material_index_map_len]));
+                                sizeof(unsigned int) * material_index_map_len);
             if (tmp == NULL) {
                 free(material_index_map);
                 return NULL;
@@ -123,13 +123,13 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     mesh->name = strdup("mesh");
 
     mesh->n_verts = n_loops;
-    mesh->verts = malloc(sizeof(struct VertexInfo[n_loops]));
+    mesh->verts = malloc(sizeof(struct VertexInfo) * n_loops);
 
     mesh->n_faces = n_faces;
-    mesh->faces = malloc(sizeof(struct VertexInfo[n_faces]));
+    mesh->faces = malloc(sizeof(struct VertexInfo) * n_faces);
 
     mesh->n_materials = n_materials;
-    mesh->materials = malloc(sizeof(struct MaterialInfo[n_materials]));
+    mesh->materials = malloc(sizeof(struct MaterialInfo) * n_materials);
 
     if (mesh->materials != NULL) {
         // for free_create_MeshInfo_from_buffers
@@ -233,7 +233,7 @@ void free_split_mesh_by_material(struct MeshInfo **meshes, int n_meshes) {
 struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
     struct MeshInfo **out_meshes;
 
-    out_meshes = malloc(sizeof(struct MeshInfo * [in_mesh->n_materials]));
+    out_meshes = malloc(sizeof(struct MeshInfo *) * in_mesh->n_materials);
     if (out_meshes == NULL)
         return NULL;
 
@@ -246,9 +246,12 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         out_meshes[i_mat] = m;
 
         int n_faces_used = 0;
-        uint8_t vertices_used[in_mesh->n_verts];
+        uint8_t *vertices_used = calloc(in_mesh->n_verts, sizeof(uint8_t));
 
-        memset(vertices_used, 0, in_mesh->n_verts);
+        if (vertices_used == NULL) {
+            free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
+            return NULL;
+        }
 
         for (unsigned int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
             struct TriInfo *f = &in_mesh->faces[i_face];
@@ -269,11 +272,12 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         size_t new_name_len = strlen(in_mesh->name) + strlen("_") +
                               strlen(in_mesh->materials[i_mat].name) + 1;
         m->name = malloc(new_name_len);
-        m->verts = malloc(sizeof(struct VertexInfo[n_vertices_used]));
-        m->faces = malloc(sizeof(struct TriInfo[n_faces_used]));
+        m->verts = malloc(sizeof(struct VertexInfo) * n_vertices_used);
+        m->faces = malloc(sizeof(struct TriInfo) * n_faces_used);
         m->materials = malloc(sizeof(struct MaterialInfo[1]));
         if (m->name == NULL || m->verts == NULL || m->faces == NULL ||
             m->materials == NULL) {
+            free(vertices_used);
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
         }
@@ -313,6 +317,8 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
                 }
             }
         }
+
+        free(vertices_used);
 
         copy_MaterialInfo(&m->materials[0], &in_mesh->materials[i_mat]);
     }
@@ -369,16 +375,16 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
 
     size_t f3d_vertices_buf_len = n_unique_verts * 2;
     struct f3d_vertex *f3d_vertices =
-        malloc(sizeof(struct f3d_vertex[f3d_vertices_buf_len]));
+        malloc(sizeof(struct f3d_vertex) * f3d_vertices_buf_len);
 #define VERTEX_CACHE 32
     size_t f3d_entries_buf_len = 1 + 2 * mesh->n_faces / VERTEX_CACHE;
     struct f3d_mesh_load_entry *f3d_entries =
-        malloc(sizeof(struct f3d_mesh_load_entry[f3d_entries_buf_len]));
+        malloc(sizeof(struct f3d_mesh_load_entry) * f3d_entries_buf_len);
     size_t i_f3d_vertices = 0;
     size_t i_f3d_entries = 0;
     size_t cur_entry_tris_buf_len = VERTEX_CACHE;
     f3d_entries[0].tris =
-        malloc(sizeof(struct f3d_mesh_load_entry_tri[cur_entry_tris_buf_len]));
+        malloc(sizeof(struct f3d_mesh_load_entry_tri) * cur_entry_tris_buf_len);
     f3d_entries[0].buffer_i = 0;
     f3d_entries[0].n = 0;
     f3d_entries[0].v0 = 0;
@@ -416,9 +422,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                     // append vertex to f3d_vertices
                     if (i_f3d_vertices >= f3d_vertices_buf_len) {
                         f3d_vertices_buf_len *= 2;
-                        void *tmp = realloc(
-                            f3d_vertices,
-                            sizeof(struct f3d_vertex[f3d_vertices_buf_len]));
+                        void *tmp =
+                            realloc(f3d_vertices, sizeof(struct f3d_vertex) *
+                                                      f3d_vertices_buf_len);
                         if (tmp == NULL) {
                             // TODO
                         }
@@ -463,8 +469,8 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             if (f3d_entries[i_f3d_entries].n_tris >= cur_entry_tris_buf_len) {
                 cur_entry_tris_buf_len *= 2;
                 void *tmp = realloc(f3d_entries[i_f3d_entries].tris,
-                                    sizeof(struct f3d_mesh_load_entry_tri
-                                               [cur_entry_tris_buf_len]));
+                                    sizeof(struct f3d_mesh_load_entry_tri) *
+                                        cur_entry_tris_buf_len);
                 if (tmp == NULL) {
                     // TODO
                 }
@@ -484,9 +490,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             // advance f3d entry
             if (i_f3d_entries + 1 >= f3d_entries_buf_len) {
                 f3d_entries_buf_len *= 2;
-                void *tmp = realloc(
-                    f3d_entries,
-                    sizeof(struct f3d_mesh_load_entry[f3d_entries_buf_len]));
+                void *tmp =
+                    realloc(f3d_entries, sizeof(struct f3d_mesh_load_entry) *
+                                             f3d_entries_buf_len);
                 if (tmp == NULL) {
                     // TODO
                 }
@@ -494,8 +500,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             }
             i_f3d_entries++;
             cur_entry_tris_buf_len = VERTEX_CACHE;
-            f3d_entries[i_f3d_entries].tris = malloc(
-                sizeof(struct f3d_mesh_load_entry_tri[cur_entry_tris_buf_len]));
+            f3d_entries[i_f3d_entries].tris =
+                malloc(sizeof(struct f3d_mesh_load_entry_tri) *
+                       cur_entry_tris_buf_len);
             // TODO check malloc
             f3d_entries[i_f3d_entries].buffer_i = i_f3d_vertices;
             f3d_entries[i_f3d_entries].n = 0;
