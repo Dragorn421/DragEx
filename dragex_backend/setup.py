@@ -17,7 +17,7 @@ class CustomBuildExt(build_ext):
             if compiler == "msvc":
                 ext.extra_compile_args = [
                     "/Od",
-                    "/Wall",
+                    "/W4",
                     "/WX",
                     "/U",
                     "NDEBUG",
