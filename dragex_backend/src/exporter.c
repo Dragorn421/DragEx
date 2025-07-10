@@ -249,6 +249,10 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         uint8_t *vertices_used = calloc(in_mesh->n_verts, sizeof(uint8_t));
 
         if (vertices_used == NULL) {
+            m->name = NULL;
+            m->verts = NULL;
+            m->faces = NULL;
+            m->materials = NULL;
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
         }
@@ -293,7 +297,13 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         unsigned int i_vert_new = 0;
         memset(vertices_used, 0, in_mesh->n_verts);
 
-        unsigned int verts_remap[in_mesh->n_verts];
+        unsigned int *verts_remap =
+            malloc(sizeof(unsigned int) * in_mesh->n_verts);
+        if (verts_remap == NULL) {
+            free(vertices_used);
+            free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
+            return NULL;
+        }
 
         for (unsigned int i_face = 0; i_face < in_mesh->n_faces; i_face++) {
             struct TriInfo *f = &in_mesh->faces[i_face];
@@ -318,6 +328,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
             }
         }
 
+        free(verts_remap);
         free(vertices_used);
 
         copy_MaterialInfo(&m->materials[0], &in_mesh->materials[i_mat]);
@@ -344,8 +355,14 @@ enum shading_type { SHADING_NULL, SHADING_COLORS, SHADING_NORMALS };
 struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                                   int uv_basis_t,
                                   enum shading_type shading_type) {
-    unsigned int indices[mesh->n_faces * 3];
-    unsigned int remap[mesh->n_verts];
+    unsigned int *indices = malloc(sizeof(unsigned int) * mesh->n_faces * 3);
+    unsigned int *remap = malloc(sizeof(unsigned int) * mesh->n_verts);
+
+    if (indices == NULL || remap == NULL) {
+        free(indices);
+        free(remap);
+        return NULL;
+    }
 
     for (unsigned int i_face = 0; i_face < mesh->n_faces; i_face++) {
         for (int j = 0; j < 3; j++) {
@@ -363,10 +380,18 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         remap, indices, mesh->n_faces * 3, mesh->verts, mesh->n_verts,
         sizeof(struct VertexInfo));
 
-    struct VertexInfo vertices[n_unique_verts];
+    struct VertexInfo *vertices =
+        malloc(sizeof(struct VertexInfo) * n_unique_verts);
+    if (vertices == NULL) {
+        free(indices);
+        free(remap);
+        return NULL;
+    }
     meshopt_remapIndexBuffer(indices, indices, mesh->n_faces * 3, remap);
     meshopt_remapVertexBuffer(vertices, mesh->verts, mesh->n_verts,
                               sizeof(struct VertexInfo), remap);
+
+    free(remap);
 
     meshopt_optimizeVertexCache(indices, indices, mesh->n_faces * 3,
                                 n_unique_verts);
@@ -516,6 +541,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             // process the same tri next iteration with the new state
         }
     }
+
+    free(vertices);
+    free(indices);
 
     struct f3d_mesh *f3d_mesh = malloc(sizeof(struct f3d_mesh));
     f3d_mesh->vertices = f3d_vertices;
