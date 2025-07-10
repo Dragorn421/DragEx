@@ -105,6 +105,19 @@ class MaterialInfoCombiner:
         alpha_D_1: str,
     ) -> None: ...
 
+class MaterialInfoVals:
+    def __init__(
+        self,
+        primitive_depth_z: int,
+        primitive_depth_dz: int,
+        fog_color: tuple[float, float, float, float],
+        blend_color: tuple[float, float, float, float],
+        min_level: int,
+        prim_lod_frac: int,
+        primitive_color: tuple[float, float, float, float],
+        environment_color: tuple[float, float, float, float],
+    ) -> None: ...
+
 class MaterialInfoGeometryMode:
     def __init__(
         self,
@@ -120,6 +133,7 @@ class MaterialInfo:
         other_modes: MaterialInfoOtherModes,
         tiles: Sequence[MaterialInfoTile],
         combiner: MaterialInfoCombiner,
+        vals: MaterialInfoVals,
         geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...
 

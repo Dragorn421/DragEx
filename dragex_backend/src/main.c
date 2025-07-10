@@ -712,6 +712,79 @@ static PyTypeObject MaterialInfoCombinerType = {
     .tp_init = MaterialInfoCombiner_init,
 };
 
+struct MaterialInfoValsObject {
+    PyObject_HEAD
+
+        struct MaterialInfoVals vals;
+};
+
+static int MaterialInfoVals_init(PyObject *_self, PyObject *args,
+                                 PyObject *kwds) {
+    struct MaterialInfoValsObject *self =
+        (struct MaterialInfoValsObject *)_self;
+    static char *kwlist[] = {
+        "primitive_depth_z", "primitive_depth_dz", "fog_color",
+        "blend_color",       "min_level",          "prim_lod_frac",
+        "primitive_color",   "environment_color",  NULL,
+    };
+    int primitive_depth_z;
+    int primitive_depth_dz;
+    struct rgbaf fog_color;
+    struct rgbaf blend_color;
+    int min_level;
+    int prim_lod_frac;
+    struct rgbaf primitive_color;
+    struct rgbaf environment_color;
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds,
+            "ii"
+            "(ffff)"
+            "(ffff)"
+            "ii"
+            "(ffff)"
+            "(ffff)",
+            kwlist,
+
+            &primitive_depth_z, &primitive_depth_dz,
+
+            &fog_color.r, &fog_color.g, &fog_color.b, &fog_color.a,
+
+            &blend_color.r, &blend_color.g, &blend_color.b, &blend_color.a,
+
+            &min_level, &prim_lod_frac,
+
+            &primitive_color.r, &primitive_color.g, &primitive_color.b,
+            &primitive_color.a,
+
+            &environment_color.r, &environment_color.g, &environment_color.b,
+            &environment_color.a))
+        return -1;
+
+    self->vals.primitive_depth_z = primitive_depth_z;
+    self->vals.primitive_depth_dz = primitive_depth_dz;
+    self->vals.fog_color = fog_color;
+    self->vals.blend_color = blend_color;
+    self->vals.min_level = min_level;
+    self->vals.prim_lod_frac = prim_lod_frac;
+    self->vals.primitive_color = primitive_color;
+    self->vals.environment_color = environment_color;
+
+    return 0;
+}
+
+static PyTypeObject MaterialInfoValsType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+
+                   .tp_name = "dragex_backend.MaterialInfoVals",
+    .tp_doc = PyDoc_STR("material info vals"),
+    .tp_basicsize = sizeof(struct MaterialInfoValsObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_init = MaterialInfoVals_init,
+};
+
 struct MaterialInfoGeometryModeObject {
     PyObject_HEAD
 
@@ -834,19 +907,26 @@ int converter_MaterialInfoTileObject_sequence_len8(PyObject *obj,
 static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
     static char *kwlist[] = {
-        "name",  "uv_basis_s", "uv_basis_t",    "other_modes",
-        "tiles", "combiner",   "geometry_mode", NULL,
+        "name",     "uv_basis_s", "uv_basis_t",    "other_modes", "tiles",
+        "combiner", "vals",       "geometry_mode", NULL,
     };
     char *name;
     int uv_basis_s, uv_basis_t;
-    PyObject *_other_modes, *_combiner, *_geometry_mode;
+    PyObject *_other_modes, *_combiner, *_geometry_mode, *_vals;
     struct MaterialInfoTileObjectSequenceInfo tile_infos;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "siiO!O&O!O!", kwlist, &name, &uv_basis_s, &uv_basis_t,
+            args, kwds,
+            "sii"
+            "O!O&O!O!O!",
+            kwlist,
+
+            &name, &uv_basis_s, &uv_basis_t,
+
             &MaterialInfoOtherModesType, &_other_modes,
             converter_MaterialInfoTileObject_sequence_len8, &tile_infos,
-            &MaterialInfoCombinerType, &_combiner,
+            &MaterialInfoCombinerType, &_combiner, //
+            &MaterialInfoValsType, &_vals,         //
             &MaterialInfoGeometryModeType, &_geometry_mode))
         return -1;
 
@@ -855,6 +935,9 @@ static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
 
     struct MaterialInfoCombinerObject *combiner =
         (struct MaterialInfoCombinerObject *)_combiner;
+
+    struct MaterialInfoValsObject *vals =
+        (struct MaterialInfoValsObject *)_vals;
 
     struct MaterialInfoGeometryModeObject *geometry_mode =
         (struct MaterialInfoGeometryModeObject *)_geometry_mode;
@@ -873,6 +956,7 @@ static int MaterialInfo_init(PyObject *_self, PyObject *args, PyObject *kwds) {
         self->mat_info.tiles[i] = tile_infos.buffer[i]->tile;
     }
     self->mat_info.combiner = combiner->combiner;
+    self->mat_info.vals = vals->vals;
     self->mat_info.geometry_mode = geometry_mode->geometry_mode;
 
     free_MaterialInfoTileSequenceInfo(&tile_infos);
@@ -1233,6 +1317,14 @@ static int dragex_backend_exec(PyObject *m) {
     }
     if (PyModule_AddObjectRef(m, "MaterialInfoCombiner",
                               (PyObject *)&MaterialInfoCombinerType) < 0) {
+        return -1;
+    }
+
+    if (PyType_Ready(&MaterialInfoValsType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MaterialInfoVals",
+                              (PyObject *)&MaterialInfoValsType) < 0) {
         return -1;
     }
 

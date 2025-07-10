@@ -15,7 +15,6 @@ from . import pydefines
 
 if TYPE_CHECKING:
     from ... import DragExMaterialProperties
-    from ... import quick_and_dirty
 
 
 @functools.cache
@@ -425,8 +424,10 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
         f64mat.state.tex_confs[i] = get_tile_conf(tile)
 
     state.cc = get_cc_settings(f3d_mat)
-    state.prim_color = quantize_srgb(f3d_mat.quickanddirty.prim_color)
-    state.env_color = quantize_srgb(f3d_mat.quickanddirty.env_color)
+    state.prim_color = quantize_srgb(f3d_mat.vals.primitive_color)
+    state.prim_lod = (f3d_mat.vals.prim_lod_frac / 255, f3d_mat.vals.min_level / 255)
+    state.env_color = quantize_srgb(f3d_mat.vals.environment_color)
+    state.prim_depth = (f3d_mat.vals.primitive_depth_z, f3d_mat.vals.primitive_depth_dz)
 
     state.set_from_rendermode(parse_f3d_mat_rendermode(f3d_mat))
 

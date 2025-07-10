@@ -39,6 +39,11 @@ Gfx mesh_mymaterial_mat_dl[] = {
     gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0x40, 0x000, 7, 0, G_TX_NOMIRROR | G_TX_WRAP, 5, 0, G_TX_NOMIRROR | G_TX_WRAP, 5, 0),
     gsDPSetTileSize(7, (int)(0.00 * 4), (int)(0.00 * 4), (int)(31.00 * 4), (int)(31.00 * 4)),
     gsDPSetCombineLERP(0, 0, 0, TEXEL0, 0, 0, 0, 1, 0, 0, 0, TEXEL0, 0, 0, 0, 1),
+    gsDPSetPrimDepth(0, 0),
+    gsDPSetFogColor(255, 255, 255, 255),
+    gsDPSetBlendColor(255, 255, 255, 255),
+    gsDPSetPrimColor(0, 0, 255, 255, 255, 255),
+    gsDPSetEnvColor(255, 255, 255, 255),
     gsSPClearGeometryMode(G_LIGHTING),
     gsSPEndDisplayList(),
 };

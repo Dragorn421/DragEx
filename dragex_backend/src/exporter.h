@@ -276,6 +276,25 @@ struct MaterialInfoCombiner {
     enum rdp_combiner_alpha_D_inputs alpha_D_1;
 };
 
+struct rgbaf {
+    float r, g, b, a;
+};
+
+struct rgbau8 {
+    uint8_t r, g, b, a;
+};
+
+struct MaterialInfoVals {
+    int primitive_depth_z;
+    int primitive_depth_dz;
+    struct rgbaf fog_color;
+    struct rgbaf blend_color;
+    int min_level;
+    int prim_lod_frac;
+    struct rgbaf primitive_color;
+    struct rgbaf environment_color;
+};
+
 struct MaterialInfoGeometryMode {
     bool lighting;
 };
@@ -287,6 +306,7 @@ struct MaterialInfo {
     struct MaterialInfoOtherModes other_modes;
     struct MaterialInfoTile tiles[8];
     struct MaterialInfoCombiner combiner;
+    struct MaterialInfoVals vals;
     struct MaterialInfoGeometryMode geometry_mode;
 };
 

@@ -15,6 +15,15 @@ float clampf(float f, float min, float max) {
     return f < min ? min : f > max ? max : f;
 }
 
+struct rgbau8 rgbaf_to_rgbau8(struct rgbaf *rgbaf) {
+    struct rgbau8 rgbau8;
+    rgbau8.r = (uint8_t)(255 * clampf(rgbaf->r, 0.0f, 1.0f));
+    rgbau8.g = (uint8_t)(255 * clampf(rgbaf->g, 0.0f, 1.0f));
+    rgbau8.b = (uint8_t)(255 * clampf(rgbaf->b, 0.0f, 1.0f));
+    rgbau8.a = (uint8_t)(255 * clampf(rgbaf->a, 0.0f, 1.0f));
+    return rgbau8;
+}
+
 void copy_MaterialInfo(struct MaterialInfo *dest, struct MaterialInfo *src) {
     *dest = *src;
     dest->name = strdup(dest->name);
@@ -837,6 +846,37 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
             combiner_alpha_B_names[comb->alpha_B_1],
             combiner_alpha_C_names[comb->alpha_C_1],
             combiner_alpha_D_names[comb->alpha_D_1]);
+
+    struct MaterialInfoVals *vals = &mat_info->vals;
+
+    fprintf(f, "    gsDPSetPrimDepth(%d, %d),\n", vals->primitive_depth_z,
+            vals->primitive_depth_dz);
+
+    struct rgbau8 fog_color = rgbaf_to_rgbau8(&vals->fog_color);
+    fprintf(f,
+            "    gsDPSetFogColor(%" PRId8 ", %" PRId8 ", %" PRId8 ", %" PRId8
+            "),\n",
+            fog_color.r, fog_color.g, fog_color.b, fog_color.a);
+
+    struct rgbau8 blend_color = rgbaf_to_rgbau8(&vals->blend_color);
+    fprintf(f,
+            "    gsDPSetBlendColor(%" PRId8 ", %" PRId8 ", %" PRId8 ", %" PRId8
+            "),\n",
+            blend_color.r, blend_color.g, blend_color.b, blend_color.a);
+
+    struct rgbau8 primitive_color = rgbaf_to_rgbau8(&vals->primitive_color);
+    fprintf(f,
+            "    gsDPSetPrimColor(%d, %d, %" PRId8 ", %" PRId8 ", %" PRId8
+            ", %" PRId8 "),\n",
+            vals->min_level, vals->prim_lod_frac, primitive_color.r,
+            primitive_color.g, primitive_color.b, primitive_color.a);
+
+    struct rgbau8 environment_color = rgbaf_to_rgbau8(&vals->environment_color);
+    fprintf(f,
+            "    gsDPSetEnvColor(%" PRId8 ", %" PRId8 ", %" PRId8 ", %" PRId8
+            "),\n",
+            environment_color.r, environment_color.g, environment_color.b,
+            environment_color.a);
 
     if (mat_info->geometry_mode.lighting)
         fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");

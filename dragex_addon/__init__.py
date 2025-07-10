@@ -5,7 +5,6 @@ import numpy as np
 import bpy
 
 from .build_id import BUILD_ID
-from . import quick_and_dirty
 
 
 def new_float_buf(len):
@@ -116,6 +115,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 other_modes = mat_dragex.other_modes
                 tiles = mat_dragex.tiles
                 combiner = mat_dragex.combiner
+                vals = mat_dragex.vals
                 mat_geomode = mat_dragex.geometry_mode
 
                 mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
@@ -221,6 +221,16 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                         combiner.alpha_C_1,
                         combiner.alpha_D_1,
                     ),
+                    vals=dragex_backend.MaterialInfoVals(
+                        primitive_depth_z=vals.primitive_depth_z,
+                        primitive_depth_dz=vals.primitive_depth_dz,
+                        fog_color=vals.fog_color,
+                        blend_color=vals.blend_color,
+                        min_level=vals.min_level,
+                        prim_lod_frac=vals.prim_lod_frac,
+                        primitive_color=vals.primitive_color,
+                        environment_color=vals.environment_color,
+                    ),
                     geometry_mode=dragex_backend.MaterialInfoGeometryMode(
                         lighting=mat_geomode.lighting,
                     ),
@@ -316,6 +326,16 @@ class DragExBackendDemoOperator(bpy.types.Operator):
                 "0",
                 "0",
                 "1",
+            ),
+            vals=dragex_backend.MaterialInfoVals(
+                primitive_depth_z=0,
+                primitive_depth_dz=0,
+                fog_color=(1, 1, 1, 1),
+                blend_color=(1, 1, 1, 1),
+                min_level=0,
+                prim_lod_frac=0,
+                primitive_color=(1, 1, 1, 1),
+                environment_color=(1, 1, 1, 1),
             ),
             geometry_mode=dragex_backend.MaterialInfoGeometryMode(
                 lighting=True,
@@ -982,6 +1002,58 @@ class DragExMaterialCombinerProperties(bpy.types.PropertyGroup):
     )
 
 
+class DragExMaterialValsProperties(bpy.types.PropertyGroup):
+    # TODO Key GB, Key R, Convert
+    primitive_depth_z: bpy.props.IntProperty(
+        name="Primitive Depth z",
+        description="Primitive depth value",
+    )
+    primitive_depth_dz: bpy.props.IntProperty(
+        name="Primitive Depth dz",
+        description="Primitive dz value",
+    )
+    fog_color: bpy.props.FloatVectorProperty(
+        name="Fog Color",
+        subtype="COLOR",
+        size=4,
+        min=0,
+        max=1,
+        default=(1, 1, 1, 1),
+    )
+    blend_color: bpy.props.FloatVectorProperty(
+        name="Blend Color",
+        subtype="COLOR",
+        size=4,
+        min=0,
+        max=1,
+        default=(1, 1, 1, 1),
+    )
+    min_level: bpy.props.IntProperty(
+        name="Min LOD Level",
+        description="Minimum LOD level",
+    )
+    prim_lod_frac: bpy.props.IntProperty(
+        name="Prim LOD Frac",
+        description="Primitive LOD Fraction Color Combiner input",
+    )
+    primitive_color: bpy.props.FloatVectorProperty(
+        name="Primitive Color",
+        subtype="COLOR",
+        size=4,
+        min=0,
+        max=1,
+        default=(1, 1, 1, 1),
+    )
+    environment_color: bpy.props.FloatVectorProperty(
+        name="Environment Color",
+        subtype="COLOR",
+        size=4,
+        min=0,
+        max=1,
+        default=(1, 1, 1, 1),
+    )
+
+
 class DragExMaterialProperties(bpy.types.PropertyGroup):
     uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
     uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
@@ -989,6 +1061,7 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
     other_modes_: bpy.props.PointerProperty(type=DragExMaterialOtherModesProperties)
     tiles_: bpy.props.PointerProperty(type=DragExMaterialTilesProperties)
     combiner_: bpy.props.PointerProperty(type=DragExMaterialCombinerProperties)
+    vals_: bpy.props.PointerProperty(type=DragExMaterialValsProperties)
     geometry_mode_: bpy.props.PointerProperty(type=DragExMaterialGeometryModeProperties)
 
     @property
@@ -1004,15 +1077,12 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
         return self.combiner_
 
     @property
-    def geometry_mode(self) -> DragExMaterialGeometryModeProperties:
-        return self.geometry_mode_
-
-    # temp properties for helping with f64render porting
-    quickanddirty_: bpy.props.PointerProperty(type=quick_and_dirty.QADProps)
+    def vals(self) -> DragExMaterialValsProperties:
+        return self.vals_
 
     @property
-    def quickanddirty(self) -> quick_and_dirty.QADProps:
-        return self.quickanddirty_
+    def geometry_mode(self) -> DragExMaterialGeometryModeProperties:
+        return self.geometry_mode_
 
 
 class DragExMaterialPanel(bpy.types.Panel):
@@ -1034,10 +1104,19 @@ class DragExMaterialPanel(bpy.types.Panel):
         mat_geomode = mat_dragex.geometry_mode
         other_modes = mat_dragex.other_modes
         combiner = mat_dragex.combiner
+        vals = mat_dragex.vals
         tiles = mat_dragex.tiles.tiles
         self.layout.prop(mat_geomode, "lighting")
         self.layout.prop(mat_dragex, "uv_basis_s")
         self.layout.prop(mat_dragex, "uv_basis_t")
+        self.layout.prop(vals, "primitive_depth_z")
+        self.layout.prop(vals, "primitive_depth_dz")
+        self.layout.prop(vals, "fog_color")
+        self.layout.prop(vals, "blend_color")
+        self.layout.prop(vals, "min_level")
+        self.layout.prop(vals, "prim_lod_frac")
+        self.layout.prop(vals, "primitive_color")
+        self.layout.prop(vals, "environment_color")
         box = self.layout.box()
         box.prop(other_modes, "atomic_prim")
         box.prop(other_modes, "cycle_type")
@@ -1114,7 +1193,6 @@ class DragExMaterialPanel(bpy.types.Panel):
             box.prop(tile, "upper_left_T")
             box.prop(tile, "lower_right_S")
             box.prop(tile, "lower_right_T")
-        mat_dragex.quickanddirty.draw(self.layout)
 
 
 classes = (
@@ -1123,6 +1201,7 @@ classes = (
     DragExMaterialTileProperties,
     DragExMaterialTilesProperties,
     DragExMaterialCombinerProperties,
+    DragExMaterialValsProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
     DragExBackendDemoOperator,
@@ -1131,8 +1210,6 @@ classes = (
 
 def register():
     print("Hi from", __package__)
-
-    quick_and_dirty.register()
 
     # TODO trying to not import at the module level, see if this is less jank this way
     # TODO catch ImportError
@@ -1162,7 +1239,5 @@ def unregister():
     from . import f64render_dragex
 
     f64render_dragex.unregister()
-
-    quick_and_dirty.unregister()
 
     print("Bye from", __package__)

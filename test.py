@@ -155,6 +155,16 @@ default_mat_info = dragex_backend.MaterialInfo(
         "0",
         "1",
     ),
+    vals=dragex_backend.MaterialInfoVals(
+        primitive_depth_z=0,
+        primitive_depth_dz=0,
+        fog_color=(1, 1, 1, 1),
+        blend_color=(1, 1, 1, 1),
+        min_level=0,
+        prim_lod_frac=0,
+        primitive_color=(1, 1, 1, 1),
+        environment_color=(1, 1, 1, 1),
+    ),
     geometry_mode=dragex_backend.MaterialInfoGeometryMode(
         lighting=False,
     ),
