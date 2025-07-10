@@ -4,10 +4,17 @@ on: [workflow_call]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+        - os: ubuntu-latest
+          wheel-build-id: cp311-manylinux_x86_64
+        - os: windows-latest
+          wheel-build-id: cp311-win_amd64
+    runs-on: ${{ matrix.target.os }}
     name: build
     env:
-      archive_name: dragex-${{ github.sha }}
+      archive_name: dragex-${{ matrix.target.wheel-build-id }}-${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,7 +30,7 @@ jobs:
         run: python3 -m pip install cibuildwheel==3.0.0
 
       - name: Build dragex_backend wheel
-        run: cibuildwheel --only cp311-manylinux_x86_64 --output-dir wheelhouse dragex_backend
+        run: cibuildwheel --only ${{ matrix.target.wheel-build-id }} --output-dir wheelhouse dragex_backend
 
       - name: Copy wheel to addon
         run: |
@@ -35,14 +42,29 @@ jobs:
           cd dragex_addon
           python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml wheels/*.whl
 
-      - name: Download Blender
+      - name: Download Blender (Linux)
+        if: runner.os == 'Linux'
         run: curl -o blender-4.2.11-linux-x64.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.11-linux-x64.tar.xz
 
-      - name: Decompress Blender
+      - name: Decompress Blender (Linux)
+        if: runner.os == 'Linux'
         run: tar -xJvf blender-4.2.11-linux-x64.tar.xz
 
-      - name: Build extension
+      - name: Build extension (Linux)
+        if: runner.os == 'Linux'
         run: ./blender-4.2.11-linux-x64/blender --command extension build --source-dir dragex_addon --output-filepath ${{ env.archive_name }}.zip
+
+      - name: Download Blender (Windows)
+        if: runner.os == 'Windows'
+        run: curl -o blender-4.2.11-windows-x64.zip https://download.blender.org/release/Blender4.2/blender-4.2.11-windows-x64.zip
+
+      - name: Decompress Blender (Windows)
+        if: runner.os == 'Windows'
+        run: unzip blender-4.2.11-windows-x64.zip
+
+      - name: Build extension (Windows)
+        if: runner.os == 'Windows'
+        run: ./blender-4.2.11-windows-x64/blender.exe --command extension build --source-dir dragex_addon --output-filepath ${{ env.archive_name }}.zip
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
