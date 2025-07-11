@@ -7,6 +7,10 @@
 
 #include "logging.h"
 
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#endif
+
 static PyObject *py_set_log_file(PyObject *self, PyObject *args) {
     PyObject *path_bytes_object;
 
