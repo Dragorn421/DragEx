@@ -1,6 +1,10 @@
 #ifndef DRAGEX_LOGGING
 #define DRAGEX_LOGGING
 
+#if !defined(__GNUC__) && !defined(__attribute__)
+#define __attribute__(x)
+#endif
+
 enum log_level {
     LOG_LEVEL_NONE,
     LOG_LEVEL_TRACE,
