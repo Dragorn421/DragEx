@@ -1,6 +1,7 @@
 #include "exporter.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,6 +11,8 @@
 #include <string.h>
 
 #include "../meshoptimizer/src/meshoptimizer.h"
+
+#include "logging/logging.h"
 
 float clampf(float f, float min, float max) {
     return f < min ? min : f > max ? max : f;
@@ -57,23 +60,43 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     struct MaterialInfo **material_infos, size_t n_material_infos,           //
     struct MaterialInfo *default_material) {
 
-    if (buf_corners_color != NULL && buf_points_color != NULL)
+    if (buf_corners_color != NULL && buf_points_color != NULL) {
+        log_error("Can't provide both buf_corners_color and "
+                  "buf_points_color");
         return NULL;
+    }
 
     unsigned int n_loops = buf_loops_vertex_index_len;
-    if (buf_loops_normal_len != n_loops * 3)
+    if (buf_loops_normal_len != n_loops * 3) {
+        log_error("buf_loops_normal_len=%zd and n_loops=%u mismatch",
+                  buf_loops_normal_len, n_loops);
         return NULL;
-    if (buf_corners_color != NULL && buf_corners_color_len != n_loops * 4)
+    }
+    if (buf_corners_color != NULL && buf_corners_color_len != n_loops * 4) {
+        log_error("buf_corners_color_len=%zd and n_loops=%u mismatch",
+                  buf_corners_color_len, n_loops);
         return NULL;
+    }
     if (buf_points_color != NULL &&
-        buf_points_color_len != buf_vertices_co_len * 4 / 3)
+        buf_points_color_len != buf_vertices_co_len * 4 / 3) {
+        log_error(
+            "buf_points_color_len=%zd and buf_vertices_co_len=%zd mismatch",
+            buf_points_color_len, buf_vertices_co_len);
         return NULL;
-    if (buf_loops_uv != NULL && buf_loops_uv_len != n_loops * 2)
+    }
+    if (buf_loops_uv != NULL && buf_loops_uv_len != n_loops * 2) {
+        log_error("buf_loops_uv_len=%zd and n_loops=%u mismatch",
+                  buf_loops_uv_len, n_loops);
         return NULL;
+    }
 
     unsigned int n_faces = (unsigned int)(buf_triangles_loops_len / 3);
-    if (buf_triangles_material_index_len != n_faces)
+    if (buf_triangles_material_index_len != n_faces) {
+        log_error(
+            "buf_triangles_material_index_len=%zd and n_faces=%u mismatch",
+            buf_triangles_material_index_len, n_faces);
         return NULL;
+    }
 
     unsigned int n_materials = 0;
     bool use_default_material = false;
@@ -81,8 +104,10 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     unsigned int material_index_map_len = n_material_infos;
     unsigned int *material_index_map =
         malloc(sizeof(unsigned int) * material_index_map_len);
-    if (material_index_map_len != 0 && material_index_map == NULL)
+    if (material_index_map_len != 0 && material_index_map == NULL) {
+        log_error("malloc material_index_map failed");
         return NULL;
+    }
     for (unsigned int i = 0; i < material_index_map_len; i++) {
         material_index_map[i] = ~0u;
     }
@@ -95,6 +120,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             void *tmp = realloc(material_index_map,
                                 sizeof(unsigned int) * material_index_map_len);
             if (tmp == NULL) {
+                log_error("realloc material_index_map failed");
                 free(material_index_map);
                 return NULL;
             }
@@ -123,8 +149,10 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     }
 
     struct MeshInfo *mesh = malloc(sizeof(struct MeshInfo));
-    if (mesh == NULL)
+    if (mesh == NULL) {
+        log_error("malloc mesh failed");
         return NULL;
+    }
     mesh->name = strdup("mesh");
 
     mesh->n_verts = n_loops;
@@ -145,6 +173,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
 
     if (mesh->name == NULL || mesh->verts == NULL || mesh->faces == NULL ||
         mesh->materials == NULL) {
+        log_error("malloc name, verts, faces or materials failed");
         free_create_MeshInfo_from_buffers(mesh);
         return NULL;
     }
@@ -153,6 +182,9 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         for (int j = 0; j < 3; j++) {
             unsigned int v = buf_loops_vertex_index[i_loop] * 3 + j;
             if (v >= buf_vertices_co_len) {
+                log_error(
+                    "i_loop=%u: v=%u out of bounds (buf_vertices_co_len=%zd)",
+                    i_loop, v, buf_vertices_co_len);
                 free_create_MeshInfo_from_buffers(mesh);
                 return NULL;
             }
@@ -172,6 +204,9 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             } else if (buf_points_color != NULL) {
                 unsigned int v = buf_loops_vertex_index[i_loop] * 4 + j;
                 if (v >= buf_points_color_len) {
+                    log_error("i_loop=%u: v=%u out of bounds "
+                              "(buf_points_color_len=%zd)",
+                              i_loop, v, buf_points_color_len);
                     free_create_MeshInfo_from_buffers(mesh);
                     return NULL;
                 }
@@ -187,6 +222,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         for (int j = 0; j < 3; j++) {
             unsigned int loop = buf_triangles_loops[i * 3 + j];
             if (loop >= n_loops) {
+                log_error("face %u: loop=%u out of bounds (n_loops=%u)", i,
+                          loop, n_loops);
                 free_create_MeshInfo_from_buffers(mesh);
                 return NULL;
             }
@@ -247,12 +284,15 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
     struct MeshInfo **out_meshes;
 
     out_meshes = malloc(sizeof(struct MeshInfo *) * in_mesh->n_materials);
-    if (out_meshes == NULL)
+    if (out_meshes == NULL) {
+        log_error("malloc out_meshes failed");
         return NULL;
+    }
 
     for (unsigned int i_mat = 0; i_mat < in_mesh->n_materials; i_mat++) {
         struct MeshInfo *m = malloc(sizeof(struct MeshInfo));
         if (m == NULL) {
+            log_error("malloc m failed");
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
         }
@@ -262,6 +302,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         uint8_t *vertices_used = calloc(in_mesh->n_verts, sizeof(uint8_t));
 
         if (vertices_used == NULL) {
+            log_error("calloc vertices_used failed");
             m->name = NULL;
             m->verts = NULL;
             m->faces = NULL;
@@ -294,6 +335,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         m->materials = malloc(sizeof(struct MaterialInfo[1]));
         if (m->name == NULL || m->verts == NULL || m->faces == NULL ||
             m->materials == NULL) {
+            log_error("malloc name, verts, faces or materials failed");
             free(vertices_used);
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
@@ -313,6 +355,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         unsigned int *verts_remap =
             malloc(sizeof(unsigned int) * in_mesh->n_verts);
         if (verts_remap == NULL) {
+            log_error("malloc verts_remap failed");
             free(vertices_used);
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
@@ -372,6 +415,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
     unsigned int *remap = malloc(sizeof(unsigned int) * mesh->n_verts);
 
     if (indices == NULL || remap == NULL) {
+        log_error("malloc indices or remap failed");
         free(indices);
         free(remap);
         return NULL;
@@ -396,6 +440,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
     struct VertexInfo *vertices =
         malloc(sizeof(struct VertexInfo) * n_unique_verts);
     if (vertices == NULL) {
+        log_error("malloc vertices failed");
         free(indices);
         free(remap);
         return NULL;
@@ -990,12 +1035,14 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
 int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
     FILE *f = fopen(path, "w");
     if (f == NULL) {
-        perror("fopen");
+        log_error("Could not open %s for writing. fopen: %s", path,
+                  strerror(errno));
         return -1;
     }
     fprintf(f, "// Hi from write_mesh_info_to_f3d_c\n");
     struct MeshInfo **meshes = split_mesh_by_material(mesh_info);
     if (meshes == NULL) {
+        log_error("malloc meshes failed");
         return -2;
     }
     for (unsigned int i_mesh = 0; i_mesh < mesh_info->n_materials; i_mesh++) {
