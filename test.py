@@ -7,6 +7,9 @@ import numpy as np
 import dragex_backend
 
 
+dragex_backend.logging.set_log_file(Path(__file__).parent / "test_log.txt")
+
+
 try:
     dragex_backend.create_MeshInfo(None, None, None, None)
 except TypeError:
@@ -193,3 +196,6 @@ mi.write_c(str(Path(__file__).parent / "test_out.c"))
 print("del mi")
 del mi
 print("del mi done")
+
+dragex_backend.logging.flush()  # useless here but just for testing the method
+dragex_backend.logging.clear_log_file()

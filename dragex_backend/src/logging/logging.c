@@ -1,9 +1,13 @@
+#include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "logging.h"
+
+static FILE *log_file = NULL;
 
 static char *log_prolog_prefix = "[DragEx] ";
 
@@ -90,6 +94,28 @@ void _log(const char *file, int line, const char *function,
     // Print
 
     printf("%s", buf);
+    if (log_file != NULL)
+        fprintf(log_file, "%s", buf);
 
     free(buf);
 }
+
+bool set_log_file(const char *path) {
+    if (log_file != NULL) {
+        fclose(log_file);
+        log_file = NULL;
+    }
+
+    if (path != NULL) {
+        log_file = fopen(path, "w");
+        if (log_file == NULL) {
+            log_error("Could not open %s for writing. fopen: %s", path,
+                      strerror(errno));
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void log_flush(void) { fflush(log_file); }

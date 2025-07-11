@@ -7,6 +7,7 @@
 #include "objs.h"
 
 #include "../logging/logging.h"
+#include "../logging/py_logging.h"
 
 #include "../../build_id.h"
 
@@ -75,6 +76,16 @@ static int dragex_backend_exec(PyObject *m) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "MeshInfo", (PyObject *)&MeshInfoType) < 0) {
+        return -1;
+    }
+
+    PyObject *logging_module_obj =
+        PyModule_Create(&dragex_backend_logging_module);
+    if (logging_module_obj == NULL) {
+        return -1;
+    }
+    if (PyModule_AddObject(m, "logging", logging_module_obj) < 0) {
+        Py_DECREF(logging_module_obj);
         return -1;
     }
 

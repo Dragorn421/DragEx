@@ -41,6 +41,7 @@ setup(
             name="dragex_backend",
             sources=[
                 "src/logging/logging.c",
+                "src/logging/py_logging.c",
                 "src/py/main.c",
                 "src/py/mat_info_image_obj.c",
                 "src/py/mat_info_other_modes_obj.c",

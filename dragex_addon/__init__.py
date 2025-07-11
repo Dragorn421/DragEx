@@ -1,3 +1,7 @@
+import datetime
+import os
+from pathlib import Path
+
 import numpy as np
 
 import bpy
@@ -364,6 +368,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         mesh_info.write_c("/home/dragorn421/Documents/dragex/dragex_attempt2/output.c")
         end = time.time()
         print("dragex_backend_demo took", end - start, "seconds")
+        dragex_backend.logging.flush()  # TODO wrap in try: (code) finally: flush()
         return {"FINISHED"}
 
 
@@ -541,6 +546,19 @@ def register():
 
     assert dragex_backend.get_build_id() == BUILD_ID
 
+    logs_folder_p = Path(
+        bpy.utils.extension_path_user(__package__, path="logs", create=True)
+    )
+    # TODO automatic cleanup of logs_folder_p?
+    log_file_p = (
+        logs_folder_p
+        / f"log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.txt"
+    )
+
+    dragex_backend.logging.set_log_file(log_file_p)
+
+    print("Now logging to", log_file_p)
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -552,6 +570,16 @@ def register():
 
 
 def unregister():
+    try:
+        unregister_impl()
+    finally:
+        import dragex_backend
+
+        dragex_backend.logging.clear_log_file()
+
+
+def unregister_impl():
+
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
