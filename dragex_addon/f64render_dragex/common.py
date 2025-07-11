@@ -226,7 +226,10 @@ def collect_obj_info(
                 else:  # fallback
                     F64_GLOBALS.materials_cache[slot.material] = node_material_parse(slot.material)
             except Exception as e:
+                import traceback
+
                 print(f'Error parsing material "{slot.material.name}": {e}')
+                traceback.print_exc()
                 F64_GLOBALS.materials_cache[slot.material] = FALLBACK_MATERIAL
 
         f64mat = F64_GLOBALS.materials_cache[slot.material]

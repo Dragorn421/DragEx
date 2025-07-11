@@ -1,6 +1,7 @@
 import datetime
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -12,6 +13,10 @@ from .props import tiles_props
 from .props import combiner_props
 from .props import vals_props
 from .props import geometry_mode_props
+
+if TYPE_CHECKING:
+    # TODO
+    import dragex_backend
 
 
 def new_float_buf(len):
@@ -47,11 +52,146 @@ def make_c_identifier(s: str):
     return s
 
 
+def material_to_MaterialInfo(
+    mat: bpy.types.Material,
+    image_infos: dict[bpy.types.Image, "dragex_backend.MaterialInfoImage"],
+):
+    import dragex_backend
+
+    mat_dragex: DragExMaterialProperties = mat.dragex
+    other_modes = mat_dragex.other_modes
+    tiles = mat_dragex.tiles
+    combiner = mat_dragex.combiner
+    vals = mat_dragex.vals
+    mat_geomode = mat_dragex.geometry_mode
+
+    mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
+    for tile in tiles.tiles:
+        image: bpy.types.Image | None = tile.image
+        if image is None:
+            image_info = None
+        else:
+            image_info = image_infos.get(image)
+            if image_info is None:
+                width, height = image.size
+                image_info = dragex_backend.MaterialInfoImage(
+                    c_identifier=make_c_identifier(image.name),
+                    width=width,
+                    height=height,
+                )
+                image_infos[image] = image_info
+        mat_info_tiles.append(
+            dragex_backend.MaterialInfoTile(
+                image=image_info,
+                format=tile.format,
+                size=tile.size,
+                line=tile.line,
+                address=tile.address,
+                palette=tile.palette,
+                clamp_T=tile.clamp_T,
+                mirror_T=tile.mirror_T,
+                mask_T=tile.mask_T,
+                shift_T=tile.shift_T,
+                clamp_S=tile.clamp_S,
+                mirror_S=tile.mirror_S,
+                mask_S=tile.mask_S,
+                shift_S=tile.shift_S,
+                upper_left_S=tile.upper_left_S,
+                upper_left_T=tile.upper_left_T,
+                lower_right_S=tile.lower_right_S,
+                lower_right_T=tile.lower_right_T,
+            )
+        )
+
+    mat_info = dragex_backend.MaterialInfo(
+        name=make_c_identifier(mat.name),
+        uv_basis_s=mat_dragex.uv_basis_s,
+        uv_basis_t=mat_dragex.uv_basis_t,
+        other_modes=dragex_backend.MaterialInfoOtherModes(
+            atomic_prim=other_modes.atomic_prim,
+            cycle_type=other_modes.cycle_type,
+            persp_tex_en=other_modes.persp_tex_en,
+            detail_tex_en=other_modes.detail_tex_en,
+            sharpen_tex_en=other_modes.sharpen_tex_en,
+            tex_lod_en=other_modes.tex_lod_en,
+            tlut_en=other_modes.tlut_en,
+            tlut_type=other_modes.tlut_type,
+            #
+            sample_type=other_modes.sample_type,
+            mid_texel=other_modes.mid_texel,
+            bi_lerp_0=other_modes.bi_lerp_0,
+            bi_lerp_1=other_modes.bi_lerp_1,
+            convert_one=other_modes.convert_one,
+            key_en=other_modes.key_en,
+            rgb_dither_sel=other_modes.rgb_dither_sel,
+            alpha_dither_sel=other_modes.alpha_dither_sel,
+            #
+            bl_m1a_0=other_modes.bl_m1a_0,
+            bl_m1a_1=other_modes.bl_m1a_1,
+            bl_m1b_0=other_modes.bl_m1b_0,
+            bl_m1b_1=other_modes.bl_m1b_1,
+            bl_m2a_0=other_modes.bl_m2a_0,
+            bl_m2a_1=other_modes.bl_m2a_1,
+            bl_m2b_0=other_modes.bl_m2b_0,
+            bl_m2b_1=other_modes.bl_m2b_1,
+            #
+            force_blend=other_modes.force_blend,
+            alpha_cvg_select=other_modes.alpha_cvg_select,
+            cvg_x_alpha=other_modes.cvg_x_alpha,
+            z_mode=other_modes.z_mode,
+            cvg_dest=other_modes.cvg_dest,
+            color_on_cvg=other_modes.color_on_cvg,
+            #
+            image_read_en=other_modes.image_read_en,
+            z_update_en=other_modes.z_update_en,
+            z_compare_en=other_modes.z_compare_en,
+            antialias_en=other_modes.antialias_en,
+            z_source_sel=other_modes.z_source_sel,
+            dither_alpha_en=other_modes.dither_alpha_en,
+            alpha_compare_en=other_modes.alpha_compare_en,
+        ),
+        tiles=mat_info_tiles,
+        combiner=dragex_backend.MaterialInfoCombiner(
+            combiner.rgb_A_0,
+            combiner.rgb_B_0,
+            combiner.rgb_C_0,
+            combiner.rgb_D_0,
+            combiner.alpha_A_0,
+            combiner.alpha_B_0,
+            combiner.alpha_C_0,
+            combiner.alpha_D_0,
+            combiner.rgb_A_1,
+            combiner.rgb_B_1,
+            combiner.rgb_C_1,
+            combiner.rgb_D_1,
+            combiner.alpha_A_1,
+            combiner.alpha_B_1,
+            combiner.alpha_C_1,
+            combiner.alpha_D_1,
+        ),
+        vals=dragex_backend.MaterialInfoVals(
+            primitive_depth_z=vals.primitive_depth_z,
+            primitive_depth_dz=vals.primitive_depth_dz,
+            fog_color=vals.fog_color,
+            blend_color=vals.blend_color,
+            min_level=vals.min_level,
+            prim_lod_frac=vals.prim_lod_frac,
+            primitive_color=vals.primitive_color,
+            environment_color=vals.environment_color,
+        ),
+        geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+            lighting=mat_geomode.lighting,
+        ),
+    )
+
+    return mat_info
+
+
 class DragExBackendDemoOperator(bpy.types.Operator):
     bl_idname = "dragex.dragex_backend_demo"
     bl_label = "DragEx backend demo"
 
-    def execute(self, context):
+    def execute_impl(self, context):
         import time
 
         start = time.time()
@@ -123,130 +263,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             if mat is None:
                 mat_info = None
             else:
-                mat_dragex: DragExMaterialProperties = mat.dragex
-                other_modes = mat_dragex.other_modes
-                tiles = mat_dragex.tiles
-                combiner = mat_dragex.combiner
-                vals = mat_dragex.vals
-                mat_geomode = mat_dragex.geometry_mode
-
-                mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
-                for tile in tiles.tiles:
-                    image: bpy.types.Image | None = tile.image
-                    if image is None:
-                        image_info = None
-                    else:
-                        image_info = image_infos.get(image)
-                        if image_info is None:
-                            width, height = image.size
-                            image_info = dragex_backend.MaterialInfoImage(
-                                c_identifier=make_c_identifier(image.name),
-                                width=width,
-                                height=height,
-                            )
-                    mat_info_tiles.append(
-                        dragex_backend.MaterialInfoTile(
-                            image=image_info,
-                            format=tile.format,
-                            size=tile.size,
-                            line=tile.line,
-                            address=tile.address,
-                            palette=tile.palette,
-                            clamp_T=tile.clamp_T,
-                            mirror_T=tile.mirror_T,
-                            mask_T=tile.mask_T,
-                            shift_T=tile.shift_T,
-                            clamp_S=tile.clamp_S,
-                            mirror_S=tile.mirror_S,
-                            mask_S=tile.mask_S,
-                            shift_S=tile.shift_S,
-                            upper_left_S=tile.upper_left_S,
-                            upper_left_T=tile.upper_left_T,
-                            lower_right_S=tile.lower_right_S,
-                            lower_right_T=tile.lower_right_T,
-                        )
-                    )
-
-                mat_info = dragex_backend.MaterialInfo(
-                    name=make_c_identifier(mat.name),
-                    uv_basis_s=mat_dragex.uv_basis_s,
-                    uv_basis_t=mat_dragex.uv_basis_t,
-                    other_modes=dragex_backend.MaterialInfoOtherModes(
-                        atomic_prim=other_modes.atomic_prim,
-                        cycle_type=other_modes.cycle_type,
-                        persp_tex_en=other_modes.persp_tex_en,
-                        detail_tex_en=other_modes.detail_tex_en,
-                        sharpen_tex_en=other_modes.sharpen_tex_en,
-                        tex_lod_en=other_modes.tex_lod_en,
-                        tlut_en=other_modes.tlut_en,
-                        tlut_type=other_modes.tlut_type,
-                        #
-                        sample_type=other_modes.sample_type,
-                        mid_texel=other_modes.mid_texel,
-                        bi_lerp_0=other_modes.bi_lerp_0,
-                        bi_lerp_1=other_modes.bi_lerp_1,
-                        convert_one=other_modes.convert_one,
-                        key_en=other_modes.key_en,
-                        rgb_dither_sel=other_modes.rgb_dither_sel,
-                        alpha_dither_sel=other_modes.alpha_dither_sel,
-                        #
-                        bl_m1a_0=other_modes.bl_m1a_0,
-                        bl_m1a_1=other_modes.bl_m1a_1,
-                        bl_m1b_0=other_modes.bl_m1b_0,
-                        bl_m1b_1=other_modes.bl_m1b_1,
-                        bl_m2a_0=other_modes.bl_m2a_0,
-                        bl_m2a_1=other_modes.bl_m2a_1,
-                        bl_m2b_0=other_modes.bl_m2b_0,
-                        bl_m2b_1=other_modes.bl_m2b_1,
-                        #
-                        force_blend=other_modes.force_blend,
-                        alpha_cvg_select=other_modes.alpha_cvg_select,
-                        cvg_x_alpha=other_modes.cvg_x_alpha,
-                        z_mode=other_modes.z_mode,
-                        cvg_dest=other_modes.cvg_dest,
-                        color_on_cvg=other_modes.color_on_cvg,
-                        #
-                        image_read_en=other_modes.image_read_en,
-                        z_update_en=other_modes.z_update_en,
-                        z_compare_en=other_modes.z_compare_en,
-                        antialias_en=other_modes.antialias_en,
-                        z_source_sel=other_modes.z_source_sel,
-                        dither_alpha_en=other_modes.dither_alpha_en,
-                        alpha_compare_en=other_modes.alpha_compare_en,
-                    ),
-                    tiles=mat_info_tiles,
-                    combiner=dragex_backend.MaterialInfoCombiner(
-                        combiner.rgb_A_0,
-                        combiner.rgb_B_0,
-                        combiner.rgb_C_0,
-                        combiner.rgb_D_0,
-                        combiner.alpha_A_0,
-                        combiner.alpha_B_0,
-                        combiner.alpha_C_0,
-                        combiner.alpha_D_0,
-                        combiner.rgb_A_1,
-                        combiner.rgb_B_1,
-                        combiner.rgb_C_1,
-                        combiner.rgb_D_1,
-                        combiner.alpha_A_1,
-                        combiner.alpha_B_1,
-                        combiner.alpha_C_1,
-                        combiner.alpha_D_1,
-                    ),
-                    vals=dragex_backend.MaterialInfoVals(
-                        primitive_depth_z=vals.primitive_depth_z,
-                        primitive_depth_dz=vals.primitive_depth_dz,
-                        fog_color=vals.fog_color,
-                        blend_color=vals.blend_color,
-                        min_level=vals.min_level,
-                        prim_lod_frac=vals.prim_lod_frac,
-                        primitive_color=vals.primitive_color,
-                        environment_color=vals.environment_color,
-                    ),
-                    geometry_mode=dragex_backend.MaterialInfoGeometryMode(
-                        lighting=mat_geomode.lighting,
-                    ),
-                )
+                mat_info = material_to_MaterialInfo(mat, image_infos)
             material_infos.append(mat_info)
         default_material_info = dragex_backend.MaterialInfo(
             name="DEFAULT_MATERIAL",
@@ -368,8 +385,15 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         mesh_info.write_c("/home/dragorn421/Documents/dragex/dragex_attempt2/output.c")
         end = time.time()
         print("dragex_backend_demo took", end - start, "seconds")
-        dragex_backend.logging.flush()  # TODO wrap in try: (code) finally: flush()
         return {"FINISHED"}
+
+    def execute(self, context):
+        try:
+            return self.execute_impl(context)
+        finally:
+            import dragex_backend
+
+            dragex_backend.logging.flush()
 
 
 class DragExMaterialProperties(bpy.types.PropertyGroup):

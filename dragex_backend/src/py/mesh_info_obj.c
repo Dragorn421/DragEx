@@ -198,7 +198,7 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     PyObject *_default_material_info;
 
     if (!PyArg_ParseTuple(
-            args, "O&O&O&O&O&O&O&O&O&O!",                                  //
+            args, "O&O&O&O&O&O&O&O&O&O!",                                //
             converter_contiguous_float_buffer, &buf_vertices_co_view,    //
             converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
             converter_contiguous_uint_buffer,
