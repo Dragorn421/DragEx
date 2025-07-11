@@ -15,8 +15,12 @@ from .props import vals_props
 from .props import geometry_mode_props
 
 if TYPE_CHECKING:
-    # TODO
     import dragex_backend
+else:
+    try:
+        import dragex_backend
+    except ModuleNotFoundError:
+        dragex_backend = None
 
 
 def new_float_buf(len):
@@ -56,8 +60,6 @@ def material_to_MaterialInfo(
     mat: bpy.types.Material,
     image_infos: dict[bpy.types.Image, "dragex_backend.MaterialInfoImage"],
 ):
-    import dragex_backend
-
     mat_dragex: DragExMaterialProperties = mat.dragex
     other_modes = mat_dragex.other_modes
     tiles = mat_dragex.tiles
@@ -195,10 +197,6 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         import time
 
         start = time.time()
-
-        # TODO trying to not import at the module level, see if this is less jank this way
-        # TODO catch ImportError
-        import dragex_backend
 
         print("Hello World")
         assert context.object is not None
@@ -391,8 +389,6 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         try:
             return self.execute_impl(context)
         finally:
-            import dragex_backend
-
             dragex_backend.logging.flush()
 
 
@@ -555,20 +551,29 @@ classes = (
     DragExBackendDemoOperator,
 )
 
+cannot_register = False
+
 
 def register():
+    global cannot_register
+    cannot_register = False
+
     print("Hi from", __package__)
 
-    # TODO trying to not import at the module level, see if this is less jank this way
-    # TODO catch ImportError
-    import dragex_backend
+    if dragex_backend is None:
+        print("DragEx cannot register, dragex_backend is missing")
+        cannot_register = True
+        return
 
     print(dir(dragex_backend))
 
     print(f"{BUILD_ID=}")
     print(f"{dragex_backend.get_build_id()=}")
 
-    assert dragex_backend.get_build_id() == BUILD_ID
+    if dragex_backend.get_build_id() != BUILD_ID:
+        print("DragEx cannot register, dragex_backend has a mismatching BUILD_ID")
+        cannot_register = True
+        return
 
     logs_folder_p = Path(
         bpy.utils.extension_path_user(__package__, path="logs", create=True)
@@ -594,11 +599,13 @@ def register():
 
 
 def unregister():
+    if cannot_register:
+        print("DragEx unregister skipped as it could not register")
+        return
+
     try:
         unregister_impl()
     finally:
-        import dragex_backend
-
         dragex_backend.logging.clear_log_file()
 
 
