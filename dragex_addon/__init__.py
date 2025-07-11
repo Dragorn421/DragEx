@@ -578,7 +578,15 @@ def register():
     logs_folder_p = Path(
         bpy.utils.extension_path_user(__package__, path="logs", create=True)
     )
-    # TODO automatic cleanup of logs_folder_p?
+
+    with os.scandir(logs_folder_p) as it:
+        logs_entries = [_entry for _entry in it if _entry.is_file()]
+    if len(logs_entries) > 200:
+        logs_entries.sort(key=lambda entry: entry.stat().st_mtime)
+        # delete all entries except the 100 most recent ones
+        for entry in logs_entries[:-100]:
+            os.unlink(entry.path)
+
     log_file_p = (
         logs_folder_p
         / f"log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.txt"
