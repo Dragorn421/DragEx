@@ -557,7 +557,7 @@ def register():
 
     dragex_backend.logging.set_log_file(log_file_p)
 
-    print("Now logging to", log_file_p)
+    dragex_backend.logging.info(f"Now logging to {log_file_p}")
 
     for cls in classes:
         bpy.utils.register_class(cls)

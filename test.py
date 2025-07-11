@@ -197,5 +197,12 @@ print("del mi")
 del mi
 print("del mi done")
 
+dragex_backend.logging.trace("test")
+dragex_backend.logging.debug("test")
+dragex_backend.logging.info("test")
+dragex_backend.logging.warn("test")
+dragex_backend.logging.error("test")
+dragex_backend.logging.fatal("test")
+
 dragex_backend.logging.flush()  # useless here but just for testing the method
 dragex_backend.logging.clear_log_file()
