@@ -328,6 +328,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
     float *buf_loops_normal, size_t buf_loops_normal_len,                    //
     float *buf_corners_color, size_t buf_corners_color_len,                  //
+    float *buf_points_color, size_t buf_points_color_len,                    //
     float *buf_loops_uv, size_t buf_loops_uv_len,                            //
     struct MaterialInfo **material_infos, size_t n_material_infos,           //
     struct MaterialInfo *default_material);

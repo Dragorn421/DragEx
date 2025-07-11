@@ -190,12 +190,13 @@ int converter_MaterialInfoObject_or_None_sequence(PyObject *obj,
 PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
         buf_triangles_material_index_view, buf_loops_vertex_index_view,
-        buf_loops_normal_view, buf_corners_color_view, buf_loops_uv_view;
+        buf_loops_normal_view, buf_corners_color_view, buf_points_color_view,
+        buf_loops_uv_view;
     struct MaterialInfoObjectSequenceInfo material_info_objects;
     PyObject *_default_material_info;
 
     if (!PyArg_ParseTuple(
-            args, "O&O&O&O&O&O&O&O&O!",                                  //
+            args, "O&O&O&O&O&O&O&O&O&O!",                                  //
             converter_contiguous_float_buffer, &buf_vertices_co_view,    //
             converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
             converter_contiguous_uint_buffer,
@@ -203,7 +204,9 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
             converter_contiguous_uint_buffer, &buf_loops_vertex_index_view, //
             converter_contiguous_float_buffer, &buf_loops_normal_view,      //
             converter_contiguous_float_buffer_optional,
-            &buf_corners_color_view,                                        //
+            &buf_corners_color_view, //
+            converter_contiguous_float_buffer_optional,
+            &buf_points_color_view,                                         //
             converter_contiguous_float_buffer_optional, &buf_loops_uv_view, //
             converter_MaterialInfoObject_or_None_sequence,
             &material_info_objects, //
@@ -259,6 +262,9 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
         buf_corners_color_view.buf,
         buf_corners_color_view.buf == NULL ? 0
                                            : buf_corners_color_view.shape[0], //
+        buf_points_color_view.buf,
+        buf_points_color_view.buf == NULL ? 0
+                                          : buf_points_color_view.shape[0], //
         buf_loops_uv_view.buf,
         buf_loops_uv_view.buf == NULL ? 0 : buf_loops_uv_view.shape[0], //
         material_infos, n_material_infos,                               //
@@ -271,6 +277,8 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     PyBuffer_Release(&buf_loops_normal_view);
     if (buf_corners_color_view.buf != NULL)
         PyBuffer_Release(&buf_corners_color_view);
+    if (buf_points_color_view.buf != NULL)
+        PyBuffer_Release(&buf_points_color_view);
     if (buf_loops_uv_view.buf != NULL)
         PyBuffer_Release(&buf_loops_uv_view);
     free(material_infos);

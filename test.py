@@ -177,6 +177,7 @@ mi = dragex_backend.create_MeshInfo(
     buf_loops_vertex_index,
     buf_loops_normal,
     buf_corners_color,
+    None,
     buf_loops_uv,
     [],
     default_mat_info,

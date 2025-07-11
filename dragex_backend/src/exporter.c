@@ -17,10 +17,10 @@ float clampf(float f, float min, float max) {
 
 struct rgbau8 rgbaf_to_rgbau8(struct rgbaf *rgbaf) {
     struct rgbau8 rgbau8;
-    rgbau8.r = (uint8_t)(255 * clampf(rgbaf->r, 0.0f, 1.0f));
-    rgbau8.g = (uint8_t)(255 * clampf(rgbaf->g, 0.0f, 1.0f));
-    rgbau8.b = (uint8_t)(255 * clampf(rgbaf->b, 0.0f, 1.0f));
-    rgbau8.a = (uint8_t)(255 * clampf(rgbaf->a, 0.0f, 1.0f));
+    rgbau8.r = (uint8_t)clampf(rgbaf->r * 255, 0, 255);
+    rgbau8.g = (uint8_t)clampf(rgbaf->g * 255, 0, 255);
+    rgbau8.b = (uint8_t)clampf(rgbaf->b * 255, 0, 255);
+    rgbau8.a = (uint8_t)clampf(rgbaf->a * 255, 0, 255);
     return rgbau8;
 }
 
@@ -52,16 +52,21 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
     float *buf_loops_normal, size_t buf_loops_normal_len,                    //
     float *buf_corners_color, size_t buf_corners_color_len,                  //
+    float *buf_points_color, size_t buf_points_color_len,                    //
     float *buf_loops_uv, size_t buf_loops_uv_len,                            //
     struct MaterialInfo **material_infos, size_t n_material_infos,           //
     struct MaterialInfo *default_material) {
 
-    printf("buf_corners_color = %p\n", buf_corners_color);
+    if (buf_corners_color != NULL && buf_points_color != NULL)
+        return NULL;
 
     unsigned int n_loops = buf_loops_vertex_index_len;
     if (buf_loops_normal_len != n_loops * 3)
         return NULL;
     if (buf_corners_color != NULL && buf_corners_color_len != n_loops * 4)
+        return NULL;
+    if (buf_points_color != NULL &&
+        buf_points_color_len != buf_vertices_co_len * 4 / 3)
         return NULL;
     if (buf_loops_uv != NULL && buf_loops_uv_len != n_loops * 2)
         return NULL;
@@ -164,6 +169,14 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             if (buf_corners_color != NULL) {
                 mesh->verts[i_loop].color[j] = (uint8_t)clampf(
                     buf_corners_color[i_loop * 4 + j] * 255, 0, 255);
+            } else if (buf_points_color != NULL) {
+                unsigned int v = buf_loops_vertex_index[i_loop] * 4 + j;
+                if (v >= buf_points_color_len) {
+                    free_create_MeshInfo_from_buffers(mesh);
+                    return NULL;
+                }
+                mesh->verts[i_loop].color[j] =
+                    (uint8_t)clampf(buf_points_color[v] * 255, 0, 255);
             } else {
                 mesh->verts[i_loop].color[j] = 255;
             }

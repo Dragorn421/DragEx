@@ -81,24 +81,29 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         active_color_attribute = mesh.color_attributes.active_color
         if active_color_attribute is None:
             buf_corners_color = None
+            buf_points_color = None
         else:
-            if active_color_attribute.domain == "CORNER":
-                if active_color_attribute.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
-                    assert isinstance(
-                        active_color_attribute,
-                        (
-                            bpy.types.FloatColorAttribute,
-                            bpy.types.ByteColorAttribute,
-                        ),
-                    )
-                    # Note: for ByteColorAttribute too the color uses floats
+            if active_color_attribute.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
+                assert isinstance(
+                    active_color_attribute,
+                    (
+                        bpy.types.FloatColorAttribute,
+                        bpy.types.ByteColorAttribute,
+                    ),
+                )
+                # Note: for ByteColorAttribute too the color uses floats
+                if active_color_attribute.domain == "CORNER":
                     buf_corners_color = new_float_buf(4 * len(mesh.loops))
                     active_color_attribute.data.foreach_get("color", buf_corners_color)
+                    buf_points_color = None
+                elif active_color_attribute.domain == "POINT":
+                    buf_corners_color = None
+                    buf_points_color = new_float_buf(4 * len(mesh.vertices))
+                    active_color_attribute.data.foreach_get("color", buf_points_color)
                 else:
-                    raise NotImplementedError(active_color_attribute.data_type)
+                    raise NotImplementedError(active_color_attribute.domain)
             else:
-                # TODO at least POINT (vertex) colors?
-                raise NotImplementedError(active_color_attribute.domain)
+                raise NotImplementedError(active_color_attribute.data_type)
 
         active_uv_layer = mesh.uv_layers.active
         if active_uv_layer is None:
@@ -351,6 +356,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             buf_loops_vertex_index,
             buf_loops_normal,
             buf_corners_color,
+            buf_points_color,
             buf_loops_uv,
             material_infos,
             default_material_info,
