@@ -13,7 +13,7 @@ rm -rf dragex_addon/wheels
 mkdir -p dragex_addon/wheels
 cp dragex_backend/wheelhouse/*.whl dragex_addon/wheels/
 pushd dragex_addon
-python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml 'wheels/*.whl'
+python3 ../.github/scripts/update_blender_manifest.py blender_manifest.toml linux-x64 'wheels/*.whl'
 popd
 
 #blender=/home/dragorn421/blender_collection/blender-4.2.11-linux-x64/blender

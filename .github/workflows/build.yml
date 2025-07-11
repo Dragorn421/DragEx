@@ -9,8 +9,10 @@ jobs:
         target:
         - os: ubuntu-latest
           wheel-build-id: cp311-manylinux_x86_64
+          blender-manifest-platform: linux-x64
         - os: windows-latest
           wheel-build-id: cp311-win_amd64
+          blender-manifest-platform: windows-x64
     runs-on: ${{ matrix.target.os }}
     name: build
     env:
@@ -39,10 +41,10 @@ jobs:
           mkdir dragex_addon/wheels
           cp wheelhouse/*.whl dragex_addon/wheels/
 
-      - name: Amend blender_manifest.toml wheel list
+      - name: Update blender_manifest.toml
         run: |
           cd dragex_addon
-          python3 ../.github/scripts/update_wheels_list.py blender_manifest.toml 'wheels/*.whl'
+          python3 ../.github/scripts/update_blender_manifest.py blender_manifest.toml ${{ matrix.target.blender-manifest-platform }} 'wheels/*.whl'
 
       - name: Download Blender (Linux)
         if: runner.os == 'Linux'
