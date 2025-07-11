@@ -9,12 +9,14 @@
 
 #include "objs.h"
 
+#include "../logging/logging.h"
+
 #include "../exporter.h"
 
 static void MeshInfo_dealloc(PyObject *_self) {
     struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
 
-    printf("MeshInfo_dealloc\n");
+    log_trace("entry");
 
     if (self->image_objects != NULL) {
         for (size_t i = 0; i < self->len_image_objects; i++) {
@@ -34,7 +36,7 @@ static PyObject *MeshInfo_new(PyTypeObject *type, PyObject *args,
                               PyObject *kwds) {
     struct MeshInfoObject *self;
 
-    printf("MeshInfo_new\n");
+    log_trace("entry");
 
     self = (struct MeshInfoObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
@@ -293,7 +295,7 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     struct MeshInfoObject *mesh_info_object;
 
     // TODO is this how to create objects?
-    printf("%s: PyObject_New...\n", __FUNCTION__);
+    log_debug("PyObject_New...");
     // FIXME PyObject_New does not call MeshInfo_new so must be wrong (no it's
     // not necessarily wrong)
     mesh_info_object = PyObject_New(struct MeshInfoObject, &MeshInfoType);
@@ -302,7 +304,7 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
         free(image_objects);
         return NULL;
     }
-    printf("%s: PyObject_Init...\n", __FUNCTION__);
+    log_debug("PyObject_Init...");
     if (PyObject_Init((PyObject *)mesh_info_object,
                       Py_TYPE(mesh_info_object)) == NULL) {
         // ? (can init even return NULL?) (no it can't)

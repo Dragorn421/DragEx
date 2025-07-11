@@ -7,13 +7,15 @@
 #include "name_to_enum.h"
 #include "objs.h"
 
+#include "../logging/logging.h"
+
 #include "../exporter.h"
 
 static void MaterialInfoTile_dealloc(PyObject *_self) {
     struct MaterialInfoTileObject *self =
         (struct MaterialInfoTileObject *)_self;
 
-    printf("MaterialInfoTile_dealloc\n");
+    log_trace("entry");
 
     Py_XDECREF(self->image_object);
 }
@@ -22,7 +24,7 @@ static PyObject *MaterialInfoTile_new(PyTypeObject *type, PyObject *args,
                                       PyObject *kwds) {
     struct MaterialInfoTileObject *self;
 
-    printf("MaterialInfoTile_new\n");
+    log_trace("entry");
 
     self = (struct MaterialInfoTileObject *)type->tp_alloc(type, 0);
     if (self != NULL) {

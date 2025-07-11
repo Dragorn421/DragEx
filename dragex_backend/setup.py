@@ -40,6 +40,7 @@ setup(
         Extension(
             name="dragex_backend",
             sources=[
+                "src/logging/logging.c",
                 "src/py/main.c",
                 "src/py/mat_info_image_obj.c",
                 "src/py/mat_info_other_modes_obj.c",

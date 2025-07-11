@@ -8,15 +8,17 @@
 
 #include "objs.h"
 
+#include "../logging/logging.h"
+
 #include "../exporter.h"
 
 static void MaterialInfoImage_dealloc(PyObject *_self) {
     struct MaterialInfoImageObject *self =
         (struct MaterialInfoImageObject *)_self;
 
-    printf("MaterialInfoImage_dealloc %s\n", self->image.c_identifier == NULL
-                                                 ? "(NULL c_identifier)"
-                                                 : self->image.c_identifier);
+    log_trace("entry %s", self->image.c_identifier == NULL
+                              ? "(NULL c_identifier)"
+                              : self->image.c_identifier);
 
     free(self->image.c_identifier);
     Py_TYPE(self)->tp_free((PyObject *)self);
@@ -26,7 +28,7 @@ static PyObject *MaterialInfoImage_new(PyTypeObject *type, PyObject *args,
                                        PyObject *kwds) {
     struct MaterialInfoImageObject *self;
 
-    printf("MaterialInfoImage_new\n");
+    log_trace("entry");
 
     self = (struct MaterialInfoImageObject *)type->tp_alloc(type, 0);
     if (self != NULL) {

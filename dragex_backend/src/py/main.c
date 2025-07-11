@@ -6,6 +6,8 @@
 
 #include "objs.h"
 
+#include "../logging/logging.h"
+
 #include "../../build_id.h"
 
 static PyObject *get_build_id(PyObject *self, PyObject *args) {
@@ -106,6 +108,6 @@ static struct PyModuleDef dragex_backend_module = {
 };
 
 PyMODINIT_FUNC PyInit_dragex_backend(void) {
-    printf("%s: compiled %s %s\n", __FUNCTION__, __DATE__, __TIME__);
+    log_info("compiled %s %s", __DATE__, __TIME__);
     return PyModuleDef_Init(&dragex_backend_module);
 }
