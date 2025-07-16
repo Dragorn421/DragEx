@@ -15,6 +15,8 @@ static void OoTCollisionMaterial_dealloc(PyObject *_self) {
     struct OoTCollisionMaterialObject *self =
         (struct OoTCollisionMaterialObject *)_self;
 
+    log_trace("entry");
+
     free(self->mat.surface_type_0);
     free(self->mat.surface_type_1);
     free(self->mat.flags_a);

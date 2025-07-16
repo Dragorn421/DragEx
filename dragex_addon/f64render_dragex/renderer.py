@@ -68,7 +68,9 @@ class Fast64RenderEngine(bpy.types.RenderEngine):
 
         if "f64render_missing_texture" not in bpy.data.images:
             # Create a 1x1 image
-            bpy.data.images.new("f64render_missing_texture", 1, 1).pixels = MISSING_TEXTURE_COLOR
+            img = bpy.data.images.new("f64render_missing_texture", 1, 1)
+            img.pixels = MISSING_TEXTURE_COLOR
+            img.use_fake_user = True
 
         ext_list = gpu.capabilities.extensions_get()
         self.shader_interlock_support = "GL_ARB_fragment_shader_interlock" in ext_list
