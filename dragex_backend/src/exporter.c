@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,6 +14,13 @@
 #include "../meshoptimizer/src/meshoptimizer.h"
 
 #include "logging/logging.h"
+
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 
 float clampf(float f, float min, float max) {
     return f < min ? min : f > max ? max : f;
@@ -45,6 +53,74 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
         }
         free(mesh);
     }
+}
+
+/**
+ * Generate a mapping from input material indices to new material indices such
+ * that the new material indices are all used and contiguous.
+ * If a material is unused, its index maps to ~0u in the returned mapping.
+ * Invalid material indices and indices for which the material is NULL are
+ * mapped to the special returned material index `*default_material_index_out`.
+ * There are such indices only if `*use_default_material_out` is true.
+ */
+unsigned int *remap_materials(unsigned int *buf_triangles_material_index,
+                              unsigned int n_faces, void **materials_in,
+                              size_t n_materials_in,
+                              unsigned int *n_materials_out,
+                              bool *use_default_material_out,
+                              unsigned int *default_material_index_out) {
+    unsigned int n_materials = 0;
+    bool use_default_material = false;
+    unsigned int default_material_index = ~0u;
+    unsigned int material_index_map_len = n_materials_in;
+    unsigned int *material_index_map =
+        malloc(sizeof(unsigned int) * material_index_map_len);
+    if (material_index_map_len != 0 && material_index_map == NULL) {
+        log_error("malloc material_index_map failed");
+        return NULL;
+    }
+    for (unsigned int i = 0; i < material_index_map_len; i++) {
+        material_index_map[i] = ~0u;
+    }
+    for (unsigned int i_face = 0; i_face < n_faces; i_face++) {
+        unsigned int mat_index = buf_triangles_material_index[i_face];
+
+        if (mat_index >= material_index_map_len) {
+            unsigned int prev_material_index_map_len = material_index_map_len;
+            material_index_map_len = mat_index + 1;
+            void *tmp = realloc(material_index_map,
+                                sizeof(unsigned int) * material_index_map_len);
+            if (tmp == NULL) {
+                log_error("realloc material_index_map failed");
+                free(material_index_map);
+                return NULL;
+            }
+            material_index_map = tmp;
+            for (unsigned int i = prev_material_index_map_len;
+                 i < material_index_map_len; i++) {
+                material_index_map[i] = ~0u;
+            }
+        }
+
+        if (mat_index >= n_materials_in || materials_in[mat_index] == NULL) {
+            if (!use_default_material) {
+                use_default_material = true;
+                default_material_index = n_materials;
+                n_materials++;
+            }
+            assert(default_material_index != ~0u);
+            material_index_map[mat_index] = default_material_index;
+        } else {
+            if (material_index_map[mat_index] == ~0u) {
+                material_index_map[mat_index] = n_materials;
+                n_materials++;
+            }
+        }
+    }
+    *n_materials_out = n_materials;
+    *use_default_material_out = use_default_material;
+    *default_material_index_out = default_material_index;
+    return material_index_map;
 }
 
 struct MeshInfo *create_MeshInfo_from_buffers(
@@ -98,54 +174,16 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         return NULL;
     }
 
-    unsigned int n_materials = 0;
-    bool use_default_material = false;
-    unsigned int default_material_index = ~0u;
-    unsigned int material_index_map_len = n_material_infos;
+    unsigned int n_materials;
+    bool use_default_material;
+    unsigned int default_material_index;
     unsigned int *material_index_map =
-        malloc(sizeof(unsigned int) * material_index_map_len);
-    if (material_index_map_len != 0 && material_index_map == NULL) {
-        log_error("malloc material_index_map failed");
+        remap_materials(buf_triangles_material_index, n_faces,
+                        (void **)material_infos, n_material_infos, &n_materials,
+                        &use_default_material, &default_material_index);
+    if (material_index_map == NULL) {
+        log_error("remap_materials failed");
         return NULL;
-    }
-    for (unsigned int i = 0; i < material_index_map_len; i++) {
-        material_index_map[i] = ~0u;
-    }
-    for (unsigned int i_face = 0; i_face < n_faces; i_face++) {
-        unsigned int mat_index = buf_triangles_material_index[i_face];
-
-        if (mat_index >= material_index_map_len) {
-            unsigned int prev_material_index_map_len = material_index_map_len;
-            material_index_map_len = mat_index + 1;
-            void *tmp = realloc(material_index_map,
-                                sizeof(unsigned int) * material_index_map_len);
-            if (tmp == NULL) {
-                log_error("realloc material_index_map failed");
-                free(material_index_map);
-                return NULL;
-            }
-            material_index_map = tmp;
-            for (unsigned int i = prev_material_index_map_len;
-                 i < material_index_map_len; i++) {
-                material_index_map[i] = ~0u;
-            }
-        }
-
-        if (mat_index >= n_material_infos ||
-            material_infos[mat_index] == NULL) {
-            if (!use_default_material) {
-                use_default_material = true;
-                default_material_index = n_materials;
-                n_materials++;
-            }
-            assert(default_material_index != ~0u);
-            material_index_map[mat_index] = default_material_index;
-        } else {
-            if (material_index_map[mat_index] == ~0u) {
-                material_index_map[mat_index] = n_materials;
-                n_materials++;
-            }
-        }
     }
 
     struct MeshInfo *mesh = malloc(sizeof(struct MeshInfo));
@@ -159,7 +197,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     mesh->verts = malloc(sizeof(struct VertexInfo) * n_loops);
 
     mesh->n_faces = n_faces;
-    mesh->faces = malloc(sizeof(struct VertexInfo) * n_faces);
+    mesh->faces = malloc(sizeof(struct TriInfo) * n_faces);
 
     mesh->n_materials = n_materials;
     mesh->materials = malloc(sizeof(struct MaterialInfo) * n_materials);
@@ -192,7 +230,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         }
 
         for (int j = 0; j < 2; j++)
-            mesh->verts[i_loop].uv[j] = buf_loops_uv[i_loop * 2 + j];
+            mesh->verts[i_loop].uv[j] =
+                buf_loops_uv == NULL ? 0.0f : buf_loops_uv[i_loop * 2 + j];
 
         for (int j = 0; j < 3; j++)
             mesh->verts[i_loop].normal[j] = buf_loops_normal[i_loop * 3 + j];
@@ -1032,13 +1071,8 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
     return 0;
 }
 
-int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
-    FILE *f = fopen(path, "w");
-    if (f == NULL) {
-        log_error("Could not open %s for writing. fopen: %s", path,
-                  strerror(errno));
-        return -1;
-    }
+int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
+                             char **dl_name) {
     fprintf(f, "// Hi from write_mesh_info_to_f3d_c\n");
     struct MeshInfo **meshes = split_mesh_by_material(mesh_info);
     if (meshes == NULL) {
@@ -1057,6 +1091,16 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
         free_mesh_to_f3d_mesh(f3d_mesh);
     }
 
+    if (dl_name != NULL) {
+        size_t dl_name_len = strlen(mesh_info->name) + strlen("_dl") + 1;
+        *dl_name = malloc(dl_name_len);
+        if (*dl_name == NULL) {
+            log_error("malloc dl_name failed");
+            return -3;
+        }
+        snprintf(*dl_name, dl_name_len, "%s_dl", mesh_info->name);
+    }
+
     fprintf(f, "Gfx %s_dl[] = {\n", mesh_info->name);
     for (unsigned int i_mesh = 0; i_mesh < mesh_info->n_materials; i_mesh++) {
         struct MeshInfo *mesh = meshes[i_mesh];
@@ -1067,6 +1111,407 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path) {
     fprintf(f, "};\n");
 
     free_split_mesh_by_material(meshes, mesh_info->n_materials);
-    fclose(f);
+
+    return 0;
+}
+
+void copy_OoTCollisionMaterial(struct OoTCollisionMaterial *dst,
+                               struct OoTCollisionMaterial *src) {
+    dst->surface_type_0 = strdup(src->surface_type_0);
+    dst->surface_type_1 = strdup(src->surface_type_1);
+    dst->flags_a = strdup(src->flags_a);
+    dst->flags_b = strdup(src->flags_b);
+}
+
+// TODO this is also a free for the result of join_OoTCollisionMeshes_impl
+void free_create_OoTCollisionMesh_from_buffers(struct OoTCollisionMesh *mesh) {
+    free(mesh->verts);
+    free(mesh->faces);
+    for (unsigned int i = 0; i < mesh->n_materials; i++) {
+        free(mesh->materials[i].surface_type_0);
+        free(mesh->materials[i].surface_type_1);
+        free(mesh->materials[i].flags_a);
+        free(mesh->materials[i].flags_b);
+    }
+    free(mesh->materials);
+}
+
+struct OoTCollisionMesh *create_OoTCollisionMesh_from_buffers(
+    float *buf_vertices_co, size_t buf_vertices_co_len,                //
+    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
+    unsigned int *buf_triangles_material_index,
+    size_t buf_triangles_material_index_len,                                 //
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
+    struct OoTCollisionMaterial **materials, size_t n_materials,             //
+    struct OoTCollisionMaterial *default_material) {
+
+    unsigned int n_loops = buf_loops_vertex_index_len;
+
+    unsigned int n_faces = (unsigned int)(buf_triangles_loops_len / 3);
+    if (buf_triangles_material_index_len != n_faces) {
+        log_error(
+            "buf_triangles_material_index_len=%zd and n_faces=%u mismatch",
+            buf_triangles_material_index_len, n_faces);
+        return NULL;
+    }
+
+    unsigned int n_materials_used;
+    bool use_default_material;
+    unsigned int default_material_index;
+    unsigned int *material_index_map = remap_materials(
+        buf_triangles_material_index, n_faces, (void **)materials, n_materials,
+        &n_materials_used, &use_default_material, &default_material_index);
+    if (material_index_map == NULL) {
+        log_error("remap_materials failed");
+        return NULL;
+    }
+
+    struct OoTCollisionMesh *mesh = malloc(sizeof(struct OoTCollisionMesh));
+    if (mesh == NULL) {
+        log_error("malloc mesh failed");
+        return NULL;
+    }
+
+    mesh->n_verts = n_loops;
+    mesh->verts = malloc(sizeof(struct OoTCollisionVertex) * n_loops);
+
+    mesh->n_faces = n_faces;
+    mesh->faces = malloc(sizeof(struct OoTCollisionTri) * n_faces);
+
+    mesh->n_materials = n_materials_used;
+    mesh->materials =
+        malloc(sizeof(struct OoTCollisionMaterial) * n_materials_used);
+
+    if (mesh->materials != NULL) {
+        // for free_create_OoTCollisionMesh_from_buffers
+        for (unsigned int i = 0; i < n_materials_used; i++) {
+            mesh->materials[i].surface_type_0 = NULL;
+            mesh->materials[i].surface_type_1 = NULL;
+            mesh->materials[i].flags_a = NULL;
+            mesh->materials[i].flags_b = NULL;
+        }
+    }
+
+    if (mesh->verts == NULL || mesh->faces == NULL || mesh->materials == NULL) {
+        log_error("malloc verts, faces or materials failed");
+        free_create_OoTCollisionMesh_from_buffers(mesh);
+        return NULL;
+    }
+
+    for (unsigned int i_loop = 0; i_loop < n_loops; i_loop++) {
+        for (int j = 0; j < 3; j++) {
+            unsigned int v = buf_loops_vertex_index[i_loop] * 3 + j;
+            if (v >= buf_vertices_co_len) {
+                log_error(
+                    "i_loop=%u: v=%u out of bounds (buf_vertices_co_len=%zd)",
+                    i_loop, v, buf_vertices_co_len);
+                free_create_OoTCollisionMesh_from_buffers(mesh);
+                return NULL;
+            }
+            mesh->verts[i_loop].coords[j] = buf_vertices_co[v];
+        }
+    }
+
+    for (unsigned int i = 0; i < n_faces; i++) {
+        for (int j = 0; j < 3; j++) {
+            unsigned int loop = buf_triangles_loops[i * 3 + j];
+            if (loop >= n_loops) {
+                log_error("face %u: loop=%u out of bounds (n_loops=%u)", i,
+                          loop, n_loops);
+                free_create_OoTCollisionMesh_from_buffers(mesh);
+                return NULL;
+            }
+            mesh->faces[i].verts[j] = loop;
+        }
+        mesh->faces[i].material =
+            material_index_map[buf_triangles_material_index[i]];
+    }
+
+    for (unsigned int i = 0; i < n_materials; i++) {
+        if (material_index_map[i] == ~0u ||
+            (use_default_material &&
+             material_index_map[i] == default_material_index))
+            continue;
+        struct OoTCollisionMaterial *mat = materials[i];
+
+        // because material_index_map[i] != default_material_index
+        assert(mat != NULL);
+
+        copy_OoTCollisionMaterial(&mesh->materials[material_index_map[i]], mat);
+    }
+
+    free(material_index_map);
+
+    if (use_default_material) {
+        assert(default_material_index != ~0u);
+        copy_OoTCollisionMaterial(&mesh->materials[default_material_index],
+                                  default_material);
+    }
+
+    return mesh;
+}
+
+struct OoTCollisionMesh *
+join_OoTCollisionMeshes_impl(struct OoTCollisionMesh **meshes,
+                             size_t n_meshes) {
+    unsigned int n_verts = 0, n_faces = 0, n_materials = 0;
+    for (size_t i = 0; i < n_meshes; i++) {
+        struct OoTCollisionMesh *m = meshes[i];
+        n_verts += m->n_verts;
+        n_faces += m->n_faces;
+        n_materials += m->n_materials;
+    }
+    struct OoTCollisionMesh *joined_mesh =
+        malloc(sizeof(struct OoTCollisionMesh));
+    if (joined_mesh == NULL) {
+        log_error("malloc mesh failed");
+        return NULL;
+    }
+
+    joined_mesh->n_verts = n_verts;
+    joined_mesh->verts = malloc(sizeof(struct OoTCollisionVertex) * n_verts);
+
+    joined_mesh->n_faces = n_faces;
+    joined_mesh->faces = malloc(sizeof(struct OoTCollisionTri) * n_faces);
+
+    joined_mesh->n_materials = n_materials;
+    joined_mesh->materials =
+        malloc(sizeof(struct OoTCollisionMaterial) * n_materials);
+
+    if (joined_mesh->materials != NULL) {
+        // for free_create_OoTCollisionMesh_from_buffers
+        for (unsigned int i = 0; i < n_materials; i++) {
+            joined_mesh->materials[i].surface_type_0 = NULL;
+            joined_mesh->materials[i].surface_type_1 = NULL;
+            joined_mesh->materials[i].flags_a = NULL;
+            joined_mesh->materials[i].flags_b = NULL;
+        }
+    }
+
+    if (joined_mesh->verts == NULL || joined_mesh->faces == NULL ||
+        joined_mesh->materials == NULL) {
+        log_error("malloc verts, faces or materials failed");
+        free_create_OoTCollisionMesh_from_buffers(joined_mesh);
+        return NULL;
+    }
+
+    // TODO dedupe materials somehow?
+
+    unsigned int off_verts = 0, off_faces = 0, off_materials = 0;
+    for (size_t i_mesh = 0; i_mesh < n_meshes; i_mesh++) {
+        struct OoTCollisionMesh *m = meshes[i_mesh];
+        memcpy(&joined_mesh->verts[off_verts], m->verts,
+               sizeof(struct OoTCollisionVertex) * m->n_verts);
+        for (unsigned int i_face = 0; i_face < m->n_faces; i_face++) {
+            for (int j = 0; j < 3; j++) {
+                joined_mesh->faces[off_faces + i_face].verts[j] =
+                    off_verts + m->faces[i_face].verts[j];
+            }
+            joined_mesh->faces[off_faces + i_face].material =
+                off_materials + m->faces[i_face].material;
+        }
+        for (unsigned int i_mat = 0; i_mat < m->n_materials; i_mat++) {
+            copy_OoTCollisionMaterial(
+                &joined_mesh->materials[off_materials + i_mat],
+                &m->materials[i_mat]);
+        }
+        off_verts += m->n_verts;
+        off_faces += m->n_faces;
+        off_materials += m->n_materials;
+    }
+
+    return joined_mesh;
+}
+
+int write_OoTCollisionMesh_to_c(struct OoTCollisionMesh *mesh,
+                                const char *vtx_list_name,
+                                const char *poly_list_name,
+                                const char *surface_types_name, FILE *f,
+                                struct OoTCollisionBounds *out_bounds) {
+    unsigned int *indices = malloc(sizeof(unsigned int) * mesh->n_faces * 3);
+    unsigned int *remap = malloc(sizeof(unsigned int) * mesh->n_verts);
+
+    if (indices == NULL || remap == NULL) {
+        log_error("malloc indices or remap failed");
+        free(indices);
+        free(remap);
+        return -1;
+    }
+
+    for (unsigned int i_face = 0; i_face < mesh->n_faces; i_face++) {
+        for (int j = 0; j < 3; j++) {
+            indices[i_face * 3 + j] = mesh->faces[i_face].verts[j];
+            assert(indices[i_face * 3 + j] < mesh->n_verts);
+        }
+    }
+
+    // TODO convert vertex coords to int16_t somewhere before doing the remap
+
+    size_t n_unique_verts = meshopt_generateVertexRemap(
+        remap, indices, mesh->n_faces * 3, mesh->verts, mesh->n_verts,
+        sizeof(struct OoTCollisionVertex));
+
+    free(indices);
+
+    struct OoTCollisionVertex *vertices =
+        malloc(sizeof(struct OoTCollisionVertex) * n_unique_verts);
+    if (vertices == NULL) {
+        log_error("malloc vertices failed");
+        free(remap);
+        return -2;
+    }
+    meshopt_remapVertexBuffer(vertices, mesh->verts, mesh->n_verts,
+                              sizeof(struct OoTCollisionVertex), remap);
+
+    fprintf(f, "// Hi from write_OoTCollisionMesh_to_c\n");
+
+    int16_t minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
+
+    if (n_unique_verts != 0) {
+        minX = maxX = (int16_t)vertices[0].coords[0];
+        minY = maxY = (int16_t)vertices[0].coords[1];
+        minZ = maxZ = (int16_t)vertices[0].coords[2];
+    }
+
+    fprintf(f, "Vec3s %s[] = {\n", vtx_list_name);
+    for (size_t i = 0; i < n_unique_verts; i++) {
+        struct OoTCollisionVertex *v = &vertices[i];
+        // TODO check coords range for int16_t
+        int16_t x, y, z;
+        x = (int16_t)v->coords[0];
+        y = (int16_t)v->coords[1];
+        z = (int16_t)v->coords[2];
+        fprintf(f, "    { %" PRId16 ", %" PRId16 ", %" PRId16 " },\n", x, y, z);
+        minX = MIN(minX, x);
+        maxX = MAX(maxX, x);
+        minY = MIN(minY, y);
+        maxY = MAX(maxY, y);
+        minZ = MIN(minZ, z);
+        maxZ = MAX(maxZ, z);
+    }
+    fprintf(f, "};\n");
+
+    free(vertices);
+
+    fprintf(f, "CollisionPoly %s[] = {\n", poly_list_name);
+    for (unsigned int i = 0; i < mesh->n_faces; i++) {
+        struct OoTCollisionTri *t = &mesh->faces[i];
+        unsigned int v0, v1, v2;
+        v0 = t->verts[0];
+        v1 = t->verts[1];
+        v2 = t->verts[2];
+        float x0, y0, z0, x1, y1, z1, x2, y2, z2;
+
+        y0 = mesh->verts[v0].coords[1];
+        y1 = mesh->verts[v1].coords[1];
+        y2 = mesh->verts[v2].coords[1];
+        // cycle v0,v1,v2 such that v0 has the lowest y
+        // Circumvents a bug in CollisionPoly_GetMinY
+        if (y1 < y0 && y1 < y2) {
+            v0 = t->verts[1];
+            v1 = t->verts[2];
+            v2 = t->verts[0];
+        } else if (y2 < y0 && y2 < y1) {
+            v0 = t->verts[2];
+            v1 = t->verts[0];
+            v2 = t->verts[1];
+        }
+
+        x0 = mesh->verts[v0].coords[0];
+        y0 = mesh->verts[v0].coords[1];
+        z0 = mesh->verts[v0].coords[2];
+        x1 = mesh->verts[v1].coords[0];
+        y1 = mesh->verts[v1].coords[1];
+        z1 = mesh->verts[v1].coords[2];
+        x2 = mesh->verts[v2].coords[0];
+        y2 = mesh->verts[v2].coords[1];
+        z2 = mesh->verts[v2].coords[2];
+        float nx, ny, nz;
+        // n = normalized((v1-v0)x(v2-v0))
+        float ux, uy, uz, vx, vy, vz;
+        // u = v1-v0  v = v2-v0
+        ux = x1 - x0;
+        uy = y1 - y0;
+        uz = z1 - z0;
+        vx = x2 - x0;
+        vy = y2 - y0;
+        vz = z2 - z0;
+        // n = u x v
+        nx = uy * vz - uz * vy;
+        ny = uz * vx - ux * vz;
+        nz = ux * vy - uy * vx;
+        // n = normalized(n)
+        float nn = sqrtf(nx * nx + ny * ny + nz * nz);
+        fprintf(f, "/*\n");
+        fprintf(f, "  0 = %f %f %f\n", x0, y0, z0);
+        fprintf(f, "  1 = %f %f %f\n", x1, y1, z1);
+        fprintf(f, "  2 = %f %f %f\n", x2, y2, z2);
+        fprintf(f, "  u = %f %f %f\n", ux, uy, uz);
+        fprintf(f, "  v = %f %f %f\n", vx, vy, vz);
+        fprintf(f, "  n = %f %f %f\n", nx, ny, nz);
+        fprintf(f, "  nn = %f\n", nn);
+        fprintf(f, " */\n");
+        if (nn == 0.0f) {
+            // TODO probably skip writing triangle instead
+            nx = 1.0f;
+            ny = 0.0f;
+            nz = 0.0f;
+        } else {
+            nx /= nn;
+            ny /= nn;
+            nz /= nn;
+        }
+        int16_t dist;
+        // TODO check float -> int16 conversion
+        dist = -(nx * x0 + ny * y0 + nz * z0);
+
+        fprintf(f,
+                "    {\n"
+                "        %u,\n"
+                "        {\n"
+                "            COLPOLY_VTX(%u, %s),\n"
+                "            COLPOLY_VTX(%u, %s),\n"
+                "            COLPOLY_VTX(%u, 0),\n"
+                "        },\n"
+                "        {\n"
+                "            COLPOLY_SNORMAL(%f),\n"
+                "            COLPOLY_SNORMAL(%f),\n"
+                "            COLPOLY_SNORMAL(%f),\n"
+                "        },\n"
+                "        %" PRId16 ",\n"
+                "    },\n",
+                t->material,                                     //
+                remap[v0], mesh->materials[t->material].flags_a, //
+                remap[v1], mesh->materials[t->material].flags_b, //
+                remap[v2],                                       //
+                nx, ny, nz, dist);
+    }
+    fprintf(f, "};\n");
+
+    free(remap);
+
+    fprintf(f, "SurfaceType %s[] = {\n", surface_types_name);
+    for (unsigned int i = 0; i < mesh->n_materials; i++) {
+        fprintf(f,
+                "    {\n"
+                "        {\n"
+                "            %s,\n"
+                "            %s,\n"
+                "        },\n"
+                "    },\n",
+                mesh->materials[i].surface_type_0,
+                mesh->materials[i].surface_type_1);
+    }
+    fprintf(f, "};\n");
+
+    if (out_bounds != NULL) {
+        out_bounds->min[0] = minX;
+        out_bounds->min[1] = minY;
+        out_bounds->min[2] = minZ;
+        out_bounds->max[0] = maxX;
+        out_bounds->max[1] = maxY;
+        out_bounds->max[2] = maxZ;
+    }
+
     return 0;
 }

@@ -62,3 +62,81 @@ Gfx mesh_dl[] = {
     gsSPDisplayList(mesh_mymaterial_mesh_dl),
     gsSPEndDisplayList(),
 };
+// oot_collision_mesh.write_c
+// Hi from write_OoTCollisionMesh_to_c
+Vec3s magicVtxList[] = {
+    { 0, 0, 0 },
+};
+CollisionPoly magicPolyList[] = {
+    {
+        0,
+        {
+            COLPOLY_VTX(0, FLAGSA),
+            COLPOLY_VTX(0, FLAGSB),
+            COLPOLY_VTX(0, 0),
+        },
+        {
+            COLPOLY_SNORMAL(1.000000),
+            COLPOLY_SNORMAL(0.000000),
+            COLPOLY_SNORMAL(0.000000),
+        },
+        0,
+    },
+};
+SurfaceType magicSurfaceTypes[] = {
+    {
+        {
+            SURFTYPE0,
+            SURFTYPE1,
+        },
+    },
+};
+// oot_collision_mesh_joined.write_c
+// Hi from write_OoTCollisionMesh_to_c
+Vec3s magicJoinedVtxList[] = {
+    { 0, 0, 0 },
+};
+CollisionPoly magicJoinedPolyList[] = {
+    {
+        0,
+        {
+            COLPOLY_VTX(0, FLAGSA),
+            COLPOLY_VTX(0, FLAGSB),
+            COLPOLY_VTX(0, 0),
+        },
+        {
+            COLPOLY_SNORMAL(1.000000),
+            COLPOLY_SNORMAL(0.000000),
+            COLPOLY_SNORMAL(0.000000),
+        },
+        0,
+    },
+    {
+        1,
+        {
+            COLPOLY_VTX(0, FLAGSA),
+            COLPOLY_VTX(0, FLAGSB),
+            COLPOLY_VTX(0, 0),
+        },
+        {
+            COLPOLY_SNORMAL(1.000000),
+            COLPOLY_SNORMAL(0.000000),
+            COLPOLY_SNORMAL(0.000000),
+        },
+        0,
+    },
+};
+SurfaceType magicJoinedSurfaceTypes[] = {
+    {
+        {
+            SURFTYPE0,
+            SURFTYPE1,
+        },
+    },
+    {
+        {
+            SURFTYPE0,
+            SURFTYPE1,
+        },
+    },
+};

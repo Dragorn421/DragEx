@@ -2,11 +2,11 @@
 #include <Python.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include "converters.h"
 #include "objs.h"
 
 #include "../logging/logging.h"
@@ -48,26 +48,38 @@ static PyObject *MeshInfo_new(PyTypeObject *type, PyObject *args,
 
 static PyObject *MeshInfo_write_c(PyObject *_self, PyObject *args) {
     struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
-    PyObject *path_bytes_object;
+    int fd;
 
-    if (!PyArg_ParseTuple(args, "O&", PyUnicode_FSConverter,
-                          &path_bytes_object))
+    if (!PyArg_ParseTuple(args, "i", &fd))
         return NULL;
 
-    char *path = PyBytes_AsString(path_bytes_object);
-    if (path == NULL)
-        return NULL;
-
-    int res = write_mesh_info_to_f3d_c(self->mesh, path);
-
-    Py_DECREF(path_bytes_object);
-
-    if (res != 0) {
-        PyErr_SetString(PyExc_Exception, "write_mesh_info_to_f3d_c failed");
+    FILE *f = fdopen(dup(fd), "w");
+    if (f == NULL) {
+        PyErr_Format(PyExc_IOError, "Failed to open fd for writing. fdopen: %s",
+                     strerror(errno));
         return NULL;
     }
 
-    return Py_None;
+    char *dl_name = NULL;
+    int res = write_mesh_info_to_f3d_c(self->mesh, f, &dl_name);
+
+    fclose(f);
+
+    if (res != 0) {
+        PyErr_SetString(PyExc_Exception, "write_mesh_info_to_f3d_c failed");
+        free(dl_name);
+        return NULL;
+    }
+
+    PyObject *dl_name_obj = PyUnicode_FromString(dl_name);
+
+    free(dl_name);
+
+    if (dl_name_obj == NULL) {
+        return NULL;
+    }
+
+    return dl_name_obj;
 }
 
 static PyMethodDef MeshInfo_methods[] = {
@@ -87,53 +99,6 @@ PyTypeObject MeshInfoType = {
     .tp_dealloc = MeshInfo_dealloc,
     .tp_methods = MeshInfo_methods,
 };
-
-int converter_contiguous_buffer_impl(PyObject *obj, void *result,
-                                     const char *required_format,
-                                     size_t expected_itemsize) {
-    if (obj == NULL) {
-        PyBuffer_Release(result);
-        return 0;
-    }
-
-    Py_buffer view;
-
-    if (PyObject_GetBuffer(obj, &view, PyBUF_ND | PyBUF_FORMAT) < 0)
-        return 0;
-    if (strcmp(view.format, required_format) != 0) {
-        PyBuffer_Release(&view);
-        PyErr_Format(PyExc_TypeError, "view.format != %s", required_format);
-        return 0;
-    }
-    if (view.ndim != 1) {
-        PyBuffer_Release(&view);
-        PyErr_SetString(PyExc_TypeError, "view.ndim != 1");
-        return 0;
-    }
-    assert(view.itemsize == sizeof(unsigned int));
-    assert(view.len == view.itemsize * view.shape[0]);
-
-    *(Py_buffer *)result = view;
-
-    return Py_CLEANUP_SUPPORTED;
-}
-
-int converter_contiguous_uint_buffer(PyObject *obj, void *result) {
-    return converter_contiguous_buffer_impl(obj, result, "I",
-                                            sizeof(unsigned int));
-}
-
-int converter_contiguous_float_buffer(PyObject *obj, void *result) {
-    return converter_contiguous_buffer_impl(obj, result, "f", sizeof(float));
-}
-
-int converter_contiguous_float_buffer_optional(PyObject *obj, void *result) {
-    if (obj == Py_None) {
-        ((Py_buffer *)result)->buf = NULL;
-        return 1;
-    }
-    return converter_contiguous_buffer_impl(obj, result, "f", sizeof(float));
-}
 
 struct MaterialInfoObjectSequenceInfo {
     struct MaterialInfoObject **buffer;

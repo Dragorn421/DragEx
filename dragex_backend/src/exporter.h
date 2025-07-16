@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // info
 
@@ -362,6 +363,54 @@ struct f3d_mesh {
 
 //
 
-int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, const char *path);
+int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
+                             char **dl_name);
+
+//
+
+struct OoTCollisionVertex {
+    float coords[3];
+};
+
+struct OoTCollisionTri {
+    unsigned int verts[3];
+    unsigned int material;
+};
+
+struct OoTCollisionMaterial {
+    char *surface_type_0, *surface_type_1, *flags_a, *flags_b;
+};
+
+struct OoTCollisionMesh {
+    struct OoTCollisionVertex *verts;
+    struct OoTCollisionTri *faces;
+    struct OoTCollisionMaterial *materials;
+    unsigned int n_verts, n_faces, n_materials;
+};
+
+void free_create_OoTCollisionMesh_from_buffers(struct OoTCollisionMesh *mesh);
+
+struct OoTCollisionMesh *create_OoTCollisionMesh_from_buffers(
+    float *buf_vertices_co, size_t buf_vertices_co_len,                //
+    unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
+    unsigned int *buf_triangles_material_index,
+    size_t buf_triangles_material_index_len,                                 //
+    unsigned int *buf_loops_vertex_index, size_t buf_loops_vertex_index_len, //
+    struct OoTCollisionMaterial **materials, size_t n_materials,             //
+    struct OoTCollisionMaterial *default_material);
+
+struct OoTCollisionMesh *
+join_OoTCollisionMeshes_impl(struct OoTCollisionMesh **meshes, size_t n_meshes);
+
+struct OoTCollisionBounds {
+    int16_t min[3];
+    int16_t max[3];
+};
+
+int write_OoTCollisionMesh_to_c(struct OoTCollisionMesh *mesh,
+                                const char *vtx_list_name,
+                                const char *poly_list_name,
+                                const char *surface_types_name, FILE *f,
+                                struct OoTCollisionBounds *out_bounds);
 
 #endif

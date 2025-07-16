@@ -42,6 +42,7 @@ setup(
             sources=[
                 "src/logging/logging.c",
                 "src/logging/py_logging.c",
+                "src/py/converters.c",
                 "src/py/main.c",
                 "src/py/mat_info_image_obj.c",
                 "src/py/mat_info_other_modes_obj.c",
@@ -51,6 +52,7 @@ setup(
                 "src/py/mat_info_geometry_mode_obj.c",
                 "src/py/mat_info_obj.c",
                 "src/py/mesh_info_obj.c",
+                "src/py/oot_collision_objs.c",
                 "src/exporter.c",
                 "meshoptimizer/src/indexgenerator.cpp",
                 "meshoptimizer/src/vcacheoptimizer.cpp",

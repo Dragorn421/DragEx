@@ -138,7 +138,7 @@ class MaterialInfo:
     ) -> None: ...
 
 class MeshInfo:
-    def write_c(self, path: str | os.PathLike, /) -> None: ...
+    def write_c(self, fd: int, /) -> str: ...
 
 def create_MeshInfo(
     buf_vertices_co: Buffer,
@@ -153,5 +153,39 @@ def create_MeshInfo(
     default_material: MaterialInfo,
     /,
 ) -> MeshInfo: ...
+
+class OoTCollisionMaterial:
+    def __init__(
+        self,
+        surface_type_0: str,
+        surface_type_1: str,
+        flags_a: str,
+        flags_b: str,
+    ) -> None: ...
+
+class OoTCollisionBounds:
+    min: tuple[int, int, int]
+    max: tuple[int, int, int]
+
+class OoTCollisionMesh:
+    def write_c(
+        self,
+        fd: int,
+        vtx_list_name: str,
+        poly_list_name: str,
+        surface_types_name: str,
+        /,
+    ) -> OoTCollisionBounds: ...
+
+def create_OoTCollisionMesh(
+    buf_vertices_co: Buffer,
+    buf_triangles_loops: Buffer,
+    buf_triangles_material_index: Buffer,
+    buf_loops_vertex_index: Buffer,
+    materials: Sequence[OoTCollisionMaterial | None],
+    default_material: OoTCollisionMaterial,
+    /,
+) -> OoTCollisionMesh: ...
+def join_OoTCollisionMeshes(meshes: Sequence[OoTCollisionMesh]) -> OoTCollisionMesh: ...
 
 from . import logging

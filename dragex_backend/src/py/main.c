@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "objs.h"
+#include "oot_collision_objs.h"
 
 #include "../logging/logging.h"
 #include "../logging/py_logging.h"
@@ -79,6 +80,30 @@ static int dragex_backend_exec(PyObject *m) {
         return -1;
     }
 
+    if (PyType_Ready(&OoTCollisionMaterialType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "OoTCollisionMaterial",
+                              (PyObject *)&OoTCollisionMaterialType) < 0) {
+        return -1;
+    }
+
+    if (PyType_Ready(&OoTCollisionMeshType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "OoTCollisionMesh",
+                              (PyObject *)&OoTCollisionMeshType) < 0) {
+        return -1;
+    }
+
+    if (PyType_Ready(&OoTCollisionBoundsType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "OoTCollisionBounds",
+                              (PyObject *)&OoTCollisionBoundsType) < 0) {
+        return -1;
+    }
+
     PyObject *logging_module_obj =
         PyModule_Create(&dragex_backend_logging_module);
     if (logging_module_obj == NULL) {
@@ -106,6 +131,10 @@ static PyMethodDef dragex_backend_methods[] = {
     {"get_build_id", get_build_id, METH_NOARGS, "get build_id"},
     {"create_MeshInfo", create_MeshInfo, METH_VARARGS,
      "create MeshInfo from buffers"},
+    {"create_OoTCollisionMesh", create_OoTCollisionMesh, METH_VARARGS,
+     "create OoTCollisionMesh from buffers"},
+    {"join_OoTCollisionMeshes", join_OoTCollisionMeshes, METH_VARARGS,
+     "join several OoTCollisionMesh together"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 

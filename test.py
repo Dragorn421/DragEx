@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import random
 import traceback
@@ -191,11 +192,15 @@ del default_mat_info
 print("del default_mat_info done")
 
 print("mi =", mi)
-mi.write_c(Path(__file__).parent / "test_out.c")
-mi.write_c(str(Path(__file__).parent / "test_out.c"))
+fd = os.open(
+    Path(__file__).parent / "test_out.c", os.O_CREAT | os.O_WRONLY | os.O_TRUNC
+)
+dl_name = mi.write_c(fd)
 print("del mi")
 del mi
 print("del mi done")
+
+print(f"{dl_name=}")
 
 dragex_backend.logging.trace("test")
 dragex_backend.logging.debug("test")
@@ -206,3 +211,38 @@ dragex_backend.logging.fatal("test")
 
 dragex_backend.logging.flush()  # useless here but just for testing the method
 dragex_backend.logging.clear_log_file()
+
+oot_collision_material = dragex_backend.OoTCollisionMaterial(
+    "SURFTYPE0", "SURFTYPE1", "FLAGSA", "FLAGSB"
+)
+oot_collision_mesh = dragex_backend.create_OoTCollisionMesh(
+    buf_vertices_co,
+    buf_triangles_loops,
+    buf_triangles_material_index,
+    buf_loops_vertex_index,
+    [],
+    oot_collision_material,
+)
+
+os.write(fd, b"// oot_collision_mesh.write_c\n")
+bounds = oot_collision_mesh.write_c(
+    fd,
+    "magicVtxList",
+    "magicPolyList",
+    "magicSurfaceTypes",
+)
+print(f"{bounds=}")
+print(f"{bounds.min=}")
+print(f"{bounds.max=}")
+oot_collision_mesh_joined = dragex_backend.join_OoTCollisionMeshes(
+    [oot_collision_mesh, oot_collision_mesh]
+)
+os.write(fd, b"// oot_collision_mesh_joined.write_c\n")
+oot_collision_mesh_joined.write_c(
+    fd,
+    "magicJoinedVtxList",
+    "magicJoinedPolyList",
+    "magicJoinedSurfaceTypes",
+)
+
+os.close(fd)
