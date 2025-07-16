@@ -1266,6 +1266,8 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         coll_scene_to_export = bpy.data.collections[self.scene_coll_name]
         export_directory = Path(self.directory)
 
+        scene = context.scene
+        assert scene is not None
         scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
 
         export_coll_scene(
