@@ -65,7 +65,7 @@ def material_to_MaterialInfo(
     mat: bpy.types.Material,
     image_infos: dict[bpy.types.Image, "dragex_backend.MaterialInfoImage"],
 ):
-    mat_dragex: DragExMaterialProperties = mat.dragex
+    mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
     other_modes = mat_dragex.other_modes
     tiles = mat_dragex.tiles
     combiner = mat_dragex.combiner
@@ -488,7 +488,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         print("dragex_backend_demo took", end - start, "seconds")
         return {"FINISHED"}
 
-    def execute(self, context):
+    def execute(self, context):  # type: ignore
         try:
             return self.execute_impl(context)
         finally:
@@ -541,13 +541,16 @@ class DragExMaterialPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.dragex.target != "NONE" and context.material is not None
+        if context.scene is None:
+            return False
+        scene_dragex: DragExSceneProperties = context.scene.dragex  # type: ignore
+        return scene_dragex.target != "NONE" and context.material is not None
 
     def draw(self, context):
         assert self.layout is not None
         mat = context.material
         assert mat is not None
-        mat_dragex: DragExMaterialProperties = mat.dragex
+        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
         mat_geomode = mat_dragex.geometry_mode
         other_modes = mat_dragex.other_modes
         combiner = mat_dragex.combiner
@@ -736,7 +739,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
 
     room_colls = dict[int, bpy.types.Collection]()
     for coll in coll_scene.children_recursive:
-        coll_dragex: DragExCollectionProperties = coll.dragex
+        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
         if coll_dragex.oot.type == "ROOM":
             room_number = coll_dragex.oot.room.number
             if room_number in room_colls:
@@ -761,13 +764,13 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
 
     for i in range(n_rooms):
         room_coll = room_colls[i]
-        room_coll_dragex: DragExCollectionProperties = room_coll.dragex
+        room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
         room_spawns = list[OoTSpawn]()
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
         for obj in room_coll.all_objects:
             if obj.type == "EMPTY":
-                obj_dragex: DragExObjectProperties = obj.dragex
+                obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
                 if obj_dragex.oot.empty.type == "PLAYER_ENTRY":
                     player_entry_props = obj_dragex.oot.empty.player_entry
                     if player_entry_props.spawn_index in spawns:
@@ -1233,7 +1236,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         scene = context.scene
         assert scene is not None
         for coll in scene.collection.children_recursive:
-            coll_dragex: DragExCollectionProperties = coll.dragex
+            coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
             if coll_dragex.oot.type == "SCENE":
                 if edit_text in coll.name.lower():
                     yield coll.name
@@ -1241,7 +1244,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
     scene_coll_name: bpy.props.StringProperty(
         name="Scene",
         description="OoT scene collection to export",
-        search=scene_coll_name_search,
+        search=scene_coll_name_search,  # type: ignore
         search_options=set(),
     )
 
@@ -1252,15 +1255,17 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
-    def execute(self, context):
+    def execute(self, context):  # type: ignore
         if self.scene_coll_name == "":
             self.report({"ERROR_INVALID_INPUT"}, "No scene given")
             return {"CANCELLED"}
         coll_scene_to_export = bpy.data.collections[self.scene_coll_name]
         export_directory = Path(self.directory)
+
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
 
         export_coll_scene(
             coll_scene_to_export,
@@ -1268,14 +1273,14 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
             ExportOptions(
                 transform=(
                     transform_zup_to_yup
-                    @ mathutils.Matrix.Scale(1 / context.scene.dragex.oot.scale, 3)
+                    @ mathutils.Matrix.Scale(1 / scene_dragex.oot.scale, 3)
                 ),
             ),
         )
 
         return {"FINISHED"}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):  # type: ignore
         assert context.window_manager is not None
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
@@ -1537,7 +1542,7 @@ class DragExTargetPanel(bpy.types.Panel):
         assert self.layout is not None
         scene = context.scene
         assert scene is not None
-        dragex: DragExSceneProperties = scene.dragex
+        dragex: DragExSceneProperties = scene.dragex  # type: ignore
         self.layout.prop(dragex, "target")
 
 
@@ -1558,10 +1563,12 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
         default=1,
     )
 
-    def execute(self, context):
+    def execute(self, context):  # type: ignore
         map_name: str = self.map_name
         cont = True
         i = 0
+        scene_name = ""
+        room_names = []
         while cont:
             scene_name = f"{map_name} Scene"
             room_names = [f"{map_name} Room {_i}" for _i in range(self.n_rooms)]
@@ -1574,10 +1581,10 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
 
         scene_coll = bpy.data.collections.new(scene_name)
-        scene_coll_dragex: DragExCollectionProperties = scene_coll.dragex
+        scene_coll_dragex: DragExCollectionProperties = scene_coll.dragex  # type: ignore
         scene_coll_dragex.oot.type = "SCENE"
 
         scale = scene_dragex.oot.scale
@@ -1585,7 +1592,7 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
         for room_number, room_name in enumerate(room_names):
             room_coll = bpy.data.collections.new(room_name)
             room_colls.append(room_coll)
-            room_coll_dragex: DragExCollectionProperties = room_coll.dragex
+            room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
             room_coll_dragex.oot.type = "ROOM"
             room_coll_dragex.oot.room.number = room_number
             scene_coll.children.link(room_coll)
@@ -1609,7 +1616,7 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
 
         player_entry_empty_obj = bpy.data.objects.new(f"{map_name} Player Entry", None)
         player_entry_empty_obj_dragex: DragExObjectProperties = (
-            player_entry_empty_obj.dragex
+            player_entry_empty_obj.dragex  # type: ignore
         )
         player_entry_empty_obj.location = (0, 0, 0)
         player_entry_empty_obj.empty_display_type = "ARROWS"
@@ -1633,14 +1640,14 @@ class DragExOoTPanel(bpy.types.Panel):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
     def draw(self, context):
         assert self.layout is not None
         scene = context.scene
         assert scene is not None
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
         self.layout.prop(scene_dragex.oot, "scale")
         self.layout.operator(DragExOoTNewSceneOperator.bl_idname)
         self.layout.operator(DragExOoTExportSceneOperator.bl_idname)
@@ -1658,7 +1665,7 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
     def draw(self, context):
@@ -1666,7 +1673,7 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
         assert layout is not None
         coll = context.collection
         assert coll is not None
-        coll_dragex: DragExCollectionProperties = coll.dragex
+        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
         layout.prop(coll_dragex.oot, "type")
         if coll_dragex.oot.type == "ROOM":
             layout.prop(coll_dragex.oot.room, "number")
@@ -1685,7 +1692,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         obj = context.object
         if scene is None or obj is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex
+        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
         return scene_dragex.target == "OOT_F3DEX2_PL" and obj.type == "EMPTY"
 
     def draw(self, context):
@@ -1693,7 +1700,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         assert layout is not None
         obj = context.object
         assert obj is not None
-        obj_dragex: DragExObjectProperties = obj.dragex
+        obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
         layout.prop(obj_dragex.oot.empty, "type")
         if obj_dragex.oot.empty.type == "PLAYER_ENTRY":
             layout.prop(obj_dragex.oot.empty.player_entry, "start_mode")
@@ -1752,6 +1759,7 @@ def register():
         cannot_register = True
         return
 
+    assert __package__ is not None
     logs_folder_p = Path(
         bpy.utils.extension_path_user(__package__, path="logs", create=True)
     )
@@ -1776,12 +1784,12 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.dragex = bpy.props.PointerProperty(type=DragExSceneProperties)
-    bpy.types.Collection.dragex = bpy.props.PointerProperty(
+    bpy.types.Scene.dragex = bpy.props.PointerProperty(type=DragExSceneProperties)  # type: ignore
+    bpy.types.Collection.dragex = bpy.props.PointerProperty(  # type: ignore
         type=DragExCollectionProperties
     )
-    bpy.types.Object.dragex = bpy.props.PointerProperty(type=DragExObjectProperties)
-    bpy.types.Material.dragex = bpy.props.PointerProperty(type=DragExMaterialProperties)
+    bpy.types.Object.dragex = bpy.props.PointerProperty(type=DragExObjectProperties)  # type: ignore
+    bpy.types.Material.dragex = bpy.props.PointerProperty(type=DragExMaterialProperties)  # type: ignore
 
     from . import f64render_dragex
 
