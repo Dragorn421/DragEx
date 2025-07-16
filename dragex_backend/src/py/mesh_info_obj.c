@@ -197,11 +197,15 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     // TODO check malloc
 
     for (Py_ssize_t i = 0; i < material_info_objects.len; i++) {
-        material_infos[i] = &material_info_objects.buffer[i]->mat_info;
+        material_infos[i] = material_info_objects.buffer[i] == NULL
+                                ? NULL
+                                : &material_info_objects.buffer[i]->mat_info;
         for (int j = 0; j < 8; j++) {
             assert((size_t)(i * 8 + j) < len_image_objects);
             image_objects[i * 8 + j] =
-                material_info_objects.buffer[i]->image_objects[j];
+                material_info_objects.buffer[i] == NULL
+                    ? NULL
+                    : material_info_objects.buffer[i]->image_objects[j];
         }
     }
 

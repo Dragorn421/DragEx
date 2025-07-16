@@ -253,7 +253,9 @@ PyObject *create_OoTCollisionMesh(PyObject *self, PyObject *args) {
     // TODO check malloc
 
     for (Py_ssize_t i = 0; i < materials_objects.len; i++) {
-        materials[i] = &materials_objects.buffer[i]->mat;
+        materials[i] = materials_objects.buffer[i] == NULL
+                           ? NULL
+                           : &materials_objects.buffer[i]->mat;
     }
 
     // This also decreases the reference counts of the strings we keep pointers
