@@ -765,7 +765,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     for i in range(n_rooms):
         room_coll = room_colls[i]
         room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
-        room_spawns = list[OoTSpawn]()
+        room_player_entry_by_spawn_index = dict[int, OoTActorEntry]()
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
         for obj in room_coll.all_objects:
@@ -773,7 +773,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                 obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
                 if obj_dragex.oot.empty.type == "PLAYER_ENTRY":
                     player_entry_props = obj_dragex.oot.empty.player_entry
-                    if player_entry_props.spawn_index in spawns:
+                    if player_entry_props.spawn_index in spawns_empties:
                         raise CollectMapException(
                             f"Duplicate spawn index {player_entry_props.spawn_index}: "
                             f"used by "
@@ -812,12 +812,9 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                         ),
                         params=params,
                     )
-                    spawn = OoTSpawn(
-                        player_entry=player_entry,
-                        room=None,  # TODO is set after, find better way
+                    room_player_entry_by_spawn_index[player_entry_props.spawn_index] = (
+                        player_entry
                     )
-                    room_spawns.append(spawn)
-                    spawns[player_entry_props.spawn_index] = spawn
             if obj.type == "MESH":
                 assert isinstance(obj.data, bpy.types.Mesh)
                 # TODO this is inefficient if mesh is shared between rooms
@@ -847,8 +844,12 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             time_settings_timeSpeed="0",
             shape=shape,
         )
-        for spawn in room_spawns:
-            spawn.room = room
+        for spawn_index, player_entry in room_player_entry_by_spawn_index.items():
+            spawn = OoTSpawn(
+                player_entry=player_entry,
+                room=room,
+            )
+            spawns[spawn_index] = spawn
         rooms.append(room)
 
     env_light_settings_list = list[OoTEnvLightSettings]()
