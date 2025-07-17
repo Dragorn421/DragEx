@@ -503,6 +503,9 @@ def intlog2(v: int):
         return None
 
 
+TMEM_SIZE = 4096
+
+
 class MaterialMode(abc.ABC):
     @staticmethod
     @abc.abstractmethod
@@ -533,6 +536,21 @@ class BasicMaterialMode(MaterialMode):
         material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
         mode_basic = material_dragex.modes.basic
         layout.template_ID(mode_basic, "texture", new="image.new", open="image.open")
+        texture = mode_basic.texture
+        if texture is not None:
+            texture_w, texture_h = texture.size
+            if texture_w * texture_h * 2 > TMEM_SIZE:
+                layout.label(text="Texture too big: max 32x64 or 64x32", icon="ERROR")
+            if texture_w * 2 % 8 != 0:
+                layout.label(text="Texture width must be a multiple of 4", icon="ERROR")
+            if intlog2(texture_w) is None:
+                layout.label(
+                    text="Texture width must be a power of 2 for wrapping", icon="INFO"
+                )
+            if intlog2(texture_h) is None:
+                layout.label(
+                    text="Texture height must be a power of 2 for wrapping", icon="INFO"
+                )
         layout.prop(mode_basic, "tint")
 
     @staticmethod
@@ -548,17 +566,18 @@ class BasicMaterialMode(MaterialMode):
         tile0.address = 0
         tile0.palette = 0
         if texture is not None and tuple(texture.size) != (0, 0):
-            # TODO error on texture too large
             # TODO check if s=width, t=height (test with non-square texture)
             texture_w, texture_h = texture.size
+            if texture_w * texture_h * 2 > TMEM_SIZE:
+                tile0.image = None
             material_dragex.uv_basis_s = texture_w
             material_dragex.uv_basis_t = texture_h
-            # TODO warn on unaligned line width
+            if texture_w * 2 % 8 != 0:
+                tile0.image = None
             tile0.line = texture_w * 2 // 8
             mask_S = intlog2(texture_w)
             mask_T = intlog2(texture_h)
             if mask_S is None:
-                # TODO warn on non-wrappable
                 tile0.clamp_S = True
                 tile0.mask_S = 0
             else:
