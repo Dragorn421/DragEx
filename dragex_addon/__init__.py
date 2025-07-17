@@ -495,7 +495,171 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             dragex_backend.logging.flush()
 
 
+def intlog2(v: int):
+    r = round(math.log2(v))
+    if 2**r == v:
+        return r
+    else:
+        return None
+
+
+def init_basic_mode_props(material: bpy.types.Material, prev_mode: str):
+    apply_basic_mode_props(material)
+
+
+def apply_basic_mode_props(material: bpy.types.Material):
+    material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+    texture: bpy.types.Image = material_dragex.modes.basic.texture
+    tint: mathutils.Color = material_dragex.modes.basic.tint
+
+    tile0 = material_dragex.tiles.tiles[0]
+    tile0.image = texture
+    tile0.format = "RGBA"
+    tile0.size = "16"
+    tile0.address = 0
+    tile0.palette = 0
+    if texture is not None and tuple(texture.size) != (0, 0):
+        # TODO error on texture too large
+        # TODO check if s=width, t=height (test with non-square texture)
+        texture_w, texture_h = texture.size
+        material_dragex.uv_basis_s = texture_w
+        material_dragex.uv_basis_t = texture_h
+        # TODO warn on unaligned line width
+        tile0.line = texture_w * 2 // 8
+        mask_S = intlog2(texture_w)
+        mask_T = intlog2(texture_h)
+        if mask_S is None:
+            # TODO warn on non-wrappable
+            tile0.clamp_S = True
+            tile0.mask_S = 0
+        else:
+            tile0.clamp_S = False
+            tile0.mask_S = mask_S
+        tile0.mirror_S = False
+        tile0.shift_S = 0
+        if mask_T is None:
+            tile0.clamp_T = True
+            tile0.mask_T = 0
+        else:
+            tile0.clamp_T = False
+            tile0.mask_T = mask_T
+        tile0.mirror_T = False
+        tile0.shift_T = 0
+        tile0.upper_left_S = 0
+        tile0.upper_left_T = 0
+        tile0.lower_right_S = texture_w - 1
+        tile0.lower_right_T = texture_h - 1
+
+    material_dragex.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
+
+    om = material_dragex.other_modes
+    om.atomic_prim = False
+    om.cycle_type = "1CYCLE"
+    om.persp_tex_en = True
+    om.detail_tex_en = False
+    om.sharpen_tex_en = False
+    om.tex_lod_en = False
+    om.tlut_en = False
+    om.tlut_type = False
+    om.sample_type = True
+    om.mid_texel = False
+    om.bi_lerp_0 = True
+    om.bi_lerp_1 = True
+    om.convert_one = False  # TODO ?
+    om.key_en = False
+    om.rgb_dither_sel = "MAGIC_SQUARE"
+    om.alpha_dither_sel = "SAME_AS_RGB"  # ?
+    om.bl_m1a_0 = "INPUT"
+    om.bl_m1b_0 = "INPUT_ALPHA"
+    om.bl_m2a_0 = "MEMORY"
+    om.bl_m2b_0 = "MEMORY_COVERAGE"
+    om.bl_m1a_1 = om.bl_m1a_0
+    om.bl_m1b_1 = om.bl_m1b_0
+    om.bl_m2a_1 = om.bl_m2a_0
+    om.bl_m2b_1 = om.bl_m2b_0
+    om.force_blend = False
+    om.alpha_cvg_select = True
+    om.cvg_x_alpha = False
+    om.z_mode = "OPAQUE"
+    om.cvg_dest = "CLAMP"
+    om.color_on_cvg = False
+    om.image_read_en = True
+    om.z_update_en = True
+    om.z_compare_en = True
+    om.antialias_en = True
+    om.z_source_sel = False
+    om.dither_alpha_en = False
+    om.alpha_compare_en = False
+
+    cb = material_dragex.combiner
+    cb.rgb_A_0 = "TEX0"
+    cb.rgb_B_0 = "0"
+    cb.rgb_C_0 = "PRIMITIVE"
+    cb.rgb_D_0 = "0"
+    cb.alpha_A_0 = "0"
+    cb.alpha_B_0 = "0"
+    cb.alpha_C_0 = "0"
+    cb.alpha_D_0 = "1"
+    cb.rgb_A_1 = cb.rgb_A_0
+    cb.rgb_B_1 = cb.rgb_B_0
+    cb.rgb_C_1 = cb.rgb_C_0
+    cb.rgb_D_1 = cb.rgb_D_0
+    cb.alpha_A_1 = cb.alpha_A_0
+    cb.alpha_B_1 = cb.alpha_B_0
+    cb.alpha_C_1 = cb.alpha_C_0
+    cb.alpha_D_1 = cb.alpha_D_0
+
+
+def on_basic_mode_prop_update(self, context: bpy.types.Context):
+    material = context.material
+    assert material is not None
+    apply_basic_mode_props(material)
+
+
+class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
+    texture: bpy.props.PointerProperty(
+        name="Texture",
+        type=bpy.types.Image,
+        update=on_basic_mode_prop_update,
+    )
+    tint: bpy.props.FloatVectorProperty(
+        name="Tint",
+        subtype="COLOR",
+        size=3,
+        min=0,
+        max=1,
+        default=(1, 1, 1),
+        update=on_basic_mode_prop_update,
+    )
+
+
+class DragExMaterialModesProperties(bpy.types.PropertyGroup):
+    basic_: bpy.props.PointerProperty(type=DragExMaterialModesBasicProperties)
+
+    @property
+    def basic(self) -> DragExMaterialModesBasicProperties:
+        return self.basic_
+
+
+material_mode_items = (
+    # TODO add descriptions
+    ("NONE", "None", ""),
+    ("BASIC", "Basic", ""),
+    ("FULL", "Full", ""),
+)
+
+
 class DragExMaterialProperties(bpy.types.PropertyGroup):
+    mode: bpy.props.EnumProperty(
+        items=material_mode_items,
+        default="NONE",
+    )
+    modes_: bpy.props.PointerProperty(type=DragExMaterialModesProperties)
+
+    @property
+    def modes(self) -> DragExMaterialModesProperties:
+        return self.modes_
+
     uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
     uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
 
@@ -556,6 +720,16 @@ class DragExMaterialPanel(bpy.types.Panel):
         combiner = mat_dragex.combiner
         vals = mat_dragex.vals
         tiles = mat_dragex.tiles.tiles
+        self.layout.operator(DragExSetMaterialModeOperator.bl_idname)
+        if mat_dragex.mode == "NONE":
+            return
+        if mat_dragex.mode == "BASIC":
+            mode_basic = mat_dragex.modes.basic
+            self.layout.template_ID(
+                mode_basic, "texture", new="image.new", open="image.open"
+            )
+            self.layout.prop(mode_basic, "tint")
+            return
         self.layout.prop(mat_geomode, "lighting")
         self.layout.prop(mat_dragex, "uv_basis_s")
         self.layout.prop(mat_dragex, "uv_basis_t")
@@ -643,6 +817,38 @@ class DragExMaterialPanel(bpy.types.Panel):
             box.prop(tile, "upper_left_T")
             box.prop(tile, "lower_right_S")
             box.prop(tile, "lower_right_T")
+
+
+class DragExSetMaterialModeOperator(bpy.types.Operator):
+    bl_idname = "dragex.set_material_mode"
+    bl_label = "DragEx Set Material Mode"
+    bl_property = "mode"
+
+    def get_modes(self, context: bpy.types.Context | None):
+        return material_mode_items
+
+    mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=get_modes,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return context.material is not None
+
+    def execute(self, context):  # type: ignore
+        material = context.material
+        assert material is not None
+        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        if self.mode == "BASIC":
+            init_basic_mode_props(material, material_dragex.mode)
+        material_dragex.mode = self.mode
+        return {"FINISHED"}
+
+    def invoke(self, context, event):  # type: ignore
+        assert context.window_manager is not None
+        context.window_manager.invoke_search_popup(self)
+        return {"RUNNING_MODAL"}
 
 
 class OoTRoomShape(abc.ABC):
@@ -1717,6 +1923,8 @@ classes = (
     tiles_props.DragExMaterialTilesProperties,
     combiner_props.DragExMaterialCombinerProperties,
     vals_props.DragExMaterialValsProperties,
+    DragExMaterialModesBasicProperties,
+    DragExMaterialModesProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
     DragExCollectionOoTSceneProperties,
@@ -1736,6 +1944,7 @@ classes = (
     DragExObjectOoTEmptyPanel,
     DragExBackendDemoOperator,
     DragExOoTExportSceneOperator,
+    DragExSetMaterialModeOperator,
 )
 
 cannot_register = False
