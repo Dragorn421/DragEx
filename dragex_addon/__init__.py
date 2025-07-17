@@ -503,124 +503,153 @@ def intlog2(v: int):
         return None
 
 
-def init_basic_mode_props(material: bpy.types.Material, prev_mode: str):
-    apply_basic_mode_props(material)
+class MaterialMode(abc.ABC):
+    @staticmethod
+    @abc.abstractmethod
+    def init(material: bpy.types.Material, prev_mode: str) -> None: ...
+
+    @staticmethod
+    @abc.abstractmethod
+    def draw(layout: bpy.types.UILayout, material: bpy.types.Material) -> None: ...
 
 
-def apply_basic_mode_props(material: bpy.types.Material):
-    material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
-    texture: bpy.types.Image = material_dragex.modes.basic.texture
-    tint: mathutils.Color = material_dragex.modes.basic.tint
+class NoneMaterialMode(MaterialMode):
+    @staticmethod
+    def init(material, prev_mode):
+        pass
 
-    tile0 = material_dragex.tiles.tiles[0]
-    tile0.image = texture
-    tile0.format = "RGBA"
-    tile0.size = "16"
-    tile0.address = 0
-    tile0.palette = 0
-    if texture is not None and tuple(texture.size) != (0, 0):
-        # TODO error on texture too large
-        # TODO check if s=width, t=height (test with non-square texture)
-        texture_w, texture_h = texture.size
-        material_dragex.uv_basis_s = texture_w
-        material_dragex.uv_basis_t = texture_h
-        # TODO warn on unaligned line width
-        tile0.line = texture_w * 2 // 8
-        mask_S = intlog2(texture_w)
-        mask_T = intlog2(texture_h)
-        if mask_S is None:
-            # TODO warn on non-wrappable
-            tile0.clamp_S = True
-            tile0.mask_S = 0
-        else:
-            tile0.clamp_S = False
-            tile0.mask_S = mask_S
-        tile0.mirror_S = False
-        tile0.shift_S = 0
-        if mask_T is None:
-            tile0.clamp_T = True
-            tile0.mask_T = 0
-        else:
-            tile0.clamp_T = False
-            tile0.mask_T = mask_T
-        tile0.mirror_T = False
-        tile0.shift_T = 0
-        tile0.upper_left_S = 0
-        tile0.upper_left_T = 0
-        tile0.lower_right_S = texture_w - 1
-        tile0.lower_right_T = texture_h - 1
-
-    material_dragex.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
-
-    om = material_dragex.other_modes
-    om.atomic_prim = False
-    om.cycle_type = "1CYCLE"
-    om.persp_tex_en = True
-    om.detail_tex_en = False
-    om.sharpen_tex_en = False
-    om.tex_lod_en = False
-    om.tlut_en = False
-    om.tlut_type = False
-    om.sample_type = True
-    om.mid_texel = False
-    om.bi_lerp_0 = True
-    om.bi_lerp_1 = True
-    om.convert_one = False  # TODO ?
-    om.key_en = False
-    om.rgb_dither_sel = "MAGIC_SQUARE"
-    om.alpha_dither_sel = "SAME_AS_RGB"  # ?
-    om.bl_m1a_0 = "INPUT"
-    om.bl_m1b_0 = "INPUT_ALPHA"
-    om.bl_m2a_0 = "MEMORY"
-    om.bl_m2b_0 = "MEMORY_COVERAGE"
-    om.bl_m1a_1 = om.bl_m1a_0
-    om.bl_m1b_1 = om.bl_m1b_0
-    om.bl_m2a_1 = om.bl_m2a_0
-    om.bl_m2b_1 = om.bl_m2b_0
-    om.force_blend = False
-    om.alpha_cvg_select = True
-    om.cvg_x_alpha = False
-    om.z_mode = "OPAQUE"
-    om.cvg_dest = "CLAMP"
-    om.color_on_cvg = False
-    om.image_read_en = True
-    om.z_update_en = True
-    om.z_compare_en = True
-    om.antialias_en = True
-    om.z_source_sel = False
-    om.dither_alpha_en = False
-    om.alpha_compare_en = False
-
-    cb = material_dragex.combiner
-    cb.rgb_A_0 = "TEX0"
-    cb.rgb_B_0 = "0"
-    cb.rgb_C_0 = "PRIMITIVE"
-    cb.rgb_D_0 = "0"
-    cb.alpha_A_0 = "0"
-    cb.alpha_B_0 = "0"
-    cb.alpha_C_0 = "0"
-    cb.alpha_D_0 = "1"
-    cb.rgb_A_1 = cb.rgb_A_0
-    cb.rgb_B_1 = cb.rgb_B_0
-    cb.rgb_C_1 = cb.rgb_C_0
-    cb.rgb_D_1 = cb.rgb_D_0
-    cb.alpha_A_1 = cb.alpha_A_0
-    cb.alpha_B_1 = cb.alpha_B_0
-    cb.alpha_C_1 = cb.alpha_C_0
-    cb.alpha_D_1 = cb.alpha_D_0
+    @staticmethod
+    def draw(layout, material):
+        pass
 
 
-def on_basic_mode_prop_update(self, context: bpy.types.Context):
-    material = context.material
-    assert material is not None
-    apply_basic_mode_props(material)
+class BasicMaterialMode(MaterialMode):
+    @staticmethod
+    def init(material, prev_mode):
+        BasicMaterialMode.apply_mode_props(material)
+
+    @staticmethod
+    def draw(layout, material):
+        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        mode_basic = material_dragex.modes.basic
+        layout.template_ID(mode_basic, "texture", new="image.new", open="image.open")
+        layout.prop(mode_basic, "tint")
+
+    @staticmethod
+    def apply_mode_props(material):
+        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        texture: bpy.types.Image = material_dragex.modes.basic.texture
+        tint: mathutils.Color = material_dragex.modes.basic.tint
+
+        tile0 = material_dragex.tiles.tiles[0]
+        tile0.image = texture
+        tile0.format = "RGBA"
+        tile0.size = "16"
+        tile0.address = 0
+        tile0.palette = 0
+        if texture is not None and tuple(texture.size) != (0, 0):
+            # TODO error on texture too large
+            # TODO check if s=width, t=height (test with non-square texture)
+            texture_w, texture_h = texture.size
+            material_dragex.uv_basis_s = texture_w
+            material_dragex.uv_basis_t = texture_h
+            # TODO warn on unaligned line width
+            tile0.line = texture_w * 2 // 8
+            mask_S = intlog2(texture_w)
+            mask_T = intlog2(texture_h)
+            if mask_S is None:
+                # TODO warn on non-wrappable
+                tile0.clamp_S = True
+                tile0.mask_S = 0
+            else:
+                tile0.clamp_S = False
+                tile0.mask_S = mask_S
+            tile0.mirror_S = False
+            tile0.shift_S = 0
+            if mask_T is None:
+                tile0.clamp_T = True
+                tile0.mask_T = 0
+            else:
+                tile0.clamp_T = False
+                tile0.mask_T = mask_T
+            tile0.mirror_T = False
+            tile0.shift_T = 0
+            tile0.upper_left_S = 0
+            tile0.upper_left_T = 0
+            tile0.lower_right_S = texture_w - 1
+            tile0.lower_right_T = texture_h - 1
+
+        material_dragex.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
+
+        om = material_dragex.other_modes
+        om.atomic_prim = False
+        om.cycle_type = "1CYCLE"
+        om.persp_tex_en = True
+        om.detail_tex_en = False
+        om.sharpen_tex_en = False
+        om.tex_lod_en = False
+        om.tlut_en = False
+        om.tlut_type = False
+        om.sample_type = True
+        om.mid_texel = False
+        om.bi_lerp_0 = True
+        om.bi_lerp_1 = True
+        om.convert_one = False  # TODO ?
+        om.key_en = False
+        om.rgb_dither_sel = "MAGIC_SQUARE"
+        om.alpha_dither_sel = "SAME_AS_RGB"  # ?
+        om.bl_m1a_0 = "INPUT"
+        om.bl_m1b_0 = "INPUT_ALPHA"
+        om.bl_m2a_0 = "MEMORY"
+        om.bl_m2b_0 = "MEMORY_COVERAGE"
+        om.bl_m1a_1 = om.bl_m1a_0
+        om.bl_m1b_1 = om.bl_m1b_0
+        om.bl_m2a_1 = om.bl_m2a_0
+        om.bl_m2b_1 = om.bl_m2b_0
+        om.force_blend = False
+        om.alpha_cvg_select = True
+        om.cvg_x_alpha = False
+        om.z_mode = "OPAQUE"
+        om.cvg_dest = "CLAMP"
+        om.color_on_cvg = False
+        om.image_read_en = True
+        om.z_update_en = True
+        om.z_compare_en = True
+        om.antialias_en = True
+        om.z_source_sel = False
+        om.dither_alpha_en = False
+        om.alpha_compare_en = False
+
+        cb = material_dragex.combiner
+        cb.rgb_A_0 = "TEX0"
+        cb.rgb_B_0 = "0"
+        cb.rgb_C_0 = "PRIMITIVE"
+        cb.rgb_D_0 = "0"
+        cb.alpha_A_0 = "0"
+        cb.alpha_B_0 = "0"
+        cb.alpha_C_0 = "0"
+        cb.alpha_D_0 = "1"
+        cb.rgb_A_1 = cb.rgb_A_0
+        cb.rgb_B_1 = cb.rgb_B_0
+        cb.rgb_C_1 = cb.rgb_C_0
+        cb.rgb_D_1 = cb.rgb_D_0
+        cb.alpha_A_1 = cb.alpha_A_0
+        cb.alpha_B_1 = cb.alpha_B_0
+        cb.alpha_C_1 = cb.alpha_C_0
+        cb.alpha_D_1 = cb.alpha_D_0
+
+    @staticmethod
+    def on_mode_prop_update(_self, context: bpy.types.Context):
+        material = context.material
+        assert material is not None
+        BasicMaterialMode.apply_mode_props(material)
 
 
 class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
     texture: bpy.props.PointerProperty(
         name="Texture",
         type=bpy.types.Image,
-        update=on_basic_mode_prop_update,
+        update=BasicMaterialMode.on_mode_prop_update,
     )
     tint: bpy.props.FloatVectorProperty(
         name="Tint",
@@ -629,7 +658,7 @@ class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
         min=0,
         max=1,
         default=(1, 1, 1),
-        update=on_basic_mode_prop_update,
+        update=BasicMaterialMode.on_mode_prop_update,
     )
 
 
@@ -640,6 +669,114 @@ class DragExMaterialModesProperties(bpy.types.PropertyGroup):
     def basic(self) -> DragExMaterialModesBasicProperties:
         return self.basic_
 
+
+class FullMaterialMode(MaterialMode):
+    @staticmethod
+    def init(material, prev_mode):
+        pass
+
+    @staticmethod
+    def draw(layout, material):
+        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+        mat_geomode = mat_dragex.geometry_mode
+        other_modes = mat_dragex.other_modes
+        combiner = mat_dragex.combiner
+        vals = mat_dragex.vals
+        tiles = mat_dragex.tiles.tiles
+        layout.prop(mat_geomode, "lighting")
+        layout.prop(mat_dragex, "uv_basis_s")
+        layout.prop(mat_dragex, "uv_basis_t")
+        layout.prop(vals, "primitive_depth_z")
+        layout.prop(vals, "primitive_depth_dz")
+        layout.prop(vals, "fog_color")
+        layout.prop(vals, "blend_color")
+        layout.prop(vals, "min_level")
+        layout.prop(vals, "prim_lod_frac")
+        layout.prop(vals, "primitive_color")
+        layout.prop(vals, "environment_color")
+        box = layout.box()
+        box.prop(other_modes, "atomic_prim")
+        box.prop(other_modes, "cycle_type")
+        box.prop(other_modes, "persp_tex_en")
+        box.prop(other_modes, "detail_tex_en")
+        box.prop(other_modes, "sharpen_tex_en")
+        box.prop(other_modes, "tex_lod_en")
+        box.prop(other_modes, "tlut_en")
+        box.prop(other_modes, "tlut_type")
+        box.prop(other_modes, "sample_type")
+        box.prop(other_modes, "mid_texel")
+        box.prop(other_modes, "bi_lerp_0")
+        box.prop(other_modes, "bi_lerp_1")
+        box.prop(other_modes, "convert_one")
+        box.prop(other_modes, "key_en")
+        box.prop(other_modes, "rgb_dither_sel")
+        box.prop(other_modes, "alpha_dither_sel")
+        box.prop(other_modes, "bl_m1a_0")
+        box.prop(other_modes, "bl_m1a_1")
+        box.prop(other_modes, "bl_m1b_0")
+        box.prop(other_modes, "bl_m1b_1")
+        box.prop(other_modes, "bl_m2a_0")
+        box.prop(other_modes, "bl_m2a_1")
+        box.prop(other_modes, "bl_m2b_0")
+        box.prop(other_modes, "bl_m2b_1")
+        box.prop(other_modes, "force_blend")
+        box.prop(other_modes, "alpha_cvg_select")
+        box.prop(other_modes, "cvg_x_alpha")
+        box.prop(other_modes, "z_mode")
+        box.prop(other_modes, "cvg_dest")
+        box.prop(other_modes, "color_on_cvg")
+        box.prop(other_modes, "image_read_en")
+        box.prop(other_modes, "z_update_en")
+        box.prop(other_modes, "z_compare_en")
+        box.prop(other_modes, "antialias_en")
+        box.prop(other_modes, "z_source_sel")
+        box.prop(other_modes, "dither_alpha_en")
+        box.prop(other_modes, "alpha_compare_en")
+        box = layout.box()
+        box.prop(combiner, "rgb_A_0")
+        box.prop(combiner, "rgb_B_0")
+        box.prop(combiner, "rgb_C_0")
+        box.prop(combiner, "rgb_D_0")
+        box.prop(combiner, "alpha_A_0")
+        box.prop(combiner, "alpha_B_0")
+        box.prop(combiner, "alpha_C_0")
+        box.prop(combiner, "alpha_D_0")
+        box.prop(combiner, "rgb_A_1")
+        box.prop(combiner, "rgb_B_1")
+        box.prop(combiner, "rgb_C_1")
+        box.prop(combiner, "rgb_D_1")
+        box.prop(combiner, "alpha_A_1")
+        box.prop(combiner, "alpha_B_1")
+        box.prop(combiner, "alpha_C_1")
+        box.prop(combiner, "alpha_D_1")
+        for i, tile in enumerate(tiles):
+            box = layout.box()
+            box.label(text=f"Tile {i}")
+            box.template_ID(tile, "image", new="image.new", open="image.open")
+            box.prop(tile, "format")
+            box.prop(tile, "size")
+            box.prop(tile, "line")
+            box.prop(tile, "address")
+            box.prop(tile, "palette")
+            box.prop(tile, "clamp_T")
+            box.prop(tile, "mirror_T")
+            box.prop(tile, "mask_T")
+            box.prop(tile, "shift_T")
+            box.prop(tile, "clamp_S")
+            box.prop(tile, "mirror_S")
+            box.prop(tile, "mask_S")
+            box.prop(tile, "shift_S")
+            box.prop(tile, "upper_left_S")
+            box.prop(tile, "upper_left_T")
+            box.prop(tile, "lower_right_S")
+            box.prop(tile, "lower_right_T")
+
+
+material_modes_dict: dict[str, type[MaterialMode]] = {
+    "NONE": NoneMaterialMode,
+    "BASIC": BasicMaterialMode,
+    "FULL": FullMaterialMode,
+}
 
 material_mode_items = (
     # TODO add descriptions
@@ -715,108 +852,8 @@ class DragExMaterialPanel(bpy.types.Panel):
         mat = context.material
         assert mat is not None
         mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
-        mat_geomode = mat_dragex.geometry_mode
-        other_modes = mat_dragex.other_modes
-        combiner = mat_dragex.combiner
-        vals = mat_dragex.vals
-        tiles = mat_dragex.tiles.tiles
         self.layout.operator(DragExSetMaterialModeOperator.bl_idname)
-        if mat_dragex.mode == "NONE":
-            return
-        if mat_dragex.mode == "BASIC":
-            mode_basic = mat_dragex.modes.basic
-            self.layout.template_ID(
-                mode_basic, "texture", new="image.new", open="image.open"
-            )
-            self.layout.prop(mode_basic, "tint")
-            return
-        self.layout.prop(mat_geomode, "lighting")
-        self.layout.prop(mat_dragex, "uv_basis_s")
-        self.layout.prop(mat_dragex, "uv_basis_t")
-        self.layout.prop(vals, "primitive_depth_z")
-        self.layout.prop(vals, "primitive_depth_dz")
-        self.layout.prop(vals, "fog_color")
-        self.layout.prop(vals, "blend_color")
-        self.layout.prop(vals, "min_level")
-        self.layout.prop(vals, "prim_lod_frac")
-        self.layout.prop(vals, "primitive_color")
-        self.layout.prop(vals, "environment_color")
-        box = self.layout.box()
-        box.prop(other_modes, "atomic_prim")
-        box.prop(other_modes, "cycle_type")
-        box.prop(other_modes, "persp_tex_en")
-        box.prop(other_modes, "detail_tex_en")
-        box.prop(other_modes, "sharpen_tex_en")
-        box.prop(other_modes, "tex_lod_en")
-        box.prop(other_modes, "tlut_en")
-        box.prop(other_modes, "tlut_type")
-        box.prop(other_modes, "sample_type")
-        box.prop(other_modes, "mid_texel")
-        box.prop(other_modes, "bi_lerp_0")
-        box.prop(other_modes, "bi_lerp_1")
-        box.prop(other_modes, "convert_one")
-        box.prop(other_modes, "key_en")
-        box.prop(other_modes, "rgb_dither_sel")
-        box.prop(other_modes, "alpha_dither_sel")
-        box.prop(other_modes, "bl_m1a_0")
-        box.prop(other_modes, "bl_m1a_1")
-        box.prop(other_modes, "bl_m1b_0")
-        box.prop(other_modes, "bl_m1b_1")
-        box.prop(other_modes, "bl_m2a_0")
-        box.prop(other_modes, "bl_m2a_1")
-        box.prop(other_modes, "bl_m2b_0")
-        box.prop(other_modes, "bl_m2b_1")
-        box.prop(other_modes, "force_blend")
-        box.prop(other_modes, "alpha_cvg_select")
-        box.prop(other_modes, "cvg_x_alpha")
-        box.prop(other_modes, "z_mode")
-        box.prop(other_modes, "cvg_dest")
-        box.prop(other_modes, "color_on_cvg")
-        box.prop(other_modes, "image_read_en")
-        box.prop(other_modes, "z_update_en")
-        box.prop(other_modes, "z_compare_en")
-        box.prop(other_modes, "antialias_en")
-        box.prop(other_modes, "z_source_sel")
-        box.prop(other_modes, "dither_alpha_en")
-        box.prop(other_modes, "alpha_compare_en")
-        box = self.layout.box()
-        box.prop(combiner, "rgb_A_0")
-        box.prop(combiner, "rgb_B_0")
-        box.prop(combiner, "rgb_C_0")
-        box.prop(combiner, "rgb_D_0")
-        box.prop(combiner, "alpha_A_0")
-        box.prop(combiner, "alpha_B_0")
-        box.prop(combiner, "alpha_C_0")
-        box.prop(combiner, "alpha_D_0")
-        box.prop(combiner, "rgb_A_1")
-        box.prop(combiner, "rgb_B_1")
-        box.prop(combiner, "rgb_C_1")
-        box.prop(combiner, "rgb_D_1")
-        box.prop(combiner, "alpha_A_1")
-        box.prop(combiner, "alpha_B_1")
-        box.prop(combiner, "alpha_C_1")
-        box.prop(combiner, "alpha_D_1")
-        for i, tile in enumerate(tiles):
-            box = self.layout.box()
-            box.label(text=f"Tile {i}")
-            box.template_ID(tile, "image", new="image.new", open="image.open")
-            box.prop(tile, "format")
-            box.prop(tile, "size")
-            box.prop(tile, "line")
-            box.prop(tile, "address")
-            box.prop(tile, "palette")
-            box.prop(tile, "clamp_T")
-            box.prop(tile, "mirror_T")
-            box.prop(tile, "mask_T")
-            box.prop(tile, "shift_T")
-            box.prop(tile, "clamp_S")
-            box.prop(tile, "mirror_S")
-            box.prop(tile, "mask_S")
-            box.prop(tile, "shift_S")
-            box.prop(tile, "upper_left_S")
-            box.prop(tile, "upper_left_T")
-            box.prop(tile, "lower_right_S")
-            box.prop(tile, "lower_right_T")
+        material_modes_dict[mat_dragex.mode].draw(self.layout, mat)
 
 
 class DragExSetMaterialModeOperator(bpy.types.Operator):
@@ -840,9 +877,9 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
         material = context.material
         assert material is not None
         material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
-        if self.mode == "BASIC":
-            init_basic_mode_props(material, material_dragex.mode)
+        prev_mode = material_dragex.mode
         material_dragex.mode = self.mode
+        material_modes_dict[self.mode].init(material, prev_mode)
         return {"FINISHED"}
 
     def invoke(self, context, event):  # type: ignore
