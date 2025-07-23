@@ -681,12 +681,114 @@ class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
     )
 
 
+class RanksIdeaMaterialMode(MaterialMode):
+    @staticmethod
+    def init(material, prev_mode):
+        pass
+
+    @staticmethod
+    def draw(layout, material):
+        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        layout.prop(material_dragex.modes.ranks_idea, "operation", expand=True)
+        layout.prop(material_dragex.modes.ranks_idea, "input1")
+        if material_dragex.modes.ranks_idea.input1 == "TEXTURE":
+            layout.prop(material_dragex.modes.ranks_idea, "texture1")
+        layout.prop(material_dragex.modes.ranks_idea, "input2")
+        if material_dragex.modes.ranks_idea.input2 == "TEXTURE":
+            layout.prop(material_dragex.modes.ranks_idea, "texture2")
+        if material_dragex.modes.ranks_idea.operation == "MIX":
+            layout.prop(material_dragex.modes.ranks_idea, "input_mix_factor")
+            if material_dragex.modes.ranks_idea.input_mix_factor == "ENV_ALPHA":
+                layout.prop(material_dragex.modes.ranks_idea, "env_alpha")
+        layout.prop(material_dragex.modes.ranks_idea, "input3")
+
+    @staticmethod
+    def apply_mode_props(material):
+        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+
+    @staticmethod
+    def on_mode_prop_update(_self, context: bpy.types.Context):
+        material = context.material
+        assert material is not None
+        BasicMaterialMode.apply_mode_props(material)
+
+
+class DragExMaterialModesRanksIdeaProperties(bpy.types.PropertyGroup):
+    operation: bpy.props.EnumProperty(
+        name="Operation",
+        description="Operation to apply on inputs 1 and 2",
+        items=(
+            ("MIX", "Mix", "Mix (linearly interpolate) between the two inputs"),
+            ("MULTIPLY", "Mult", "Multiply the two inputs"),
+        ),
+        default="MULTIPLY",
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    input1: bpy.props.EnumProperty(
+        name="Input 1",
+        description="",
+        items=(("TEXTURE", "Texture", ""),),
+        default="TEXTURE",
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    input2: bpy.props.EnumProperty(
+        name="Input 2",
+        description="",
+        items=(
+            ("SHADE", "Shade", ""),
+            ("TEXTURE", "Texture", ""),
+        ),
+        default="SHADE",
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    input_mix_factor: bpy.props.EnumProperty(
+        name="Input Mix Factor",
+        description="",
+        items=(("ENV_ALPHA", "Env Alpha", ""),),
+        default="ENV_ALPHA",
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    input3: bpy.props.EnumProperty(
+        name="Input 3",
+        description="",
+        items=(
+            ("ENV_COLOR", "Env Color", ""),
+            ("NONE", "None", ""),
+        ),
+        default="NONE",
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    texture1: bpy.props.PointerProperty(
+        name="Texture 1",
+        type=bpy.types.Image,
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    texture2: bpy.props.PointerProperty(
+        name="Texture 2",
+        type=bpy.types.Image,
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+    env_alpha: bpy.props.FloatProperty(
+        name="Env Alpha",
+        description="",
+        min=0,
+        max=1,
+        default=0.5,
+        update=RanksIdeaMaterialMode.on_mode_prop_update,
+    )
+
+
 class DragExMaterialModesProperties(bpy.types.PropertyGroup):
     basic_: bpy.props.PointerProperty(type=DragExMaterialModesBasicProperties)
+    ranks_idea_: bpy.props.PointerProperty(type=DragExMaterialModesRanksIdeaProperties)
 
     @property
     def basic(self) -> DragExMaterialModesBasicProperties:
         return self.basic_
+
+    @property
+    def ranks_idea(self) -> DragExMaterialModesRanksIdeaProperties:
+        return self.ranks_idea_
 
 
 class FullMaterialMode(MaterialMode):
@@ -794,6 +896,7 @@ class FullMaterialMode(MaterialMode):
 material_modes_dict: dict[str, type[MaterialMode]] = {
     "NONE": NoneMaterialMode,
     "BASIC": BasicMaterialMode,
+    "RANKS_IDEA": RanksIdeaMaterialMode,
     "FULL": FullMaterialMode,
 }
 
@@ -801,6 +904,7 @@ material_mode_items = (
     # TODO add descriptions
     ("NONE", "None", ""),
     ("BASIC", "Basic", ""),
+    ("RANKS_IDEA", "Rank's Idea", ""),
     ("FULL", "Full", ""),
 )
 
@@ -1980,6 +2084,7 @@ classes = (
     combiner_props.DragExMaterialCombinerProperties,
     vals_props.DragExMaterialValsProperties,
     DragExMaterialModesBasicProperties,
+    DragExMaterialModesRanksIdeaProperties,
     DragExMaterialModesProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
