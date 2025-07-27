@@ -696,7 +696,7 @@ class FullMaterialMode(MaterialMode):
 
     @staticmethod
     def draw(layout, material):
-        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+        mat_dragex: DragExMaterialProperties = material.dragex  # type: ignore
         mat_geomode = mat_dragex.geometry_mode
         other_modes = mat_dragex.other_modes
         combiner = mat_dragex.combiner
