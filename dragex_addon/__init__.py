@@ -899,6 +899,8 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
         prev_mode = material_dragex.mode
         material_dragex.mode = self.mode
         material_modes_dict[self.mode].init(material, prev_mode)
+        if context.region is not None:
+            context.region.tag_redraw()
         return {"FINISHED"}
 
     def invoke(self, context, event):  # type: ignore
