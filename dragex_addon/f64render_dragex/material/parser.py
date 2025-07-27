@@ -165,7 +165,7 @@ BL_INP = {
 
 
 def parse_f3d_mat_rendermode(f3d_mat: "DragExMaterialProperties"):
-    other_modes = f3d_mat.other_modes
+    other_modes = f3d_mat.rdp.other_modes
 
     blend_cycle1 = (
         BL_INP[other_modes.bl_m1a_0],
@@ -420,14 +420,19 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     state.tex_size = (f3d_mat.uv_basis_s, f3d_mat.uv_basis_t)
 
-    for i, tile in enumerate(f3d_mat.tiles.tiles):
+    other_modes = f3d_mat.rdp.other_modes
+    combiner = f3d_mat.rdp.combiner
+    vals = f3d_mat.rdp.vals
+    tiles = f3d_mat.rdp.tiles.tiles
+
+    for i, tile in enumerate(tiles):
         f64mat.state.tex_confs[i] = get_tile_conf(tile)
 
     state.cc = get_cc_settings(f3d_mat)
-    state.prim_color = quantize_srgb(f3d_mat.vals.primitive_color)
-    state.prim_lod = (f3d_mat.vals.prim_lod_frac / 255, f3d_mat.vals.min_level / 255)
-    state.env_color = quantize_srgb(f3d_mat.vals.environment_color)
-    state.prim_depth = (f3d_mat.vals.primitive_depth_z, f3d_mat.vals.primitive_depth_dz)
+    state.prim_color = quantize_srgb(vals.primitive_color)
+    state.prim_lod = (vals.prim_lod_frac / 255, vals.min_level / 255)
+    state.env_color = quantize_srgb(vals.environment_color)
+    state.prim_depth = (vals.primitive_depth_z, vals.primitive_depth_dz)
 
     state.set_from_rendermode(parse_f3d_mat_rendermode(f3d_mat))
 
@@ -438,15 +443,15 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     othermode_l = 0
 
-    if f3d_mat.other_modes.alpha_compare_en:
-        if f3d_mat.other_modes.dither_alpha_en:
+    if other_modes.alpha_compare_en:
+        if other_modes.dither_alpha_en:
             othermode_l |= pydefines.G_AC_DITHER
         else:
             othermode_l |= pydefines.G_AC_THRESHOLD
     else:
         othermode_l |= pydefines.G_AC_NONE
 
-    if f3d_mat.other_modes.z_source_sel:
+    if other_modes.z_source_sel:
         othermode_l |= pydefines.G_ZS_PRIM
     else:
         othermode_l |= pydefines.G_ZS_PIXEL
@@ -460,72 +465,72 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
         "INVERSE_OF_RGB": pydefines.G_AD_NOTPATTERN,
         "RANDOM_NOISE": pydefines.G_AD_NOISE,
         "NONE": pydefines.G_AD_DISABLE,
-    }[f3d_mat.other_modes.alpha_dither_sel]
+    }[other_modes.alpha_dither_sel]
 
     othermode_h |= {
         "MAGIC_SQUARE": pydefines.G_CD_MAGICSQ,
         "BAYER": pydefines.G_CD_BAYER,
         "RANDOM_NOISE": pydefines.G_CD_NOISE,
         "NONE": pydefines.G_CD_DISABLE,
-    }[f3d_mat.other_modes.rgb_dither_sel]
+    }[other_modes.rgb_dither_sel]
 
-    othermode_h |= pydefines.G_CK_KEY if f3d_mat.other_modes.key_en else pydefines.G_CK_NONE
+    othermode_h |= pydefines.G_CK_KEY if other_modes.key_en else pydefines.G_CK_NONE
 
     """
-    f3d_mat.other_modes.bi_lerp_0    # 4
-    f3d_mat.other_modes.bi_lerp_1    # 2
-    f3d_mat.other_modes.convert_one  # 1
+    other_modes.bi_lerp_0    # 4
+    other_modes.bi_lerp_1    # 2
+    other_modes.convert_one  # 1
     pydefines.G_TC_CONV     # 0
     pydefines.G_TC_FILTCONV # 5 = bi_lerp_0 | convert_one
     pydefines.G_TC_FILT     # 6 = bi_lerp_0 | bi_lerp_1
     """
     # this is approximate but the shader doesn't use this anyway
-    if f3d_mat.other_modes.bi_lerp_0 and f3d_mat.other_modes.bi_lerp_1:
+    if other_modes.bi_lerp_0 and other_modes.bi_lerp_1:
         othermode_h |= pydefines.G_TC_FILT
-    elif f3d_mat.other_modes.bi_lerp_0 and f3d_mat.other_modes.convert_one:
+    elif other_modes.bi_lerp_0 and other_modes.convert_one:
         othermode_h |= pydefines.G_TC_FILTCONV
     else:
         othermode_h |= pydefines.G_TC_CONV
 
-    if f3d_mat.other_modes.sample_type:
-        if f3d_mat.other_modes.mid_texel:
+    if other_modes.sample_type:
+        if other_modes.mid_texel:
             othermode_h |= pydefines.G_TF_AVERAGE
         else:
             othermode_h |= pydefines.G_TF_BILERP
     else:
         othermode_h |= pydefines.G_TF_POINT
 
-    othermode_h |= pydefines.G_TL_LOD if f3d_mat.other_modes.tex_lod_en else pydefines.G_TL_TILE
+    othermode_h |= pydefines.G_TL_LOD if other_modes.tex_lod_en else pydefines.G_TL_TILE
 
     # Note: having both detail and sharpen at once is invalid
     # N64brew discord: https://discord.com/channels/205520502922543113/205520502922543113/1392399686819774575
-    if f3d_mat.other_modes.detail_tex_en:
+    if other_modes.detail_tex_en:
         othermode_h |= pydefines.G_TD_DETAIL
-    elif f3d_mat.other_modes.sharpen_tex_en:
+    elif other_modes.sharpen_tex_en:
         othermode_h |= pydefines.G_TD_SHARPEN
     else:
         othermode_h |= pydefines.G_TD_CLAMP
 
-    othermode_h |= pydefines.G_TP_PERSP if f3d_mat.other_modes.persp_tex_en else pydefines.G_TP_NONE
+    othermode_h |= pydefines.G_TP_PERSP if other_modes.persp_tex_en else pydefines.G_TP_NONE
 
     othermode_h |= {
         "1CYCLE": pydefines.G_CYC_1CYCLE,
         "2CYCLE": pydefines.G_CYC_2CYCLE,
         "COPY": pydefines.G_CYC_COPY,
         "FILL": pydefines.G_CYC_FILL,
-    }[f3d_mat.other_modes.cycle_type]
+    }[other_modes.cycle_type]
 
-    othermode_h |= pydefines.G_PM_1PRIMITIVE if f3d_mat.other_modes.atomic_prim else pydefines.G_PM_NPRIMITIVE
+    othermode_h |= pydefines.G_PM_1PRIMITIVE if other_modes.atomic_prim else pydefines.G_PM_NPRIMITIVE
 
-    if f3d_mat.other_modes.tlut_en:
-        if f3d_mat.other_modes.tlut_type:
+    if other_modes.tlut_en:
+        if other_modes.tlut_type:
             othermode_h |= pydefines.G_TT_IA16
         else:
             othermode_h |= pydefines.G_TT_RGBA16
     else:
         othermode_h |= pydefines.G_TT_NONE
 
-    if f3d_mat.other_modes.cycle_type == "COPY":
+    if other_modes.cycle_type == "COPY":
         othermode_h &= ~(pydefines.G_TF_BILERP | pydefines.G_TF_AVERAGE)
 
     state.othermode_h = othermode_h

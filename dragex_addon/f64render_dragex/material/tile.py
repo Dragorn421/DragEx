@@ -9,7 +9,7 @@ import numpy as np
 from . import pydefines
 
 if TYPE_CHECKING:
-    from ... import DragExMaterialTileProperties
+    from ...props.tiles_props import DragExMaterialTileProperties
     from ..properties import TextureProperty
 
 

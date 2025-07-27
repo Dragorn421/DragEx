@@ -94,7 +94,7 @@ SOLID_CC = (
 
 # Fetches CC settings from a given fast64-material
 def get_cc_settings(f3d_mat: "DragExMaterialProperties") -> np.ndarray:
-    combiner = f3d_mat.combiner
+    combiner = f3d_mat.rdp.combiner
 
     c0 = (
         CC1_C[combiner.rgb_A_0],
@@ -107,7 +107,7 @@ def get_cc_settings(f3d_mat: "DragExMaterialProperties") -> np.ndarray:
         CC1_A[combiner.alpha_D_0],
     )
 
-    if f3d_mat.other_modes.cycle_type == "1CYCLE":
+    if f3d_mat.rdp.other_modes.cycle_type == "1CYCLE":
         # Note: this is the opposite of what the RDP does which is ignore c0 and read c1 in 1-cycle mode
         # https://n64brew.dev/wiki/Reality_Display_Processor/Commands?oldid=5601#0x3C_-_Set_Combine_Mode
         # > In 1-Cycle mode only the second cycle configuration is used, the first cycle configuration is ignored.

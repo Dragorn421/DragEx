@@ -66,10 +66,10 @@ def material_to_MaterialInfo(
     image_infos: dict[bpy.types.Image, "dragex_backend.MaterialInfoImage"],
 ):
     mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
-    other_modes = mat_dragex.other_modes
-    tiles = mat_dragex.tiles
-    combiner = mat_dragex.combiner
-    vals = mat_dragex.vals
+    other_modes = mat_dragex.rdp.other_modes
+    tiles = mat_dragex.rdp.tiles
+    combiner = mat_dragex.rdp.combiner
+    vals = mat_dragex.rdp.vals
     mat_geomode = mat_dragex.geometry_mode
 
     mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
@@ -559,7 +559,7 @@ class BasicMaterialMode(MaterialMode):
         texture: bpy.types.Image = material_dragex.modes.basic.texture
         tint: mathutils.Color = material_dragex.modes.basic.tint
 
-        tile0 = material_dragex.tiles.tiles[0]
+        tile0 = material_dragex.rdp.tiles.tiles[0]
         tile0.image = texture
         tile0.format = "RGBA"
         tile0.size = "16"
@@ -598,9 +598,9 @@ class BasicMaterialMode(MaterialMode):
             tile0.lower_right_S = texture_w - 1
             tile0.lower_right_T = texture_h - 1
 
-        material_dragex.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
+        material_dragex.rdp.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
 
-        om = material_dragex.other_modes
+        om = material_dragex.rdp.other_modes
         om.atomic_prim = False
         om.cycle_type = "1CYCLE"
         om.persp_tex_en = True
@@ -639,7 +639,7 @@ class BasicMaterialMode(MaterialMode):
         om.dither_alpha_en = False
         om.alpha_compare_en = False
 
-        cb = material_dragex.combiner
+        cb = material_dragex.rdp.combiner
         cb.rgb_A_0 = "TEX0"
         cb.rgb_B_0 = "0"
         cb.rgb_C_0 = "PRIMITIVE"
@@ -698,10 +698,10 @@ class FullMaterialMode(MaterialMode):
     def draw(layout, material):
         mat_dragex: DragExMaterialProperties = material.dragex  # type: ignore
         mat_geomode = mat_dragex.geometry_mode
-        other_modes = mat_dragex.other_modes
-        combiner = mat_dragex.combiner
-        vals = mat_dragex.vals
-        tiles = mat_dragex.tiles.tiles
+        other_modes = mat_dragex.rdp.other_modes
+        combiner = mat_dragex.rdp.combiner
+        vals = mat_dragex.rdp.vals
+        tiles = mat_dragex.rdp.tiles.tiles
         layout.prop(mat_geomode, "lighting")
         layout.prop(mat_dragex, "uv_basis_s")
         layout.prop(mat_dragex, "uv_basis_t")
@@ -805,20 +805,7 @@ material_mode_items = (
 )
 
 
-class DragExMaterialProperties(bpy.types.PropertyGroup):
-    mode: bpy.props.EnumProperty(
-        items=material_mode_items,
-        default="NONE",
-    )
-    modes_: bpy.props.PointerProperty(type=DragExMaterialModesProperties)
-
-    @property
-    def modes(self) -> DragExMaterialModesProperties:
-        return self.modes_
-
-    uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
-    uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
-
+class DragExMaterialRDPProperties(bpy.types.PropertyGroup):
     other_modes_: bpy.props.PointerProperty(
         type=other_mode_props.DragExMaterialOtherModesProperties
     )
@@ -827,9 +814,6 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
         type=combiner_props.DragExMaterialCombinerProperties
     )
     vals_: bpy.props.PointerProperty(type=vals_props.DragExMaterialValsProperties)
-    geometry_mode_: bpy.props.PointerProperty(
-        type=geometry_mode_props.DragExMaterialGeometryModeProperties
-    )
 
     @property
     def other_modes(self) -> other_mode_props.DragExMaterialOtherModesProperties:
@@ -846,6 +830,31 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
     @property
     def vals(self) -> vals_props.DragExMaterialValsProperties:
         return self.vals_
+
+
+class DragExMaterialProperties(bpy.types.PropertyGroup):
+    mode: bpy.props.EnumProperty(
+        items=material_mode_items,
+        default="NONE",
+    )
+    modes_: bpy.props.PointerProperty(type=DragExMaterialModesProperties)
+
+    @property
+    def modes(self) -> DragExMaterialModesProperties:
+        return self.modes_
+
+    uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
+    uv_basis_t: bpy.props.IntProperty(name="UV Basis T", min=1, default=1)
+
+    rdp_: bpy.props.PointerProperty(type=DragExMaterialRDPProperties)
+
+    geometry_mode_: bpy.props.PointerProperty(
+        type=geometry_mode_props.DragExMaterialGeometryModeProperties
+    )
+
+    @property
+    def rdp(self) -> DragExMaterialRDPProperties:
+        return self.rdp_
 
     @property
     def geometry_mode(self) -> geometry_mode_props.DragExMaterialGeometryModeProperties:
@@ -1983,6 +1992,7 @@ classes = (
     vals_props.DragExMaterialValsProperties,
     DragExMaterialModesBasicProperties,
     DragExMaterialModesProperties,
+    DragExMaterialRDPProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
     DragExCollectionOoTSceneProperties,
