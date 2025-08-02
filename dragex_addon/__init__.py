@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 import math
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -61,9 +61,24 @@ def make_c_identifier(s: str):
     return s
 
 
+@dataclasses.dataclass(frozen=True)
+class ImageKey:
+    image: bpy.types.Image
+    format: str
+    size: str
+
+
+@dataclasses.dataclass
+class ImageInfos:
+    info_by_key: dict[ImageKey, "dragex_backend.MaterialInfoImage"] = dataclasses.field(
+        default_factory=dict
+    )
+    key_by_c_identifier: dict[str, ImageKey] = dataclasses.field(default_factory=dict)
+
+
 def material_to_MaterialInfo(
     mat: bpy.types.Material,
-    image_infos: dict[bpy.types.Image, "dragex_backend.MaterialInfoImage"],
+    image_infos: ImageInfos,
 ):
     mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
     other_modes = mat_dragex.rdp.other_modes
@@ -78,15 +93,29 @@ def material_to_MaterialInfo(
         if image is None:
             image_info = None
         else:
-            image_info = image_infos.get(image)
+            image_key = ImageKey(image, tile.format, tile.size)
+            image_info = image_infos.info_by_key.get(image_key)
             if image_info is None:
+                c_identifier = make_c_identifier(image.name)
+                if c_identifier in image_infos.key_by_c_identifier:
+                    c_identifier = make_c_identifier(
+                        f"{image.name}_{tile.format}{tile.size}"
+                    )
+                    c_identifier_candidate = c_identifier
+                    i = 2
+                    while c_identifier_candidate in image_infos.key_by_c_identifier:
+                        c_identifier_candidate = f"{c_identifier}_{i}"
+                        i += 1
+                    c_identifier = c_identifier_candidate
+
                 width, height = image.size
                 image_info = dragex_backend.MaterialInfoImage(
-                    c_identifier=make_c_identifier(image.name),
+                    c_identifier=c_identifier,
                     width=width,
                     height=height,
                 )
-                image_infos[image] = image_info
+                image_infos.info_by_key[image_key] = image_info
+                image_infos.key_by_c_identifier[c_identifier] = image_key
         mat_info_tiles.append(
             dragex_backend.MaterialInfoTile(
                 image=image_info,
@@ -215,6 +244,7 @@ def mesh_to_mesh_info(
     obj: bpy.types.Object,
     mesh: bpy.types.Mesh,
     transform: mathutils.Matrix,
+    image_infos: ImageInfos,
 ):
     # TODO test more with different matrix_world
     transform = transform.to_4x4() @ obj.matrix_world
@@ -284,7 +314,6 @@ def mesh_to_mesh_info(
         buf_loops_uv = new_float_buf(2 * len(mesh.loops))
         active_uv_layer.uv.foreach_get("vector", buf_loops_uv)
 
-    image_infos = dict[bpy.types.Image, dragex_backend.MaterialInfoImage]()
     material_infos = list[dragex_backend.MaterialInfo | None]()
     for mat_index in range(len(obj.material_slots)):
         mat = obj.material_slots[mat_index].material
@@ -491,10 +520,12 @@ class DragExBackendDemoOperator(bpy.types.Operator):
         assert context.object is not None
         mesh = context.object.data
         assert isinstance(mesh, bpy.types.Mesh)
+        image_infos = ImageInfos()
         mesh_info = mesh_to_mesh_info(
             context.object,
             mesh,
             (transform_zup_to_yup @ mathutils.Matrix.Scale(1, 3)),
+            image_infos,
         )
         with open(
             "/home/dragorn421/Documents/dragex/dragex_attempt2/output.c", "w"
@@ -1071,8 +1102,9 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
 
+@dataclasses.dataclass(eq=False)
 class OoTRoomShape(abc.ABC):
-    pass
+    image_infos: ImageInfos
 
 
 @dataclasses.dataclass(eq=False)  # Use id-based equality and hashing
@@ -1194,6 +1226,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
         room_player_entry_by_spawn_index = dict[int, OoTActorEntry]()
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
+        image_infos = ImageInfos()
         for obj in room_coll.all_objects:
             if obj.type == "EMPTY":
                 obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
@@ -1248,11 +1281,13 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                     obj,
                     obj.data,
                     export_options.transform,
+                    image_infos,
                 )
                 # TODO prop to set draw layer opa/xlu
                 entries_opa.append(mesh_info)
 
         shape = OoTRoomShapeNormal(
+            image_infos=image_infos,
             entries_opa=entries_opa,
             entries_xlu=entries_xlu,
         )
@@ -1359,6 +1394,7 @@ class FDManager:
 @dataclasses.dataclass
 class ExportOptions:
     transform: mathutils.Matrix
+    decomp_repo_p: Path
 
 
 def export_coll_scene(
@@ -1566,6 +1602,8 @@ def export_coll_scene(
                 out_dir_p / f"{map_name_c_identifier}_room_{i}.c"
             )
 
+            room_shape = room.shape
+
             room_shape_name = f"{map_name_c_identifier}_room_{i}_RoomShape"
 
             with open(room_fd, "w", closefd=False) as f:
@@ -1604,7 +1642,33 @@ def export_coll_scene(
                     "\n"
                 )
 
-            room_shape = room.shape
+                for (
+                    c_identifier,
+                    image_key,
+                ) in room_shape.image_infos.key_by_c_identifier.items():
+                    image_file_stem = (
+                        f"{c_identifier}.{image_key.format.lower()}{image_key.size}"
+                    )
+                    # TODO save() may set the image's filepath as a side-effect?
+                    # (not in 4.2.11 at least, but recent versions (which?) have a save_copy argument to save())
+                    # if so, need to copy() the datablock before save to avoid modifying it
+                    image_key.image.save(
+                        filepath=str(out_dir_p / f"{image_file_stem}.png"),
+                    )
+                    image_inc_c_p = (
+                        PurePosixPath(
+                            *out_dir_p.relative_to(export_options.decomp_repo_p).parts
+                        )
+                        / f"{image_file_stem}.inc.c"
+                    )
+                    f.write(
+                        f"u64 {c_identifier}[] = "
+                        "{\n"
+                        f'#include "{image_inc_c_p}"\n'
+                        "};\n"
+                        "\n"
+                    )
+
             if isinstance(room_shape, OoTRoomShapeNormal):
                 opa_dlists_names = list[str]()
                 xlu_dlists_names = list[str]()
@@ -1696,6 +1760,22 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         assert scene is not None
         scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
 
+        # TODO pass in the decomp repo path as a prop or something instead
+        candidate_decomp_repo_p = export_directory.parent
+        while not (candidate_decomp_repo_p / "spec").exists():
+            parent_p = candidate_decomp_repo_p.parent
+            if parent_p == candidate_decomp_repo_p:
+                self.report(
+                    {"ERROR"},
+                    (
+                        "Cannot find decomp repo (a folder with spec)"
+                        f" in parents of {export_directory}"
+                    ),
+                )
+                return {"CANCELLED"}
+            candidate_decomp_repo_p = parent_p
+        decomp_repo_p = candidate_decomp_repo_p
+
         export_coll_scene(
             coll_scene_to_export,
             export_directory,
@@ -1704,6 +1784,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
                     transform_zup_to_yup
                     @ mathutils.Matrix.Scale(1 / scene_dragex.oot.scale, 3)
                 ),
+                decomp_repo_p=decomp_repo_p,
             ),
         )
 
