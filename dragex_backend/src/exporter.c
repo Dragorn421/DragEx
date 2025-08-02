@@ -1007,10 +1007,50 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
             environment_color.r, environment_color.g, environment_color.b,
             environment_color.a);
 
+    if (mat_info->geometry_mode.zbuffer)
+        fprintf(f, "    gsSPSetGeometryMode(G_ZBUFFER),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_ZBUFFER),\n");
+    // TODO also need to set G_SHADE if fog is enabled?
+    // (if yes, make fog also enable SHADING_WHITE instead of SHADING_NULL in
+    // the case of !lighting && !vertex_colors)
+    if (mat_info->geometry_mode.lighting ||
+        mat_info->geometry_mode.vertex_colors)
+        fprintf(f, "    gsSPSetGeometryMode(G_SHADE),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_SHADE),\n");
     if (mat_info->geometry_mode.lighting)
         fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");
     else
         fprintf(f, "    gsSPClearGeometryMode(G_LIGHTING),\n");
+    if (mat_info->geometry_mode.cull_front)
+        fprintf(f, "    gsSPSetGeometryMode(G_CULL_FRONT),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_CULL_FRONT),\n");
+    if (mat_info->geometry_mode.cull_back)
+        fprintf(f, "    gsSPSetGeometryMode(G_CULL_BACK),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_CULL_BACK),\n");
+    if (mat_info->geometry_mode.fog)
+        fprintf(f, "    gsSPSetGeometryMode(G_FOG),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_FOG),\n");
+
+    // TODO check somewhere that !(spherical && linear)
+    if (mat_info->geometry_mode.uv_gen_spherical)
+        fprintf(f,
+                "    gsSPGeometryMode(G_TEXTURE_GEN_LINEAR, G_TEXTURE_GEN),\n");
+    else if (mat_info->geometry_mode.uv_gen_linear)
+        fprintf(
+            f,
+            "    gsSPSetGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_TEXTURE_GEN),\n");
+
+    if (mat_info->geometry_mode.shade_smooth)
+        fprintf(f, "    gsSPSetGeometryMode(G_SHADING_SMOOTH),\n");
+    else
+        fprintf(f, "    gsSPClearGeometryMode(G_SHADING_SMOOTH),\n");
 
     fprintf(f, "    gsSPEndDisplayList(),\n");
     fprintf(f, "};\n");
@@ -1083,8 +1123,11 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
         struct MaterialInfo *mat_info = &mesh_info->materials[i_mesh];
         struct MeshInfo *mesh = meshes[i_mesh];
         write_f3d_mat(f, mat_info, mesh->name);
+        // TODO error or something if lighting && vertex_colors
         enum shading_type shading_type =
-            mat_info->geometry_mode.lighting ? SHADING_NORMALS : SHADING_COLORS;
+            mat_info->geometry_mode.lighting        ? SHADING_NORMALS
+            : mat_info->geometry_mode.vertex_colors ? SHADING_COLORS
+                                                    : SHADING_NULL;
         struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(
             mesh, mat_info->uv_basis_s, mat_info->uv_basis_t, shading_type);
         write_f3d_mesh(f, f3d_mesh, mesh->name);

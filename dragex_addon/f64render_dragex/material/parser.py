@@ -436,9 +436,42 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
 
     state.set_from_rendermode(parse_f3d_mat_rendermode(f3d_mat))
 
-    geo_mode = pydefines.G_SHADE | pydefines.G_SHADE_SMOOTH
-    if f3d_mat.geometry_mode.lighting:
+    rsp_props = f3d_mat.rsp
+
+    geo_mode = 0
+
+    if rsp_props.zbuffer:
+        geo_mode |= pydefines.G_ZBUFFER
+
+    if rsp_props.lighting:
         geo_mode |= pydefines.G_LIGHTING
+    # TODO also enable g_shade if fog?
+    if rsp_props.lighting or rsp_props.vertex_colors:
+        geo_mode |= pydefines.G_SHADE
+    if rsp_props.lighting and rsp_props.vertex_colors:
+        geo_mode |= pydefines.G_PACKED_NORMALS
+
+    if rsp_props.cull_front:
+        geo_mode |= pydefines.G_CULL_FRONT
+    if rsp_props.cull_back:
+        geo_mode |= pydefines.G_CULL_BACK
+
+    if rsp_props.cull_front and  rsp_props.cull_back:
+        f64mat.cull = "BOTH"
+    elif rsp_props.cull_front:
+        f64mat.cull = "FRONT"
+    elif rsp_props.cull_back:
+        f64mat.cull = "BACK"
+
+    if rsp_props.fog:
+        geo_mode |= pydefines.G_FOG
+    if rsp_props.uv_gen_spherical:
+        geo_mode |= pydefines.G_TEX_GEN
+    if rsp_props.uv_gen_linear:
+        geo_mode |= pydefines.G_TEX_GEN | pydefines.G_TEX_GEN_LINEAR
+    if rsp_props.shade_smooth:
+        geo_mode |= pydefines.G_SHADE_SMOOTH
+
     state.geo_mode = geo_mode
 
     othermode_l = 0

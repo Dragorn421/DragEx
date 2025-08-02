@@ -12,15 +12,28 @@ static int MaterialInfoGeometryMode_init(PyObject *_self, PyObject *args,
     struct MaterialInfoGeometryModeObject *self =
         (struct MaterialInfoGeometryModeObject *)_self;
     static char *kwlist[] = {
-        "lighting",
-        NULL,
+        "zbuffer",      "lighting", "vertex_colors",    "cull_front",
+        "cull_back",    "fog",      "uv_gen_spherical", "uv_gen_linear",
+        "shade_smooth", NULL,
     };
-    int lighting;
+    int zbuffer, lighting, vertex_colors, cull_front, cull_back, fog,
+        uv_gen_spherical, uv_gen_linear, shade_smooth;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "p", kwlist, &lighting))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ppppppppp", kwlist, &zbuffer,
+                                     &lighting, &vertex_colors, &cull_front,
+                                     &cull_back, &fog, &uv_gen_spherical,
+                                     &uv_gen_linear, &shade_smooth))
         return -1;
 
+    self->geometry_mode.zbuffer = !!zbuffer;
     self->geometry_mode.lighting = !!lighting;
+    self->geometry_mode.vertex_colors = !!vertex_colors;
+    self->geometry_mode.cull_front = !!cull_front;
+    self->geometry_mode.cull_back = !!cull_back;
+    self->geometry_mode.fog = !!fog;
+    self->geometry_mode.uv_gen_spherical = !!uv_gen_spherical;
+    self->geometry_mode.uv_gen_linear = !!uv_gen_linear;
+    self->geometry_mode.shade_smooth = !!shade_smooth;
     return 0;
 }
 

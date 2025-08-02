@@ -121,7 +121,15 @@ class MaterialInfoVals:
 class MaterialInfoGeometryMode:
     def __init__(
         self,
+        zbuffer: bool,
         lighting: bool,
+        vertex_colors: bool,
+        cull_front: bool,
+        cull_back: bool,
+        fog: bool,
+        uv_gen_spherical: bool,
+        uv_gen_linear: bool,
+        shade_smooth: bool,
     ) -> None: ...
 
 class MaterialInfo:

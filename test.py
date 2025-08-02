@@ -170,7 +170,15 @@ default_mat_info = dragex_backend.MaterialInfo(
         environment_color=(1, 1, 1, 1),
     ),
     geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+        zbuffer=True,
         lighting=False,
+        vertex_colors=True,
+        cull_front=False,
+        cull_back=True,
+        fog=False,
+        uv_gen_spherical=False,
+        uv_gen_linear=False,
+        shade_smooth=True,
     ),
 )
 

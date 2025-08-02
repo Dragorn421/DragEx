@@ -17,7 +17,7 @@ from .props import other_mode_props
 from .props import tiles_props
 from .props import combiner_props
 from .props import vals_props
-from .props import geometry_mode_props
+from .props import rsp_props
 
 if TYPE_CHECKING:
     import dragex_backend
@@ -70,7 +70,7 @@ def material_to_MaterialInfo(
     tiles = mat_dragex.rdp.tiles
     combiner = mat_dragex.rdp.combiner
     vals = mat_dragex.rdp.vals
-    mat_geomode = mat_dragex.geometry_mode
+    mat_geomode = mat_dragex.rsp
 
     mat_info_tiles = list[dragex_backend.MaterialInfoTile]()
     for tile in tiles.tiles:
@@ -187,7 +187,15 @@ def material_to_MaterialInfo(
             environment_color=vals.environment_color,
         ),
         geometry_mode=dragex_backend.MaterialInfoGeometryMode(
+            zbuffer=mat_geomode.zbuffer,
             lighting=mat_geomode.lighting,
+            vertex_colors=mat_geomode.vertex_colors,
+            cull_front=mat_geomode.cull_front,
+            cull_back=mat_geomode.cull_back,
+            fog=mat_geomode.fog,
+            uv_gen_spherical=mat_geomode.uv_gen_spherical,
+            uv_gen_linear=mat_geomode.uv_gen_linear,
+            shade_smooth=mat_geomode.shade_smooth,
         ),
     )
 
@@ -387,7 +395,15 @@ def mesh_to_mesh_info(
             environment_color=(1, 1, 1, 1),
         ),
         geometry_mode=dragex_backend.MaterialInfoGeometryMode(
-            lighting=True,
+            zbuffer=True,
+            lighting=False,
+            vertex_colors=False,
+            cull_front=False,
+            cull_back=True,
+            fog=False,
+            uv_gen_spherical=False,
+            uv_gen_linear=False,
+            shade_smooth=False,
         ),
     )
     mesh_info = dragex_backend.create_MeshInfo(
@@ -697,12 +713,20 @@ class FullMaterialMode(MaterialMode):
     @staticmethod
     def draw(layout, material):
         mat_dragex: DragExMaterialProperties = material.dragex  # type: ignore
-        mat_geomode = mat_dragex.geometry_mode
+        mat_geomode = mat_dragex.rsp
         other_modes = mat_dragex.rdp.other_modes
         combiner = mat_dragex.rdp.combiner
         vals = mat_dragex.rdp.vals
         tiles = mat_dragex.rdp.tiles.tiles
+        layout.prop(mat_geomode, "zbuffer")
         layout.prop(mat_geomode, "lighting")
+        layout.prop(mat_geomode, "vertex_colors")
+        layout.prop(mat_geomode, "cull_front")
+        layout.prop(mat_geomode, "cull_back")
+        layout.prop(mat_geomode, "fog")
+        layout.prop(mat_geomode, "uv_gen_spherical")
+        layout.prop(mat_geomode, "uv_gen_linear")
+        layout.prop(mat_geomode, "shade_smooth")
         layout.prop(mat_dragex, "uv_basis_s")
         layout.prop(mat_dragex, "uv_basis_t")
         layout.prop(vals, "primitive_depth_z")
@@ -848,17 +872,15 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
 
     rdp_: bpy.props.PointerProperty(type=DragExMaterialRDPProperties)
 
-    geometry_mode_: bpy.props.PointerProperty(
-        type=geometry_mode_props.DragExMaterialGeometryModeProperties
-    )
+    rsp_: bpy.props.PointerProperty(type=rsp_props.DragExMaterialRSPProperties)
 
     @property
     def rdp(self) -> DragExMaterialRDPProperties:
         return self.rdp_
 
     @property
-    def geometry_mode(self) -> geometry_mode_props.DragExMaterialGeometryModeProperties:
-        return self.geometry_mode_
+    def rsp(self) -> rsp_props.DragExMaterialRSPProperties:
+        return self.rsp_
 
 
 class DragExMaterialPanel(bpy.types.Panel):
@@ -1984,7 +2006,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
 
 
 classes = (
-    geometry_mode_props.DragExMaterialGeometryModeProperties,
+    rsp_props.DragExMaterialRSPProperties,
     other_mode_props.DragExMaterialOtherModesProperties,
     tiles_props.DragExMaterialTileProperties,
     tiles_props.DragExMaterialTilesProperties,

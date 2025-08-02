@@ -44,7 +44,14 @@ Gfx mesh_mymaterial_mat_dl[] = {
     gsDPSetBlendColor(255, 255, 255, 255),
     gsDPSetPrimColor(0, 0, 255, 255, 255, 255),
     gsDPSetEnvColor(255, 255, 255, 255),
+    gsSPSetGeometryMode(G_ZBUFFER),
+    gsSPSetGeometryMode(G_SHADE),
     gsSPClearGeometryMode(G_LIGHTING),
+    gsSPClearGeometryMode(G_CULL_FRONT),
+    gsSPSetGeometryMode(G_CULL_BACK),
+    gsSPClearGeometryMode(G_FOG),
+    gsSPClearGeometryMode(G_TEXTURE_GEN),
+    gsSPSetGeometryMode(G_SHADING_SMOOTH),
     gsSPEndDisplayList(),
 };
 Vtx mesh_mymaterial_mesh_vtx[] = {
