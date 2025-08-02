@@ -456,7 +456,7 @@ def f64_material_parse(f3d_mat: "DragExMaterialProperties", always_set: bool, se
     if rsp_props.cull_back:
         geo_mode |= pydefines.G_CULL_BACK
 
-    if rsp_props.cull_front and  rsp_props.cull_back:
+    if rsp_props.cull_front and rsp_props.cull_back:
         f64mat.cull = "BOTH"
     elif rsp_props.cull_front:
         f64mat.cull = "FRONT"

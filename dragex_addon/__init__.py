@@ -567,13 +567,15 @@ class BasicMaterialMode(MaterialMode):
                 layout.label(
                     text="Texture height must be a power of 2 for wrapping", icon="INFO"
                 )
-        layout.prop(mode_basic, "tint")
+        layout.prop(mode_basic, "shading")
+        layout.prop(mode_basic, "alpha_blend")
+        layout.prop(mode_basic, "fog")
 
     @staticmethod
     def apply_mode_props(material):
         material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
-        texture: bpy.types.Image = material_dragex.modes.basic.texture
-        tint: mathutils.Color = material_dragex.modes.basic.tint
+        basic_props = material_dragex.modes.basic
+        texture: bpy.types.Image | None = basic_props.texture
 
         tile0 = material_dragex.rdp.tiles.tiles[0]
         tile0.image = texture
@@ -614,11 +616,31 @@ class BasicMaterialMode(MaterialMode):
             tile0.lower_right_S = texture_w - 1
             tile0.lower_right_T = texture_h - 1
 
-        material_dragex.rdp.vals.primitive_color = (tint.r, tint.g, tint.b, 1)
+        rsp_props = material_dragex.rsp
+
+        one_cycle = True
+        if basic_props.fog:
+            one_cycle = False
+
+        rsp_props.zbuffer = True
+        if basic_props.shading == "LIGHTING":
+            rsp_props.lighting = True
+            rsp_props.vertex_colors = False
+        elif basic_props.shading == "VERTEX_COLORS":
+            rsp_props.lighting = False
+            rsp_props.vertex_colors = True
+        else:
+            assert False, basic_props.shading
+        rsp_props.cull_front = False
+        rsp_props.cull_back = True
+        rsp_props.fog = basic_props.fog
+        rsp_props.uv_gen_spherical = False
+        rsp_props.uv_gen_linear = False
+        rsp_props.shade_smooth = True
 
         om = material_dragex.rdp.other_modes
         om.atomic_prim = False
-        om.cycle_type = "1CYCLE"
+        om.cycle_type = "1CYCLE" if one_cycle else "2CYCLE"
         om.persp_tex_en = True
         om.detail_tex_en = False
         om.sharpen_tex_en = False
@@ -633,22 +655,58 @@ class BasicMaterialMode(MaterialMode):
         om.key_en = False
         om.rgb_dither_sel = "MAGIC_SQUARE"
         om.alpha_dither_sel = "SAME_AS_RGB"  # ?
-        om.bl_m1a_0 = "INPUT"
-        om.bl_m1b_0 = "INPUT_ALPHA"
-        om.bl_m2a_0 = "MEMORY"
-        om.bl_m2b_0 = "MEMORY_COVERAGE"
-        om.bl_m1a_1 = om.bl_m1a_0
-        om.bl_m1b_1 = om.bl_m1b_0
-        om.bl_m2a_1 = om.bl_m2a_0
-        om.bl_m2b_1 = om.bl_m2b_0
-        om.force_blend = False
-        om.alpha_cvg_select = True
-        om.cvg_x_alpha = False
-        om.z_mode = "OPAQUE"
-        om.cvg_dest = "CLAMP"
-        om.color_on_cvg = False
+        if rsp_props.fog:
+            assert not one_cycle
+            om.bl_m1a_0 = "FOG_COLOR"
+            om.bl_m1b_0 = "SHADE_ALPHA"
+            om.bl_m2a_0 = "INPUT"
+            om.bl_m2b_0 = "1_MINUS_A"
+            om.bl_m1a_1 = "INPUT"
+            om.bl_m1b_1 = "INPUT_ALPHA"
+            om.bl_m2a_1 = "MEMORY"
+            om.bl_m2b_1 = (
+                "1_MINUS_A"
+                if basic_props.alpha_blend == "TRANSPARENT"
+                else "MEMORY_COVERAGE"
+            )
+        else:
+            om.bl_m1a_0 = "INPUT"
+            om.bl_m1b_0 = "INPUT_ALPHA"
+            om.bl_m2a_0 = "MEMORY"
+            om.bl_m2b_0 = (
+                "1_MINUS_A"
+                if basic_props.alpha_blend == "TRANSPARENT"
+                else "MEMORY_COVERAGE"
+            )
+            if one_cycle:
+                om.bl_m1a_1 = om.bl_m1a_0
+                om.bl_m1b_1 = om.bl_m1b_0
+                om.bl_m2a_1 = om.bl_m2a_0
+                om.bl_m2b_1 = om.bl_m2b_0
+            else:
+                om.bl_m1a_1 = "INPUT"
+                om.bl_m1b_1 = "0"
+                om.bl_m2a_1 = "INPUT"
+                om.bl_m2b_1 = "1"
+        if basic_props.alpha_blend in {"OPAQUE", "CUTOUT"}:
+            om.force_blend = False
+            om.alpha_cvg_select = True
+            om.cvg_x_alpha = basic_props.alpha_blend == "CUTOUT"
+            om.z_mode = "OPAQUE"
+            om.cvg_dest = "CLAMP"
+            om.color_on_cvg = False
+            om.z_update_en = True
+        elif basic_props.alpha_blend == "TRANSPARENT":
+            om.force_blend = True
+            om.alpha_cvg_select = False
+            om.cvg_x_alpha = False
+            om.z_mode = "TRANSPARENT"
+            om.cvg_dest = "WRAP"
+            om.color_on_cvg = True
+            om.z_update_en = False
+        else:
+            assert False, basic_props.alpha_blend
         om.image_read_en = True
-        om.z_update_en = True
         om.z_compare_en = True
         om.antialias_en = True
         om.z_source_sel = False
@@ -656,22 +714,56 @@ class BasicMaterialMode(MaterialMode):
         om.alpha_compare_en = False
 
         cb = material_dragex.rdp.combiner
-        cb.rgb_A_0 = "TEX0"
-        cb.rgb_B_0 = "0"
-        cb.rgb_C_0 = "PRIMITIVE"
-        cb.rgb_D_0 = "0"
-        cb.alpha_A_0 = "0"
-        cb.alpha_B_0 = "0"
-        cb.alpha_C_0 = "0"
-        cb.alpha_D_0 = "1"
-        cb.rgb_A_1 = cb.rgb_A_0
-        cb.rgb_B_1 = cb.rgb_B_0
-        cb.rgb_C_1 = cb.rgb_C_0
-        cb.rgb_D_1 = cb.rgb_D_0
-        cb.alpha_A_1 = cb.alpha_A_0
-        cb.alpha_B_1 = cb.alpha_B_0
-        cb.alpha_C_1 = cb.alpha_C_0
-        cb.alpha_D_1 = cb.alpha_D_0
+        if texture is None:
+            cb.rgb_A_0 = "0"
+            cb.rgb_B_0 = "0"
+            cb.rgb_C_0 = "0"
+            cb.rgb_D_0 = "SHADE"
+        else:
+            cb.rgb_A_0 = "TEX0"
+            cb.rgb_B_0 = "0"
+            cb.rgb_C_0 = "SHADE"
+            cb.rgb_D_0 = "0"
+        if basic_props.alpha_blend in {"CUTOUT", "TRANSPARENT"}:
+            if basic_props.fog:
+                cb.alpha_A_0 = "0"
+                cb.alpha_B_0 = "0"
+                cb.alpha_C_0 = "0"
+                cb.alpha_D_0 = "1" if texture is None else "TEX0"
+            else:
+                if texture is None:
+                    cb.alpha_A_0 = "0"
+                    cb.alpha_B_0 = "0"
+                    cb.alpha_C_0 = "0"
+                    cb.alpha_D_0 = "SHADE"
+                else:
+                    cb.alpha_A_0 = "TEX0"
+                    cb.alpha_B_0 = "0"
+                    cb.alpha_C_0 = "SHADE"
+                    cb.alpha_D_0 = "0"
+        else:
+            cb.alpha_A_0 = "0"
+            cb.alpha_B_0 = "0"
+            cb.alpha_C_0 = "0"
+            cb.alpha_D_0 = "1"
+        if one_cycle:
+            cb.rgb_A_1 = cb.rgb_A_0
+            cb.rgb_B_1 = cb.rgb_B_0
+            cb.rgb_C_1 = cb.rgb_C_0
+            cb.rgb_D_1 = cb.rgb_D_0
+            cb.alpha_A_1 = cb.alpha_A_0
+            cb.alpha_B_1 = cb.alpha_B_0
+            cb.alpha_C_1 = cb.alpha_C_0
+            cb.alpha_D_1 = cb.alpha_D_0
+        else:
+            cb.rgb_A_1 = "0"
+            cb.rgb_B_1 = "0"
+            cb.rgb_C_1 = "0"
+            cb.rgb_D_1 = "COMBINED"
+            cb.alpha_A_1 = "0"
+            cb.alpha_B_1 = "0"
+            cb.alpha_C_1 = "0"
+            cb.alpha_D_1 = "COMBINED"
 
     @staticmethod
     def on_mode_prop_update(_self, context: bpy.types.Context):
@@ -686,13 +778,52 @@ class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
         type=bpy.types.Image,
         update=BasicMaterialMode.on_mode_prop_update,
     )
-    tint: bpy.props.FloatVectorProperty(
-        name="Tint",
-        subtype="COLOR",
-        size=3,
-        min=0,
-        max=1,
-        default=(1, 1, 1),
+    shading: bpy.props.EnumProperty(
+        name="Shading",
+        description="Pick the shade color source for vertices",
+        items=(
+            ("LIGHTING", "Lighting", "Vertices are colored by the active lights"),
+            (
+                "VERTEX_COLORS",
+                "Vertex Colors",
+                "Vertices are colored according to the painted vertex colors",
+            ),
+        ),
+        default="LIGHTING",
+        update=BasicMaterialMode.on_mode_prop_update,
+    )
+    alpha_blend: bpy.props.EnumProperty(
+        name="Alpha Blend",
+        description="Choose how the alpha affects the material",
+        items=(
+            ("OPAQUE", "Opaque", "Material is fully opaque"),
+            (
+                "CUTOUT",
+                "Cutout",
+                (
+                    "Material is opaque with holes (fully transparent spots)"
+                    " where the alpha is below threshold (e.g. fences)"
+                ),
+            ),
+            (
+                "TRANSPARENT",
+                "Transparent",
+                (
+                    "Material is transparent, drawing some geometry that"
+                    " can be seen through (e.g. colored glass)"
+                ),
+            ),
+        ),
+        default="OPAQUE",
+        update=BasicMaterialMode.on_mode_prop_update,
+    )
+    fog: bpy.props.BoolProperty(
+        name="Fog",
+        description=(
+            "Whether this material is affected by fog"
+            " (blend with the fog color as the geometry is further from the camera)"
+        ),
+        default=True,
         update=BasicMaterialMode.on_mode_prop_update,
     )
 
