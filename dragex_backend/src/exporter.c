@@ -1007,6 +1007,8 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
             environment_color.r, environment_color.g, environment_color.b,
             environment_color.a);
 
+    fprintf(f, "    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),\n");
+
     if (mat_info->geometry_mode.zbuffer)
         fprintf(f, "    gsSPSetGeometryMode(G_ZBUFFER),\n");
     else

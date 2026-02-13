@@ -2,6 +2,8 @@ import bpy
 
 
 class DragExMaterialRSPProperties(bpy.types.PropertyGroup):
+    # TODO gsSPTexture args
+
     zbuffer: bpy.props.BoolProperty(
         name="Z Buffer",
         description="Whether emitted triangles have depth information",
