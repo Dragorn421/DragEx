@@ -322,7 +322,9 @@ void free_split_mesh_by_material(struct MeshInfo **meshes, int n_meshes) {
 struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
     struct MeshInfo **out_meshes;
 
-    out_meshes = malloc(sizeof(struct MeshInfo *) * in_mesh->n_materials);
+    // Use calloc for zero'd memory,
+    // needed if free_split_mesh_by_material is called below in failure cases
+    out_meshes = calloc(in_mesh->n_materials, sizeof(struct MeshInfo *));
     if (out_meshes == NULL) {
         log_error("malloc out_meshes failed");
         return NULL;
