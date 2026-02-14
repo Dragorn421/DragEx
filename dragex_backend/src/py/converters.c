@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "converters.h"
+
 int converter_contiguous_buffer_impl(PyObject *obj, void *result,
                                      const char *required_format,
                                      Py_ssize_t expected_itemsize) {
