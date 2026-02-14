@@ -1083,7 +1083,7 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.material is not None
+        return hasattr(context, "material") and context.material is not None
 
     def execute(self, context):  # type: ignore
         material = context.material
