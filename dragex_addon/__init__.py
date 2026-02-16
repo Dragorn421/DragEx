@@ -1435,6 +1435,10 @@ extern RoomShapeNormal {room_shape_name};
 
     (out_dir_p / "glue").mkdir(exist_ok=True)
 
+    def write_if_missing(p: Path, text: str):
+        if not p.exists():
+            p.write_text(text)
+
     for p in (
         Path("glue/glue_scene.c"),
         Path("glue/glue_scene.h"),
@@ -1443,8 +1447,9 @@ extern RoomShapeNormal {room_shape_name};
         Path("table_polytypes.h"),
         Path("table_spawns.h"),
     ):
-        (out_dir_p / p).write_text(
-            apply_replacements((map_template_dir_p / p).read_text())
+        write_if_missing(
+            out_dir_p / p,
+            apply_replacements((map_template_dir_p / p).read_text()),
         )
 
     spec_frags = []
@@ -1463,33 +1468,43 @@ extern RoomShapeNormal {room_shape_name};
         map_template_dir_p / "frag_spec_room.inc"
     ).read_text()
 
-    with (out_dir_p / "table_rooms.h").open("w") as table_rooms_f:
-        for i, room in enumerate(oot_scene.rooms):
-            replacements_room = replacements.copy()
-            replacements_room.update(
-                {
-                    "ROOM_NAME": room.c_identifier.upper(),
-                    "ROOM_NUMBER": f"{i}",
-                }
-            )
+    table_rooms_frags = []
+    for i, room in enumerate(oot_scene.rooms):
+        replacements_room = replacements.copy()
+        replacements_room.update(
+            {
+                "ROOM_NAME": room.c_identifier.upper(),
+                "ROOM_NUMBER": f"{i}",
+            }
+        )
 
-            def apply_replacements_room(text: str):
-                for repl_from, repl_to in replacements_room.items():
-                    text = text.replace(repl_from, repl_to)
-                return text
+        def apply_replacements_room(text: str):
+            for repl_from, repl_to in replacements_room.items():
+                text = text.replace(repl_from, repl_to)
+            return text
 
-            table_rooms_f.write(apply_replacements_room(frag_table_rooms_h_template))
+        table_rooms_frags.append(apply_replacements_room(frag_table_rooms_h_template))
 
-            (out_dir_p / f"glue/glue_room_{i}.c").write_text(
-                apply_replacements_room(glue_room_c_template)
-            )
-            (out_dir_p / f"header_room_{i}.inc.c").write_text(
-                apply_replacements_room(header_room_inc_c_template)
-            )
+        write_if_missing(
+            out_dir_p / f"glue/glue_room_{i}.c",
+            apply_replacements_room(glue_room_c_template),
+        )
+        write_if_missing(
+            out_dir_p / f"header_room_{i}.inc.c",
+            apply_replacements_room(header_room_inc_c_template),
+        )
 
-            spec_frags.append(apply_replacements_room(frag_spec_room_inc_template))
+        spec_frags.append(apply_replacements_room(frag_spec_room_inc_template))
 
-    (out_dir_p / "spec.inc").write_text("\n".join(spec_frags))
+    write_if_missing(
+        out_dir_p / "table_rooms.h",
+        "".join(table_rooms_frags),
+    )
+
+    write_if_missing(
+        out_dir_p / "spec.inc",
+        "\n".join(spec_frags),
+    )
 
 
 class DragExOoTExportSceneOperator(bpy.types.Operator):
