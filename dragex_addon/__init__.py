@@ -1119,6 +1119,7 @@ class OoTScene:
     c_identifier: str
     rooms: list[OoTRoom]
     collision: "dragex_backend.OoTCollisionMesh"
+    positions: dict[str, tuple[int, int, int]]
 
 
 class CollectMapException(Exception):
@@ -1199,10 +1200,23 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             collision_meshes.append(collision_mesh)
     collision = dragex_backend.join_OoTCollisionMeshes(collision_meshes)
 
+    positions = dict[str, tuple[int, int, int]]()
+    for obj in coll_scene.all_objects:
+        if obj.type == "EMPTY":
+            obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
+            if obj_dragex.oot.empty.export_pos:
+                pos = export_options.transform @ obj.location
+                positions[obj_dragex.oot.empty.export_pos_name] = (
+                    round(pos.x),
+                    round(pos.y),
+                    round(pos.z),
+                )
+
     oot_scene = OoTScene(
         c_identifier=make_c_identifier(coll_scene.name),
         rooms=rooms,
         collision=collision,
+        positions=positions,
     )
     return oot_scene
 
@@ -1420,6 +1434,13 @@ extern RoomShapeNormal {room_shape_name};
                     )
             else:
                 raise NotImplementedError(type(room_shape))
+
+    (exported_dir_p / "positions.h").write_text(
+        "".join(
+            f"#define {name} {x}, {y}, {z}\n"
+            for name, (x, y, z) in oot_scene.positions.items()
+        )
+    )
 
     replacements = {
         "map_prefix_lower": map_prefix_lower,
@@ -1664,126 +1685,11 @@ class DragExSceneProperties(bpy.types.PropertyGroup):
         return self.oot_
 
 
-class DragExObjectOoTEmptyPlayerEntryProperties(bpy.types.PropertyGroup):
-    start_mode: bpy.props.EnumProperty(
-        name="Start Mode",
-        description=(
-            "Player start mode (PLAYER_START_MODE_ values) indicates the "
-            "animation/action to perform when spawning in"
-        ),
-        default="PLAYER_START_MODE_IDLE",
-        items=(
-            (
-                "PLAYER_START_MODE_NOTHING",
-                "NOTHING",
-                (
-                    "Update is empty and draw function is NULL, nothing occurs. "
-                    "Useful in cutscenes, for example."
-                ),
-            ),
-            (
-                "PLAYER_START_MODE_TIME_TRAVEL",
-                "TIME_TRAVEL",
-                "Arriving from time travel. Automatically adjusts by age.",
-            ),
-            (
-                "PLAYER_START_MODE_BLUE_WARP",
-                "BLUE_WARP",
-                "Arriving from a blue warp.",
-            ),
-            (
-                "PLAYER_START_MODE_DOOR",
-                "DOOR",
-                (
-                    "Unused. Use a door immediately if one is nearby. "
-                    "If no door is in usable range, a softlock occurs."
-                ),
-            ),
-            (
-                "PLAYER_START_MODE_GROTTO",
-                "GROTTO",
-                "Arriving from a grotto, launched upward from the ground.",
-            ),
-            (
-                "PLAYER_START_MODE_WARP_SONG",
-                "WARP_SONG",
-                "Arriving from a warp song.",
-            ),
-            (
-                "PLAYER_START_MODE_FARORES_WIND",
-                "FARORES_WIND",
-                "Arriving from a Farores Wind warp.",
-            ),
-            (
-                "PLAYER_START_MODE_KNOCKED_OVER",
-                "KNOCKED_OVER",
-                "Knocked over on the ground and flashing red.",
-            ),
-            (
-                "PLAYER_START_MODE_UNUSED_8",
-                "UNUSED_8",
-                "Unused, behaves the same as PLAYER_START_MODE_MOVE_FORWARD_SLOW.",
-            ),
-            (
-                "PLAYER_START_MODE_UNUSED_9",
-                "UNUSED_9",
-                "Unused, behaves the same as PLAYER_START_MODE_MOVE_FORWARD_SLOW.",
-            ),
-            (
-                "PLAYER_START_MODE_UNUSED_10",
-                "UNUSED_10",
-                "Unused, behaves the same as PLAYER_START_MODE_MOVE_FORWARD_SLOW.",
-            ),
-            (
-                "PLAYER_START_MODE_UNUSED_11",
-                "UNUSED_11",
-                "Unused, behaves the same as PLAYER_START_MODE_MOVE_FORWARD_SLOW.",
-            ),
-            (
-                "PLAYER_START_MODE_UNUSED_12",
-                "UNUSED_12",
-                "Unused, behaves the same as PLAYER_START_MODE_MOVE_FORWARD_SLOW.",
-            ),
-            (
-                "PLAYER_START_MODE_IDLE",
-                "IDLE",
-                "Idle standing still, or swim if in water.",
-            ),
-            (
-                "PLAYER_START_MODE_MOVE_FORWARD_SLOW",
-                "MOVE_FORWARD_SLOW",
-                "Take a few steps forward at a slow speed (2.0f), or swim if in water.",
-            ),
-            (
-                "PLAYER_START_MODE_MOVE_FORWARD",
-                "MOVE_FORWARD",
-                (
-                    "Take a few steps forward, using the speed from the last exit "
-                    "(gSaveContext.entranceSpeed), or swim if in water."
-                ),
-            ),
-        ),
-    )
-
-    # TODO replace with some kind of pointer property to scene camera object
-    start_bg_cam_index: bpy.props.IntProperty(
-        name="Start BG Cam Index",
-        description=(
-            "Player start BG cam index sets the initial camera on spawn. "
-            "0xFF sets no camera"
-        ),
-        min=0,
-        max=0xFF,
-        default=0xFF,
-    )
-
-    spawn_index: bpy.props.IntProperty(
-        name="Spawn Index",
-        description=(
-            "Index for the spawn associated to this player entry. "
-            "This index is to be used in the entrance table"
-        ),
-    )
+def validate_export_pos_name(self, context):
+    assert isinstance(self, DragExObjectOoTEmptyProperties)
+    c_identifier = make_c_identifier(self.export_pos_name)
+    if self.export_pos_name != c_identifier:
+        self.export_pos_name = c_identifier
 
 
 class DragExObjectOoTEmptyProperties(bpy.types.PropertyGroup):
@@ -1791,26 +1697,19 @@ class DragExObjectOoTEmptyProperties(bpy.types.PropertyGroup):
         name="Type",
         description="Type of OoT empty object",
         default="NONE",
-        items=(
-            ("NONE", "None", "No type. A regular empty object"),
-            (
-                "PLAYER_ENTRY",
-                "Player Entry",
-                (
-                    "Empty represents a Player Entry, a spawn point's location and "
-                    "metadata for when loading the map"
-                ),
-            ),
-        ),
+        items=(("NONE", "None", "No type. A regular empty object"),),
     )
 
-    player_entry_: bpy.props.PointerProperty(
-        type=DragExObjectOoTEmptyPlayerEntryProperties
+    export_pos: bpy.props.BoolProperty(
+        name="Export Position",
+        description="On export, write the location of this empty to a positions.h file",
     )
-
-    @property
-    def player_entry(self) -> DragExObjectOoTEmptyPlayerEntryProperties:
-        return self.player_entry_
+    export_pos_name: bpy.props.StringProperty(
+        name="Export Position Name",
+        description="The name of the macro to name the exported location as",
+        default="POS_",
+        update=validate_export_pos_name,
+    )
 
 
 class DragExObjectOoTProperties(bpy.types.PropertyGroup):
@@ -1913,14 +1812,15 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
             room_mesh_obj = bpy.data.objects.new(f"{room_name} Mesh", room_mesh)
             room_coll.objects.link(room_mesh_obj)
 
-        player_entry_empty_obj = bpy.data.objects.new(f"{map_name} Player Entry", None)
-        player_entry_empty_obj_dragex: DragExObjectProperties = (
-            player_entry_empty_obj.dragex  # type: ignore
+        spawn_empty_obj = bpy.data.objects.new(f"{map_name} Spawn", None)
+        spawn_empty_obj_dragex: DragExObjectProperties = spawn_empty_obj.dragex  # type: ignore
+        spawn_empty_obj.location = (0, 0, 0)
+        spawn_empty_obj.empty_display_type = "ARROWS"
+        spawn_empty_obj_dragex.oot.empty.export_pos = True
+        spawn_empty_obj_dragex.oot.empty.export_pos_name = (
+            f"POS_{make_c_identifier(map_name).upper()}_SCENE_SPAWN"
         )
-        player_entry_empty_obj.location = (0, 0, 0)
-        player_entry_empty_obj.empty_display_type = "ARROWS"
-        player_entry_empty_obj_dragex.oot.empty.type = "PLAYER_ENTRY"
-        room_colls[0].objects.link(player_entry_empty_obj)
+        scene_coll.objects.link(spawn_empty_obj)
 
         scene.collection.children.link(scene_coll)
         return {"FINISHED"}
@@ -2001,9 +1901,23 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         assert obj is not None
         obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
         layout.prop(obj_dragex.oot.empty, "type")
-        if obj_dragex.oot.empty.type == "PLAYER_ENTRY":
-            layout.prop(obj_dragex.oot.empty.player_entry, "start_mode")
-            layout.prop(obj_dragex.oot.empty.player_entry, "start_bg_cam_index")
+        layout.prop(obj_dragex.oot.empty, "export_pos")
+        if obj_dragex.oot.empty.export_pos:
+            layout.prop(obj_dragex.oot.empty, "export_pos_name")
+            is_part_of_a_scene = False
+            for coll in bpy.data.collections.values():
+                assert coll is not None
+                coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+                if coll_dragex.oot.type == "SCENE" and obj in coll.all_objects.values():
+                    is_part_of_a_scene = True
+            if not is_part_of_a_scene:
+                layout.label(
+                    text=(
+                        "This empty is not part of any scene,"
+                        " so it will be ignored on export"
+                    ),
+                    icon="ERROR",
+                )
 
 
 classes = (
@@ -2024,7 +1938,6 @@ classes = (
     DragExCollectionProperties,
     DragExSceneOoTProperties,
     DragExSceneProperties,
-    DragExObjectOoTEmptyPlayerEntryProperties,
     DragExObjectOoTEmptyProperties,
     DragExObjectOoTProperties,
     DragExObjectProperties,
