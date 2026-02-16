@@ -163,13 +163,7 @@ def create_MeshInfo(
 ) -> MeshInfo: ...
 
 class OoTCollisionMaterial:
-    def __init__(
-        self,
-        surface_type_0: str,
-        surface_type_1: str,
-        flags_a: str,
-        flags_b: str,
-    ) -> None: ...
+    def __init__(self, name: str) -> None: ...
 
 class OoTCollisionBounds:
     min: tuple[int, int, int]
@@ -179,6 +173,7 @@ class OoTCollisionMesh:
     def write_c(
         self,
         fd: int,
+        map_prefix_upper: str,
         vtx_list_name: str,
         poly_list_name: str,
         surface_types_name: str,

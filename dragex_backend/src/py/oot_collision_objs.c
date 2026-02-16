@@ -17,10 +17,7 @@ static void OoTCollisionMaterial_dealloc(PyObject *_self) {
 
     log_trace("entry");
 
-    free(self->mat.surface_type_0);
-    free(self->mat.surface_type_1);
-    free(self->mat.flags_a);
-    free(self->mat.flags_b);
+    free(self->mat.name);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -29,10 +26,7 @@ static PyObject *OoTCollisionMaterial_new(PyTypeObject *type, PyObject *args,
     struct OoTCollisionMaterialObject *self;
     self = (struct OoTCollisionMaterialObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
-        self->mat.surface_type_0 = NULL;
-        self->mat.surface_type_1 = NULL;
-        self->mat.flags_a = NULL;
-        self->mat.flags_b = NULL;
+        self->mat.name = NULL;
     }
     return (PyObject *)self;
 }
@@ -42,34 +36,18 @@ static int OoTCollisionMaterial_init(PyObject *_self, PyObject *args,
     struct OoTCollisionMaterialObject *self =
         (struct OoTCollisionMaterialObject *)_self;
     static char *kwlist[] = {
-        "surface_type_0", "surface_type_1", "flags_a", "flags_b", NULL,
+        "name",
+        NULL,
     };
-    char *surface_type_0, *surface_type_1, *flags_a, *flags_b;
+    char *name;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ssss", kwlist,
-                                     &surface_type_0, &surface_type_1, &flags_a,
-                                     &flags_b))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &name))
         return -1;
 
-    if (self->mat.surface_type_0 != NULL) {
-        free(self->mat.surface_type_0);
+    if (self->mat.name != NULL) {
+        free(self->mat.name);
     }
-    self->mat.surface_type_0 = strdup(surface_type_0);
-
-    if (self->mat.surface_type_1 != NULL) {
-        free(self->mat.surface_type_1);
-    }
-    self->mat.surface_type_1 = strdup(surface_type_1);
-
-    if (self->mat.flags_a != NULL) {
-        free(self->mat.flags_a);
-    }
-    self->mat.flags_a = strdup(flags_a);
-
-    if (self->mat.flags_b != NULL) {
-        free(self->mat.flags_b);
-    }
-    self->mat.flags_b = strdup(flags_b);
+    self->mat.name = strdup(name);
 
     return 0;
 }
@@ -117,10 +95,11 @@ static PyObject *OoTCollisionMesh_write_c(PyObject *_self, PyObject *args) {
     struct OoTCollisionMeshObject *self =
         (struct OoTCollisionMeshObject *)_self;
     int fd;
-    const char *vtx_list_name, *poly_list_name, *surface_types_name;
+    const char *map_prefix_upper, *vtx_list_name, *poly_list_name,
+        *surface_types_name;
 
-    if (!PyArg_ParseTuple(args, "isss", &fd, &vtx_list_name, &poly_list_name,
-                          &surface_types_name))
+    if (!PyArg_ParseTuple(args, "issss", &fd, &map_prefix_upper, &vtx_list_name,
+                          &poly_list_name, &surface_types_name))
         return NULL;
 
     FILE *f = fdopen(dup(fd), "w");
@@ -131,9 +110,9 @@ static PyObject *OoTCollisionMesh_write_c(PyObject *_self, PyObject *args) {
     }
 
     struct OoTCollisionBounds bounds;
-    int res =
-        write_OoTCollisionMesh_to_c(self->mesh, vtx_list_name, poly_list_name,
-                                    surface_types_name, f, &bounds);
+    int res = write_OoTCollisionMesh_to_c(self->mesh, map_prefix_upper,
+                                          vtx_list_name, poly_list_name,
+                                          surface_types_name, f, &bounds);
 
     fclose(f);
 

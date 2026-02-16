@@ -488,12 +488,7 @@ def mesh_to_OoTCollisionMesh(
             colmat = None  # material_to_OoTCollisionMaterial(mat)  # TODO
         materials.append(colmat)
 
-    default_material = dragex_backend.OoTCollisionMaterial(
-        surface_type_0="SURFACETYPE0(0, 0, FLOOR_TYPE_0, 0, WALL_TYPE_0, FLOOR_PROPERTY_0, false, false)",
-        surface_type_1="SURFACETYPE1(SURFACE_MATERIAL_DIRT, FLOOR_EFFECT_0, 31, 1, false, CONVEYOR_SPEED_DISABLED, 0, false)",
-        flags_a="0",
-        flags_b="0",
-    )
+    default_material = dragex_backend.OoTCollisionMaterial(name="DEFAULT")
 
     collision_mesh = dragex_backend.create_OoTCollisionMesh(
         buf_vertices_co,
@@ -1109,16 +1104,7 @@ class OoTRoomShape(abc.ABC):
 
 @dataclasses.dataclass(eq=False)  # Use id-based equality and hashing
 class OoTRoom:
-    echo: str
-    room_behavior_type: str
-    room_behavior_environment: str
-    room_behavior_showInvisActors: str
-    room_behavior_disableWarpSongs: bool
-    skybox_disables_disableSky: bool
-    skybox_disables_disableSunMoon: bool
-    time_settings_hour: str
-    time_settings_min: str
-    time_settings_timeSpeed: str
+    c_identifier: str
     shape: OoTRoomShape
 
 
@@ -1129,61 +1115,10 @@ class OoTRoomShapeNormal(OoTRoomShape):
 
 
 @dataclasses.dataclass(eq=False)
-class OoTSpawn:
-    player_entry: "OoTActorEntry"
-    room: OoTRoom
-
-
-class OoTActorParams(abc.ABC):
-    def to_c(self) -> str: ...
-
-
-@dataclasses.dataclass(eq=False)
-class OoTPlayerActorParams(OoTActorParams):
-    startMode: str
-    startBgCamIndex: int
-
-    def to_c(self):
-        # TODO use PLAYER_START_BG_CAM_DEFAULT
-        return f"PLAYER_PARAMS({self.startMode}, {self.startBgCamIndex})"
-
-
-@dataclasses.dataclass(eq=False)
-class OoTActorEntry:
-    id: str
-    pos: tuple[int, int, int]
-    rot: tuple[float, float, float]  # radians
-    params: OoTActorParams
-
-
-@dataclasses.dataclass(eq=False)
-class OoTEnvLightSettings:
-    ambientColor: tuple[float, float, float]
-    light1Dir: tuple[float, float, float]
-    light1Color: tuple[float, float, float]
-    light2Dir: tuple[float, float, float]
-    light2Color: tuple[float, float, float]
-    fogColor: tuple[float, float, float]
-    blend_rate: str
-    fog_near: str
-    zFar: str
-
-
-@dataclasses.dataclass(eq=False)
 class OoTScene:
-    sound_settings_specId: str
-    sound_settings_natureAmbienceId: str
-    sound_settings_seqId: str
+    c_identifier: str
     rooms: list[OoTRoom]
     collision: "dragex_backend.OoTCollisionMesh"
-    spawns: list[OoTSpawn]
-    special_files_naviQuestHintFileId: str
-    special_files_keepObjectId: str
-    player_entry_list: list[OoTActorEntry]
-    skybox_settings_skyboxId: str
-    skybox_settings_skyboxConfig: str
-    skybox_settings_envLightMode: str
-    env_light_settings_list: list[OoTEnvLightSettings]
 
 
 class CollectMapException(Exception):
@@ -1217,63 +1152,17 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
         )
 
     rooms = list[OoTRoom]()
-    spawns = dict[int, OoTSpawn]()
-    spawns_empties = dict[int, bpy.types.Object]()
 
     for i in range(n_rooms):
         room_coll = room_colls[i]
         room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
-        room_player_entry_by_spawn_index = dict[int, OoTActorEntry]()
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
         image_infos = ImageInfos()
         for obj in room_coll.all_objects:
             if obj.type == "EMPTY":
                 obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
-                if obj_dragex.oot.empty.type == "PLAYER_ENTRY":
-                    player_entry_props = obj_dragex.oot.empty.player_entry
-                    if player_entry_props.spawn_index in spawns_empties:
-                        raise CollectMapException(
-                            f"Duplicate spawn index {player_entry_props.spawn_index}: "
-                            f"used by "
-                            f"{spawns_empties[player_entry_props.spawn_index].name} "
-                            f"and {obj.name}"
-                        )
-                    spawns_empties[player_entry_props.spawn_index] = obj
-                    params = OoTPlayerActorParams(
-                        startMode=player_entry_props.start_mode,
-                        startBgCamIndex=player_entry_props.start_bg_cam_index,
-                    )
-                    player_entry_pos = export_options.transform @ obj.location
-                    saved_rotation_mode = obj.rotation_mode
-                    try:
-                        obj.rotation_mode = "QUATERNION"
-                        player_entry_rot_quaternion = obj.rotation_quaternion
-                    finally:
-                        obj.rotation_mode = saved_rotation_mode
-                    # TODO we want what oot calls YXZ, iirc it's what blender calls ZXY but check
-                    player_entry_rot = (
-                        export_options.transform
-                        @ player_entry_rot_quaternion.to_matrix()
-                        @ transform_inverted
-                    ).to_euler("ZXY")
-                    player_entry = OoTActorEntry(
-                        id="ACTOR_PLAYER",
-                        pos=(
-                            round(player_entry_pos.x),
-                            round(player_entry_pos.y),
-                            round(player_entry_pos.z),
-                        ),
-                        rot=(
-                            player_entry_rot.x,
-                            player_entry_rot.y,
-                            player_entry_rot.z,
-                        ),
-                        params=params,
-                    )
-                    room_player_entry_by_spawn_index[player_entry_props.spawn_index] = (
-                        player_entry
-                    )
+                ...
             if obj.type == "MESH":
                 assert isinstance(obj.data, bpy.types.Mesh)
                 # TODO this is inefficient if mesh is shared between rooms
@@ -1293,53 +1182,10 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
         )
 
         room = OoTRoom(
-            echo="10",
-            room_behavior_type="ROOM_TYPE_NORMAL",
-            room_behavior_environment="ROOM_ENV_DEFAULT",
-            room_behavior_showInvisActors="LENS_MODE_SHOW_ACTORS",
-            room_behavior_disableWarpSongs=False,
-            skybox_disables_disableSky=False,
-            skybox_disables_disableSunMoon=False,
-            time_settings_hour="0xFF",
-            time_settings_min="0xFF",
-            time_settings_timeSpeed="0",
+            c_identifier=make_c_identifier(room_coll.name),
             shape=shape,
         )
-        for spawn_index, player_entry in room_player_entry_by_spawn_index.items():
-            spawn = OoTSpawn(
-                player_entry=player_entry,
-                room=room,
-            )
-            spawns[spawn_index] = spawn
         rooms.append(room)
-
-    env_light_settings_list = list[OoTEnvLightSettings]()
-    for i in range(4):
-        env_light_settings_list.append(
-            OoTEnvLightSettings(
-                ambientColor=(1, 1, 1),
-                light1Dir=(1, 0, 0),
-                light1Color=(0, 0, 0),
-                light2Dir=(1, 0, 0),
-                light2Color=(0, 0, 0),
-                fogColor=(1, 1, 1),
-                blend_rate="4",
-                fog_near="ENV_FOGNEAR_MAX",
-                zFar="12800",
-            )
-        )
-
-    n_spawns = max(spawns.keys()) + 1
-    expected_spawn_indices = set(range(n_spawns))
-    assert expected_spawn_indices.issuperset(spawns.keys())
-    if spawns.keys() != expected_spawn_indices:
-        raise CollectMapException(
-            "The following spawn indices are missing: "
-            + ", ".join(map(str, sorted(expected_spawn_indices - spawns.keys())))
-        )
-
-    spawns_list = [spawns[_i] for _i in range(n_spawns)]
-    player_entry_list = [_spawn.player_entry for _spawn in spawns_list]
 
     collision_meshes = list[dragex_backend.OoTCollisionMesh]()
     for obj in coll_scene.all_objects:
@@ -1354,19 +1200,9 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     collision = dragex_backend.join_OoTCollisionMeshes(collision_meshes)
 
     oot_scene = OoTScene(
-        sound_settings_specId="0",
-        sound_settings_natureAmbienceId="NATURE_ID_NONE",
-        sound_settings_seqId="NA_BGM_NO_MUSIC",
+        c_identifier=make_c_identifier(coll_scene.name),
         rooms=rooms,
         collision=collision,
-        spawns=spawns_list,
-        special_files_naviQuestHintFileId="NAVI_QUEST_HINTS_NONE",
-        special_files_keepObjectId="OBJECT_INVALID",
-        player_entry_list=player_entry_list,
-        skybox_settings_skyboxId="SKYBOX_NORMAL_SKY",
-        skybox_settings_skyboxConfig="0",
-        skybox_settings_envLightMode="LIGHT_MODE_TIME",
-        env_light_settings_list=env_light_settings_list,
     )
     return oot_scene
 
@@ -1406,169 +1242,43 @@ def export_coll_scene(
 
     pprint(oot_scene)
 
-    map_name_c_identifier = make_c_identifier(coll_scene.name)
+    map_prefix_lower = oot_scene.c_identifier.lower()
+    map_prefix_upper = oot_scene.c_identifier.upper()
+
+    exported_dir_p = out_dir_p / "exported"
+    exported_dir_p.mkdir(exist_ok=True)
 
     with FDManager() as fd_manager:
-        scene_fd = fd_manager.open_w(out_dir_p / f"{map_name_c_identifier}_scene.c")
+        collision_inc_c_fd = fd_manager.open_w(exported_dir_p / f"collision.inc.c")
 
-        room_list_name = f"{map_name_c_identifier}_RoomList"
-        col_header_name = f"{map_name_c_identifier}_Col"
-        spawn_list_name = f"{map_name_c_identifier}_SpawnList"
-        player_entry_list_name = f"{map_name_c_identifier}_PlayerEntryList"
-        env_light_settings_list_name = f"{map_name_c_identifier}_EnvLightSettingsList"
+        col_header_name = f"{map_prefix_lower}_Col"
 
-        col_vtx_list_name = f"{map_name_c_identifier}_VtxList"
-        col_poly_list_name = f"{map_name_c_identifier}_PolyList"
-        col_surface_types_name = f"{map_name_c_identifier}_SurfaceTypes"
+        col_vtx_list_name = f"{map_prefix_lower}_VtxList"
+        col_poly_list_name = f"{map_prefix_lower}_PolyList"
+        col_surface_types_name = f"{map_prefix_lower}_SurfaceTypes"
 
-        with open(scene_fd, "w", closefd=False) as f:
+        with open(collision_inc_c_fd, "w", closefd=False) as f:
             f.write(
-                '#include "stdbool.h"\n'
-                '#include "ultra64.h"\n'
-                '#include "actor.h"\n'
-                '#include "array_count.h"\n'
-                '#include "camera.h"\n'
-                '#include "object.h"\n'
-                '#include "ocarina.h"\n'
-                '#include "player.h"\n'
-                '#include "scene.h"\n'
-                '#include "segment_symbols.h"\n'
-                '#include "sequence.h"\n'
-                '#include "skybox.h"\n'
+                """\
+#include "collision.h"
+
+#include "stddef.h"
+#include "array_count.h"
+#include "bgcheck.h"
+#include "z_math.h"
+
+"""
             )
-            f.write(f"extern RomFile {room_list_name}[{len(oot_scene.rooms)}];\n")
-            f.write(f"extern CollisionHeader {col_header_name};\n")
-            f.write(f"extern Spawn {spawn_list_name}[];\n")
-            f.write(
-                f"extern ActorEntry {player_entry_list_name}"
-                f"[{len(oot_scene.player_entry_list)}];\n"
-            )
-            f.write(
-                f"extern EnvLightSettings {env_light_settings_list_name}"
-                f"[{len(oot_scene.env_light_settings_list)}];\n"
-            )
-            f.write("// Hi1\n")
-            f.write(
-                f"SceneCmd {map_name_c_identifier}_scene[] = "
-                "{\n"
-                f"    SCENE_CMD_SOUND_SETTINGS({oot_scene.sound_settings_specId}, {oot_scene.sound_settings_natureAmbienceId}, {oot_scene.sound_settings_seqId}),\n"
-                f"    SCENE_CMD_ROOM_LIST(ARRAY_COUNT({room_list_name}), {room_list_name}),\n"
-                f"    SCENE_CMD_COL_HEADER(&{col_header_name}),\n"
-                f"    SCENE_CMD_SPAWN_LIST({spawn_list_name}),\n"
-                f"    SCENE_CMD_SPECIAL_FILES({oot_scene.special_files_naviQuestHintFileId}, {oot_scene.special_files_keepObjectId}),\n"
-                f"    SCENE_CMD_PLAYER_ENTRY_LIST(ARRAY_COUNT({player_entry_list_name}), {player_entry_list_name}),\n"
-                f"    SCENE_CMD_SKYBOX_SETTINGS({oot_scene.skybox_settings_skyboxId}, {oot_scene.skybox_settings_skyboxConfig}, {oot_scene.skybox_settings_envLightMode}),\n"
-                f"    SCENE_CMD_ENV_LIGHT_SETTINGS(ARRAY_COUNT({env_light_settings_list_name}), {env_light_settings_list_name}),\n"
-                f"    SCENE_CMD_END(),\n"
-                "};\n"
-                "\n"
-            )
-
-            for i in range(len(oot_scene.rooms)):
-                f.write(f"DECLARE_ROM_SEGMENT({map_name_c_identifier}_room_{i})\n")
-
-            f.write(f"RomFile {room_list_name}[] = " "{\n")
-            for i in range(len(oot_scene.rooms)):
-                f.write(f"    ROM_FILE({map_name_c_identifier}_room_{i}),\n")
-            f.write("};\n" "\n")
-
-            f.write(f"Spawn {spawn_list_name}[] = " "{\n")
-            for spawn in oot_scene.spawns:
-                player_entry_index = oot_scene.player_entry_list.index(
-                    spawn.player_entry
-                )
-                room_number = oot_scene.rooms.index(spawn.room)
-                f.write("    { " f"{player_entry_index}, {room_number}" " },\n")
-            f.write("};\n" "\n")
-
-            f.write(f"ActorEntry {player_entry_list_name}[] = " "{\n")
-            for player_entry in oot_scene.player_entry_list:
-
-                def rad2bin(v: float):
-                    v = round(v / math.pi * 0x8000)
-                    v = v % 0x10000
-                    if v >= 0x8000:
-                        v -= 0x10000
-                    return v
-
-                f.write(
-                    "    {\n"
-                    f"        {player_entry.id},\n"
-                    "        {"
-                    f" {player_entry.pos[0]},"
-                    f" {player_entry.pos[1]},"
-                    f" {player_entry.pos[2]} "
-                    "},\n"
-                    "        {"
-                    f" {rad2bin(player_entry.rot[0]):#X},"
-                    f" {rad2bin(player_entry.rot[1]):#X},"
-                    f" {rad2bin(player_entry.rot[2]):#X} "
-                    "},\n"
-                    f"        {player_entry.params.to_c()},\n"
-                    "    },\n"
-                )
-            f.write("};\n" "\n")
-
-            f.write(f"EnvLightSettings {env_light_settings_list_name}[] = " "{\n")
-            for env_light_settings in oot_scene.env_light_settings_list:
-
-                def colorf2u8(v):
-                    v = round(v * 255)
-                    return v
-
-                def dirf2s8(v):
-                    v = round(v * 127)
-                    return v
-
-                f.write(
-                    "    {\n"
-                    "        {"
-                    f" {colorf2u8(env_light_settings.ambientColor[0])},"
-                    f" {colorf2u8(env_light_settings.ambientColor[1])},"
-                    f" {colorf2u8(env_light_settings.ambientColor[2])} "
-                    "},\n"
-                    "        {"
-                    f" {dirf2s8(env_light_settings.light1Dir[0])},"
-                    f" {dirf2s8(env_light_settings.light1Dir[1])},"
-                    f" {dirf2s8(env_light_settings.light1Dir[2])} "
-                    "},\n"
-                    "        {"
-                    f" {colorf2u8(env_light_settings.light1Color[0])},"
-                    f" {colorf2u8(env_light_settings.light1Color[1])},"
-                    f" {colorf2u8(env_light_settings.light1Color[2])} "
-                    "},\n"
-                    "        {"
-                    f" {dirf2s8(env_light_settings.light2Dir[0])},"
-                    f" {dirf2s8(env_light_settings.light2Dir[1])},"
-                    f" {dirf2s8(env_light_settings.light2Dir[2])} "
-                    "},\n"
-                    "        {"
-                    f" {colorf2u8(env_light_settings.light2Color[0])},"
-                    f" {colorf2u8(env_light_settings.light2Color[1])},"
-                    f" {colorf2u8(env_light_settings.light2Color[2])} "
-                    "},\n"
-                    "        {"
-                    f" {colorf2u8(env_light_settings.fogColor[0])},"
-                    f" {colorf2u8(env_light_settings.fogColor[1])},"
-                    f" {colorf2u8(env_light_settings.fogColor[2])} "
-                    "},\n"
-                    "        BLEND_RATE_AND_FOG_NEAR("
-                    f"{env_light_settings.blend_rate}, "
-                    f"{env_light_settings.fog_near}),\n"
-                    f"        {env_light_settings.zFar},\n"
-                    "    },\n"
-                )
-            f.write("};\n" "\n")
 
         collision_bounds = oot_scene.collision.write_c(
-            scene_fd,
+            collision_inc_c_fd,
+            map_prefix_upper,
             col_vtx_list_name,
             col_poly_list_name,
             col_surface_types_name,
         )
 
-        with open(scene_fd, "w", closefd=False) as f:
-            f.write("// Hi2\n")
+        with open(collision_inc_c_fd, "w", closefd=False) as f:
             collision_bounds_min = collision_bounds.min
             collision_bounds_max = collision_bounds.max
             f.write(
@@ -1596,50 +1306,43 @@ def export_coll_scene(
                 "\n"
             )
 
+        (exported_dir_p / "collision.h").write_text(
+            f"""\
+#include "bgcheck.h"
+
+extern CollisionHeader {col_header_name};
+"""
+        )
+
     for i, room in enumerate(oot_scene.rooms):
         with FDManager() as fd_manager:
-            room_fd = fd_manager.open_w(
-                out_dir_p / f"{map_name_c_identifier}_room_{i}.c"
-            )
+            room_fd = fd_manager.open_w(exported_dir_p / f"room_{i}_shape.inc.c")
 
             room_shape = room.shape
 
-            room_shape_name = f"{map_name_c_identifier}_room_{i}_RoomShape"
+            room_shape_name = f"{map_prefix_lower}_room_{i}_RoomShape"
+
+            if isinstance(room.shape, OoTRoomShapeNormal):
+                (exported_dir_p / f"room_{i}_shape.h").write_text(
+                    f"""\
+#include "room.h"
+
+extern RoomShapeNormal {room_shape_name};
+"""
+                )
+            else:
+                raise NotImplementedError(type(room.shape))
 
             with open(room_fd, "w", closefd=False) as f:
                 f.write(
-                    '#include "stdbool.h"\n'
-                    '#include "ultra64.h"\n'
-                    '#include "actor.h"\n'
-                    '#include "array_count.h"\n'
-                    '#include "gfx.h"\n'
-                    '#include "object.h"\n'
-                    '#include "room.h"\n'
-                    '#include "scene.h"\n'
-                    '#include "sequence.h"\n'
-                    '#include "skybox.h"\n'
-                )
-                f.write("// Hi3\n")
+                    f"""\
+#include "room_{i}_shape.h"
 
-                if isinstance(room.shape, OoTRoomShapeNormal):
-                    f.write(f"extern RoomShapeNormal {room_shape_name};\n")
-                else:
-                    raise NotImplementedError(type(room.shape))
+#include "ultra64.h"
+#include "array_count.h"
+#include "room.h"
 
-                def cbool(v: bool):
-                    return "true" if v else "false"
-
-                f.write(
-                    f"SceneCmd {map_name_c_identifier}_room_{i}[] = "
-                    "{\n"
-                    f"    SCENE_CMD_ECHO_SETTINGS({room.echo}),\n"
-                    f"    SCENE_CMD_ROOM_BEHAVIOR({room.room_behavior_type}, {room.room_behavior_environment}, {room.room_behavior_showInvisActors}, {cbool(room.room_behavior_disableWarpSongs)}),\n"
-                    f"    SCENE_CMD_SKYBOX_DISABLES({cbool(room.skybox_disables_disableSky)}, {cbool(room.skybox_disables_disableSunMoon)}),\n"
-                    f"    SCENE_CMD_TIME_SETTINGS({room.time_settings_hour}, {room.time_settings_min}, {room.time_settings_timeSpeed}),\n"
-                    f"    SCENE_CMD_ROOM_SHAPE(&{room_shape_name}),\n"
-                    f"    SCENE_CMD_END(),\n"
-                    "};\n"
-                    "\n"
+"""
                 )
 
                 for (
@@ -1653,11 +1356,13 @@ def export_coll_scene(
                     # (not in 4.2.11 at least, but recent versions (which?) have a save_copy argument to save())
                     # if so, need to copy() the datablock before save to avoid modifying it
                     image_key.image.save(
-                        filepath=str(out_dir_p / f"{image_file_stem}.png"),
+                        filepath=str(exported_dir_p / f"{image_file_stem}.png"),
                     )
                     image_inc_c_p = (
                         PurePosixPath(
-                            *out_dir_p.relative_to(export_options.decomp_repo_p).parts
+                            *exported_dir_p.relative_to(
+                                export_options.decomp_repo_p
+                            ).parts
                         )
                         / f"{image_file_stem}.inc.c"
                     )
@@ -1690,8 +1395,7 @@ def export_coll_scene(
                     )
 
                 with open(room_fd, "w", closefd=False) as f:
-                    f.write("// Hi4\n")
-                    dlists_entries_name = f"{map_name_c_identifier}_DListsEntries"
+                    dlists_entries_name = f"{map_prefix_lower}_DListsEntries"
                     f.write(f"RoomShapeDListsEntry {dlists_entries_name}[] = " "{\n")
                     for opa_dl_name, xlu_dl_name in zip(
                         opa_dlists_names, xlu_dlists_names
@@ -1716,6 +1420,76 @@ def export_coll_scene(
                     )
             else:
                 raise NotImplementedError(type(room_shape))
+
+    replacements = {
+        "map_prefix_lower": map_prefix_lower,
+        "MAP_PREFIX_UPPER": map_prefix_upper,
+    }
+
+    def apply_replacements(text: str):
+        for repl_from, repl_to in replacements.items():
+            text = text.replace(repl_from, repl_to)
+        return text
+
+    map_template_dir_p = Path(__file__).parent / "map_template"
+
+    (out_dir_p / "glue").mkdir(exist_ok=True)
+
+    for p in (
+        Path("glue/glue_scene.c"),
+        Path("glue/glue_scene.h"),
+        Path("header_scene.inc.c"),
+        Path("table_envlightsettings.h"),
+        Path("table_polytypes.h"),
+        Path("table_spawns.h"),
+    ):
+        (out_dir_p / p).write_text(
+            apply_replacements((map_template_dir_p / p).read_text())
+        )
+
+    spec_frags = []
+    spec_frags.append(
+        apply_replacements((map_template_dir_p / "frag_spec_scene.inc").read_text())
+    )
+
+    frag_table_rooms_h_template = (
+        map_template_dir_p / "frag_table_rooms.h"
+    ).read_text()
+    glue_room_c_template = (map_template_dir_p / "glue/glue_room_0.c").read_text()
+    header_room_inc_c_template = (
+        map_template_dir_p / "header_room_0.inc.c"
+    ).read_text()
+    frag_spec_room_inc_template = (
+        map_template_dir_p / "frag_spec_room.inc"
+    ).read_text()
+
+    with (out_dir_p / "table_rooms.h").open("w") as table_rooms_f:
+        for i, room in enumerate(oot_scene.rooms):
+            replacements_room = replacements.copy()
+            replacements_room.update(
+                {
+                    "ROOM_NAME": room.c_identifier.upper(),
+                    "ROOM_NUMBER": f"{i}",
+                }
+            )
+
+            def apply_replacements_room(text: str):
+                for repl_from, repl_to in replacements_room.items():
+                    text = text.replace(repl_from, repl_to)
+                return text
+
+            table_rooms_f.write(apply_replacements_room(frag_table_rooms_h_template))
+
+            (out_dir_p / f"glue/glue_room_{i}.c").write_text(
+                apply_replacements_room(glue_room_c_template)
+            )
+            (out_dir_p / f"header_room_{i}.inc.c").write_text(
+                apply_replacements_room(header_room_inc_c_template)
+            )
+
+            spec_frags.append(apply_replacements_room(frag_spec_room_inc_template))
+
+    (out_dir_p / "spec.inc").write_text("\n".join(spec_frags))
 
 
 class DragExOoTExportSceneOperator(bpy.types.Operator):

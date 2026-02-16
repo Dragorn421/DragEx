@@ -386,7 +386,7 @@ struct OoTCollisionTri {
 };
 
 struct OoTCollisionMaterial {
-    char *surface_type_0, *surface_type_1, *flags_a, *flags_b;
+    char *name;
 };
 
 struct OoTCollisionMesh {
@@ -416,6 +416,7 @@ struct OoTCollisionBounds {
 };
 
 int write_OoTCollisionMesh_to_c(struct OoTCollisionMesh *mesh,
+                                const char *map_prefix_upper,
                                 const char *vtx_list_name,
                                 const char *poly_list_name,
                                 const char *surface_types_name, FILE *f,

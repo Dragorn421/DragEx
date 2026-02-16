@@ -1,0 +1,1 @@
+DEF_ROOM(MAP_PREFIX_UPPER_ROOM_ROOM_NAME, map_prefix_lower_room_ROOM_NUMBER)

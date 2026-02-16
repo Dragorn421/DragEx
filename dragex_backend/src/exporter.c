@@ -1164,10 +1164,7 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
 
 void copy_OoTCollisionMaterial(struct OoTCollisionMaterial *dst,
                                struct OoTCollisionMaterial *src) {
-    dst->surface_type_0 = strdup(src->surface_type_0);
-    dst->surface_type_1 = strdup(src->surface_type_1);
-    dst->flags_a = strdup(src->flags_a);
-    dst->flags_b = strdup(src->flags_b);
+    dst->name = strdup(src->name);
 }
 
 // TODO this is also a free for the result of join_OoTCollisionMeshes_impl
@@ -1175,10 +1172,7 @@ void free_create_OoTCollisionMesh_from_buffers(struct OoTCollisionMesh *mesh) {
     free(mesh->verts);
     free(mesh->faces);
     for (unsigned int i = 0; i < mesh->n_materials; i++) {
-        free(mesh->materials[i].surface_type_0);
-        free(mesh->materials[i].surface_type_1);
-        free(mesh->materials[i].flags_a);
-        free(mesh->materials[i].flags_b);
+        free(mesh->materials[i].name);
     }
     free(mesh->materials);
 }
@@ -1232,10 +1226,7 @@ struct OoTCollisionMesh *create_OoTCollisionMesh_from_buffers(
     if (mesh->materials != NULL) {
         // for free_create_OoTCollisionMesh_from_buffers
         for (unsigned int i = 0; i < n_materials_used; i++) {
-            mesh->materials[i].surface_type_0 = NULL;
-            mesh->materials[i].surface_type_1 = NULL;
-            mesh->materials[i].flags_a = NULL;
-            mesh->materials[i].flags_b = NULL;
+            mesh->materials[i].name = NULL;
         }
     }
 
@@ -1328,10 +1319,7 @@ join_OoTCollisionMeshes_impl(struct OoTCollisionMesh **meshes,
     if (joined_mesh->materials != NULL) {
         // for free_create_OoTCollisionMesh_from_buffers
         for (unsigned int i = 0; i < n_materials; i++) {
-            joined_mesh->materials[i].surface_type_0 = NULL;
-            joined_mesh->materials[i].surface_type_1 = NULL;
-            joined_mesh->materials[i].flags_a = NULL;
-            joined_mesh->materials[i].flags_b = NULL;
+            joined_mesh->materials[i].name = NULL;
         }
     }
 
@@ -1371,6 +1359,7 @@ join_OoTCollisionMeshes_impl(struct OoTCollisionMesh **meshes,
 }
 
 int write_OoTCollisionMesh_to_c(struct OoTCollisionMesh *mesh,
+                                const char *map_prefix_upper,
                                 const char *vtx_list_name,
                                 const char *poly_list_name,
                                 const char *surface_types_name, FILE *f,
@@ -1512,44 +1501,31 @@ int write_OoTCollisionMesh_to_c(struct OoTCollisionMesh *mesh,
         // TODO check float -> int16 conversion
         dist = -(nx * x0 + ny * y0 + nz * z0);
 
-        fprintf(f,
-                "    {\n"
-                "        %u,\n"
-                "        {\n"
-                "            COLPOLY_VTX(%u, %s),\n"
-                "            COLPOLY_VTX(%u, %s),\n"
-                "            COLPOLY_VTX(%u, 0),\n"
-                "        },\n"
-                "        {\n"
-                "            COLPOLY_SNORMAL(%f),\n"
-                "            COLPOLY_SNORMAL(%f),\n"
-                "            COLPOLY_SNORMAL(%f),\n"
-                "        },\n"
-                "        %" PRId16 ",\n"
-                "    },\n",
-                t->material,                                     //
-                remap[v0], mesh->materials[t->material].flags_a, //
-                remap[v1], mesh->materials[t->material].flags_b, //
-                remap[v2],                                       //
-                nx, ny, nz, dist);
+        fprintf(
+            f,
+            "    {\n"
+            "        %s_SURFACETYPE_%s,\n"
+            "        {\n"
+            "            COLPOLY_VTX(%u, %s_COL_%s_FLAGS_A),\n"
+            "            COLPOLY_VTX(%u, %s_COL_%s_FLAGS_B),\n"
+            "            COLPOLY_VTX(%u, 0),\n"
+            "        },\n"
+            "        {\n"
+            "            COLPOLY_SNORMAL(%f),\n"
+            "            COLPOLY_SNORMAL(%f),\n"
+            "            COLPOLY_SNORMAL(%f),\n"
+            "        },\n"
+            "        %" PRId16 ",\n"
+            "    },\n",
+            map_prefix_upper, mesh->materials[t->material].name,            //
+            remap[v0], map_prefix_upper, mesh->materials[t->material].name, //
+            remap[v1], map_prefix_upper, mesh->materials[t->material].name, //
+            remap[v2],                                                      //
+            nx, ny, nz, dist);
     }
     fprintf(f, "};\n");
 
     free(remap);
-
-    fprintf(f, "SurfaceType %s[] = {\n", surface_types_name);
-    for (unsigned int i = 0; i < mesh->n_materials; i++) {
-        fprintf(f,
-                "    {\n"
-                "        {\n"
-                "            %s,\n"
-                "            %s,\n"
-                "        },\n"
-                "    },\n",
-                mesh->materials[i].surface_type_0,
-                mesh->materials[i].surface_type_1);
-    }
-    fprintf(f, "};\n");
 
     if (out_bounds != NULL) {
         out_bounds->min[0] = minX;
