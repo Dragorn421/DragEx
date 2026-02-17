@@ -1182,6 +1182,8 @@ class OoTScene:
     rooms: list[OoTRoom]
     collision: "dragex_backend.OoTCollisionMesh"
     positions: dict[str, tuple[int, int, int]]
+    rotations_yxz: dict[str, mathutils.Euler]
+    yaws: dict[str, float]  # radians
 
 
 class CollectMapException(Exception):
@@ -1267,9 +1269,12 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     collision = dragex_backend.join_OoTCollisionMeshes(collision_meshes)
 
     positions = dict[str, tuple[int, int, int]]()
+    rotations_yxz = dict[str, mathutils.Euler]()
+    yaws = dict[str, float]()
     for obj in coll_scene.all_objects:
         if obj.type == "EMPTY":
             obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
+
             if obj_dragex.oot.empty.export_pos:
                 pos = export_options.transform @ obj.location
                 positions[obj_dragex.oot.empty.export_pos_name] = (
@@ -1278,11 +1283,39 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                     round(pos.z),
                 )
 
+            saved_rotation_mode = obj.rotation_mode
+            try:
+                obj.rotation_mode = "QUATERNION"
+                obj_rot_quaternion = obj.rotation_quaternion.copy()
+            finally:
+                obj.rotation_mode = saved_rotation_mode
+
+            # TODO check this is correct
+            # 1) check transform @ rot @ 1/transform is correct
+            # 2) check Euler ZXY does correspond to oot's YXZ
+            obj_transformed_rot_matrix = (
+                export_options.transform
+                @ obj_rot_quaternion.to_matrix()
+                @ transform_inverted
+            )
+
+            if obj_dragex.oot.empty.export_rot_yxz:
+                rotations_yxz[obj_dragex.oot.empty.export_rot_yxz_name] = (
+                    obj_transformed_rot_matrix.to_euler("ZXY")
+                )
+
+            if obj_dragex.oot.empty.export_yaw:
+                yaws[obj_dragex.oot.empty.export_yaw_name] = (
+                    obj_transformed_rot_matrix.to_euler("ZXY").y
+                )
+
     oot_scene = OoTScene(
         c_identifier=scene_c_identifier,
         rooms=rooms,
         collision=collision,
         positions=positions,
+        rotations_yxz=rotations_yxz,
+        yaws=yaws,
     )
     return oot_scene
 
@@ -1504,17 +1537,24 @@ extern RoomShapeNormal {room_shape_name};
             else:
                 raise NotImplementedError(type(room_shape))
 
-    (exported_dir_p / "positions.h").write_text(
-        f"#ifndef {map_prefix_upper}_POSITIONS_H\n"
-        f"#define {map_prefix_upper}_POSITIONS_H\n"
-        "\n"
-        + "".join(
-            f"#define {name} {x}, {y}, {z}\n"
-            for name, (x, y, z) in oot_scene.positions.items()
+    with (exported_dir_p / "positions.h").open("w") as f:
+        f.write(
+            f"#ifndef {map_prefix_upper}_POSITIONS_H\n"
+            f"#define {map_prefix_upper}_POSITIONS_H\n"
+            "\n"
         )
-        + "\n"
-        "#endif\n"
-    )
+        for name, (x, y, z) in oot_scene.positions.items():
+            f.write(f"#define {name} {x}, {y}, {z}\n")
+        f.write("\n")
+        for name, rot in oot_scene.rotations_yxz.items():
+            f.write(f"#define {name} ")
+            f.write(", ".join(f"DEG_TO_BINANG({math.degrees(_v)})" for _v in rot))
+            f.write("\n")
+        f.write("\n")
+        for name, yaw in oot_scene.yaws.items():
+            f.write(f"#define {name} DEG_TO_BINANG({math.degrees(yaw)})\n")
+        f.write("\n")
+        f.write("\n" "#endif\n")
 
     replacements = {
         "map_prefix_lower": map_prefix_lower,
@@ -1786,6 +1826,20 @@ def validate_export_pos_name(self, context):
         self.export_pos_name = c_identifier
 
 
+def validate_export_rot_yxz_name(self, context):
+    assert isinstance(self, DragExObjectOoTEmptyProperties)
+    c_identifier = make_c_identifier(self.export_rot_yxz_name)
+    if self.export_rot_yxz_name != c_identifier:
+        self.export_rot_yxz_name = c_identifier
+
+
+def validate_export_yaw_name(self, context):
+    assert isinstance(self, DragExObjectOoTEmptyProperties)
+    c_identifier = make_c_identifier(self.export_yaw_name)
+    if self.export_yaw_name != c_identifier:
+        self.export_yaw_name = c_identifier
+
+
 class DragExObjectOoTEmptyProperties(bpy.types.PropertyGroup):
     type: bpy.props.EnumProperty(
         name="Type",
@@ -1796,13 +1850,43 @@ class DragExObjectOoTEmptyProperties(bpy.types.PropertyGroup):
 
     export_pos: bpy.props.BoolProperty(
         name="Export Position",
-        description="On export, write the location of this empty to a positions.h file",
+        description=(
+            "On export, write the location of this empty to a positions.h file"
+        ),
     )
     export_pos_name: bpy.props.StringProperty(
         name="Export Position Name",
         description="The name of the macro to name the exported location as",
         default="POS_",
         update=validate_export_pos_name,
+    )
+
+    export_rot_yxz: bpy.props.BoolProperty(
+        name="Export Rotation",
+        description=(
+            "On export, write the rotation (as Euler YXZ, as used by Actor_Draw)"
+            " of this empty to a positions.h file"
+        ),
+    )
+    export_rot_yxz_name: bpy.props.StringProperty(
+        name="Export Rotation Name",
+        description="The name of the macro to name the exported rotation as",
+        default="ROT_",
+        update=validate_export_rot_yxz_name,
+    )
+
+    export_yaw: bpy.props.BoolProperty(
+        name="Export Yaw",
+        description=(
+            "On export, write the yaw (rotation around the vertical axis)"
+            " of this empty to a positions.h file"
+        ),
+    )
+    export_yaw_name: bpy.props.StringProperty(
+        name="Export Yaw Name",
+        description="The name of the macro to name the exported yaw as",
+        default="YAW_",
+        update=validate_export_yaw_name,
     )
 
 
@@ -2000,9 +2084,24 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         assert obj is not None
         obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
         layout.prop(obj_dragex.oot.empty, "type")
+
         layout.prop(obj_dragex.oot.empty, "export_pos")
         if obj_dragex.oot.empty.export_pos:
             layout.prop(obj_dragex.oot.empty, "export_pos_name")
+
+        layout.prop(obj_dragex.oot.empty, "export_rot_yxz")
+        if obj_dragex.oot.empty.export_rot_yxz:
+            layout.prop(obj_dragex.oot.empty, "export_rot_yxz_name")
+
+        layout.prop(obj_dragex.oot.empty, "export_yaw")
+        if obj_dragex.oot.empty.export_yaw:
+            layout.prop(obj_dragex.oot.empty, "export_yaw_name")
+
+        if (
+            obj_dragex.oot.empty.export_pos
+            or obj_dragex.oot.empty.export_rot_yxz_name
+            or obj_dragex.oot.empty.export_yaw_name
+        ):
             is_part_of_a_scene = False
             for coll in bpy.data.collections.values():
                 assert coll is not None
