@@ -6,8 +6,6 @@ import numpy as np
 import bpy
 import mathutils
 
-if TYPE_CHECKING:
-    from . import DragExMaterialProperties
 from . import util
 
 if TYPE_CHECKING:
@@ -39,7 +37,7 @@ def material_to_MaterialInfo(
     mat: bpy.types.Material,
     image_infos: ImageInfos,
 ):
-    mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+    mat_dragex = util.DRAGEX(mat)
     other_modes = mat_dragex.rdp.other_modes
     tiles = mat_dragex.rdp.tiles
     combiner = mat_dragex.rdp.combiner

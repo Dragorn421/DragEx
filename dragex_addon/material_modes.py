@@ -1,11 +1,9 @@
 import abc
 import math
-from typing import TYPE_CHECKING
 
 import bpy
 
-if TYPE_CHECKING:
-    from . import DragExMaterialProperties
+from . import util
 
 
 def intlog2(v: int):
@@ -46,7 +44,7 @@ class BasicMaterialMode(MaterialMode):
 
     @staticmethod
     def draw(layout, material):
-        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        material_dragex = util.DRAGEX(material)
         mode_basic = material_dragex.modes.basic
         layout.template_ID(mode_basic, "texture", new="image.new", open="image.open")
         texture = mode_basic.texture
@@ -70,7 +68,7 @@ class BasicMaterialMode(MaterialMode):
 
     @staticmethod
     def apply_mode_props(material):
-        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        material_dragex = util.DRAGEX(material)
         basic_props = material_dragex.modes.basic
         texture: bpy.types.Image | None = basic_props.texture
 
@@ -340,7 +338,7 @@ class FullMaterialMode(MaterialMode):
 
     @staticmethod
     def draw(layout, material):
-        mat_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        mat_dragex = util.DRAGEX(material)
         mat_geomode = mat_dragex.rsp
         other_modes = mat_dragex.rdp.other_modes
         combiner = mat_dragex.rdp.combiner

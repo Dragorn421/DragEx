@@ -1,7 +1,10 @@
 import os
+import typing
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+import bpy
 import mathutils
 
 
@@ -65,3 +68,25 @@ class FDManager:
         fd = os.open(p, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
         self.fds.append(fd)
         return fd
+
+
+if TYPE_CHECKING:
+    from . import (
+        DragExCollectionProperties,
+        DragExMaterialProperties,
+        DragExObjectProperties,
+        DragExSceneProperties,
+    )
+
+    @typing.overload
+    def DRAGEX(data: bpy.types.Collection) -> DragExCollectionProperties: ...
+    @typing.overload
+    def DRAGEX(data: bpy.types.Material) -> DragExMaterialProperties: ...
+    @typing.overload
+    def DRAGEX(data: bpy.types.Object) -> DragExObjectProperties: ...
+    @typing.overload
+    def DRAGEX(data: bpy.types.Scene) -> DragExSceneProperties: ...
+
+
+def DRAGEX(data):
+    return data.dragex

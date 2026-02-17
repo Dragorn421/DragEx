@@ -1,14 +1,6 @@
-from typing import TYPE_CHECKING
-
 import bpy
 
-if TYPE_CHECKING:
-    from .. import (
-        DragExCollectionProperties,
-        DragExMaterialProperties,
-        DragExObjectProperties,
-        DragExSceneProperties,
-    )
+from .. import util
 from . import oot_ops
 
 
@@ -23,14 +15,14 @@ class DragExMaterialOoTCollisionPanel(bpy.types.Panel):
     def poll(cls, context):
         if context.scene is None:
             return False
-        scene_dragex: DragExSceneProperties = context.scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(context.scene)
         return scene_dragex.target == "OOT_F3DEX2_PL" and context.material is not None
 
     def draw(self, context):
         assert self.layout is not None
         mat = context.material
         assert mat is not None
-        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+        mat_dragex = util.DRAGEX(mat)
         self.layout.prop(mat_dragex, "polytype_name")
 
 
@@ -47,14 +39,14 @@ class DragExOoTPanel(bpy.types.Panel):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
     def draw(self, context):
         assert self.layout is not None
         scene = context.scene
         assert scene is not None
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
         self.layout.prop(scene_dragex.oot, "scale")
         self.layout.operator(oot_ops.DragExOoTNewSceneOperator.bl_idname)
         self.layout.operator(oot_ops.DragExOoTExportSceneOperator.bl_idname)
@@ -72,7 +64,7 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
     def draw(self, context):
@@ -80,7 +72,7 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
         assert layout is not None
         coll = context.collection
         assert coll is not None
-        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+        coll_dragex = util.DRAGEX(coll)
         layout.prop(coll_dragex.oot, "type")
         if coll_dragex.oot.type == "ROOM":
             layout.prop(coll_dragex.oot.room, "number")
@@ -99,7 +91,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         obj = context.object
         if scene is None or obj is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
         return scene_dragex.target == "OOT_F3DEX2_PL" and obj.type == "EMPTY"
 
     def draw(self, context):
@@ -107,7 +99,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
         assert layout is not None
         obj = context.object
         assert obj is not None
-        obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
+        obj_dragex = util.DRAGEX(obj)
         layout.prop(obj_dragex.oot.empty, "type")
 
         layout.prop(obj_dragex.oot.empty, "export_pos")
@@ -130,7 +122,7 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
             is_part_of_a_scene = False
             for coll in bpy.data.collections.values():
                 assert coll is not None
-                coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+                coll_dragex = util.DRAGEX(coll)
                 if coll_dragex.oot.type == "SCENE" and obj in coll.all_objects.values():
                     is_part_of_a_scene = True
             if not is_part_of_a_scene:

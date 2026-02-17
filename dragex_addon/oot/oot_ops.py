@@ -4,12 +4,6 @@ from typing import TYPE_CHECKING
 import bpy
 import mathutils
 
-if TYPE_CHECKING:
-    from .. import (
-        DragExCollectionProperties,
-        DragExObjectProperties,
-        DragExSceneProperties,
-    )
 from . import oot_export_map
 from .. import util
 
@@ -23,7 +17,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         scene = context.scene
         assert scene is not None
         for coll in scene.collection.children_recursive:
-            coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+            coll_dragex = util.DRAGEX(coll)
             if coll_dragex.oot.type == "SCENE":
                 if edit_text in coll.name.lower():
                     yield coll.name
@@ -42,7 +36,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         scene = context.scene
         if scene is None:
             return False
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
         return scene_dragex.target == "OOT_F3DEX2_PL"
 
     def execute(self, context):  # type: ignore
@@ -58,7 +52,7 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
 
         # TODO pass in the decomp repo path as a prop or something instead
         candidate_decomp_repo_p = export_directory.parent
@@ -139,10 +133,10 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(scene)
 
         scene_coll = bpy.data.collections.new(scene_name)
-        scene_coll_dragex: DragExCollectionProperties = scene_coll.dragex  # type: ignore
+        scene_coll_dragex = util.DRAGEX(scene_coll)
         scene_coll_dragex.oot.type = "SCENE"
 
         scale = scene_dragex.oot.scale
@@ -150,7 +144,7 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
         for room_number, room_name in enumerate(room_names):
             room_coll = bpy.data.collections.new(room_name)
             room_colls.append(room_coll)
-            room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
+            room_coll_dragex = util.DRAGEX(room_coll)
             room_coll_dragex.oot.type = "ROOM"
             room_coll_dragex.oot.room.number = room_number
             scene_coll.children.link(room_coll)
@@ -173,7 +167,7 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
             room_coll.objects.link(room_mesh_obj)
 
         spawn_empty_obj = bpy.data.objects.new(f"{map_name} Spawn", None)
-        spawn_empty_obj_dragex: DragExObjectProperties = spawn_empty_obj.dragex  # type: ignore
+        spawn_empty_obj_dragex = util.DRAGEX(spawn_empty_obj)
         spawn_empty_obj.location = (0, 0, 0)
         spawn_empty_obj.empty_display_type = "ARROWS"
         spawn_empty_obj_dragex.oot.empty.export_pos = True

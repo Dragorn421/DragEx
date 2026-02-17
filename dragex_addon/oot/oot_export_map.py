@@ -10,12 +10,6 @@ import numpy as np
 import bpy
 import mathutils
 
-if TYPE_CHECKING:
-    from .. import (
-        DragExCollectionProperties,
-        DragExMaterialProperties,
-        DragExObjectProperties,
-    )
 from .. import mesh
 from .. import util
 
@@ -63,7 +57,7 @@ def mesh_to_OoTCollisionMesh(
         if mat is None:
             colmat = None
         else:
-            mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+            mat_dragex = util.DRAGEX(mat)
             polytype_name = mat_dragex.oot.polytype_name
             if polytype_name:
                 colmat = dragex_backend.OoTCollisionMaterial(name=polytype_name)
@@ -125,7 +119,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
 
     room_colls = dict[int, bpy.types.Collection]()
     for coll in coll_scene.children_recursive:
-        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+        coll_dragex = util.DRAGEX(coll)
         if coll_dragex.oot.type == "ROOM":
             room_number = coll_dragex.oot.room.number
             if room_number in room_colls:
@@ -149,13 +143,13 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     for i in range(n_rooms):
         room_coll = room_colls[i]
         room_c_identifier = util.make_c_identifier(room_coll.name)
-        room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
+        room_coll_dragex = util.DRAGEX(room_coll)
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
         image_infos = mesh.ImageInfos()
         for obj in room_coll.all_objects:
             if obj.type == "EMPTY":
-                obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
+                obj_dragex = util.DRAGEX(obj)
                 ...
             if obj.type == "MESH":
                 assert isinstance(obj.data, bpy.types.Mesh)
@@ -199,7 +193,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     yaws = dict[str, float]()
     for obj in coll_scene.all_objects:
         if obj.type == "EMPTY":
-            obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
+            obj_dragex = util.DRAGEX(obj)
 
             if obj_dragex.oot.empty.export_pos:
                 pos = export_options.transform @ obj.location

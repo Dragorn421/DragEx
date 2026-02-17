@@ -15,6 +15,7 @@ from .props import tiles_props
 from .props import combiner_props
 from .props import vals_props
 from .props import rsp_props
+from . import util
 
 if TYPE_CHECKING:
     from ..dragex_backend import dragex_backend
@@ -96,14 +97,14 @@ class DragExMaterialPanel(bpy.types.Panel):
     def poll(cls, context):
         if context.scene is None:
             return False
-        scene_dragex: DragExSceneProperties = context.scene.dragex  # type: ignore
+        scene_dragex = util.DRAGEX(context.scene)
         return scene_dragex.target != "NONE" and context.material is not None
 
     def draw(self, context):
         assert self.layout is not None
         mat = context.material
         assert mat is not None
-        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+        mat_dragex = util.DRAGEX(mat)
         self.layout.operator(DragExSetMaterialModeOperator.bl_idname)
         material_modes.material_modes_dict[mat_dragex.mode].draw(self.layout, mat)
 
@@ -128,7 +129,7 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
     def execute(self, context):  # type: ignore
         material = context.material
         assert material is not None
-        material_dragex: DragExMaterialProperties = material.dragex  # type: ignore
+        material_dragex = util.DRAGEX(material)
         prev_mode = material_dragex.mode
         material_dragex.mode = self.mode
         material_modes.material_modes_dict[self.mode].init(material, prev_mode)
@@ -193,7 +194,7 @@ class DragExTargetPanel(bpy.types.Panel):
         assert self.layout is not None
         scene = context.scene
         assert scene is not None
-        dragex: DragExSceneProperties = scene.dragex  # type: ignore
+        dragex = util.DRAGEX(scene)
         self.layout.prop(dragex, "target")
 
 
