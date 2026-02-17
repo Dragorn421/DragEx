@@ -10,7 +10,7 @@ import numpy as np
 import bpy
 import mathutils
 
-from .. import meshstuff
+from .. import mesh
 from .. import util
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ def mesh_to_OoTCollisionMesh(
 
 @dataclasses.dataclass(eq=False)
 class OoTRoomShape(abc.ABC):
-    image_infos: meshstuff.ImageInfos
+    image_infos: mesh.ImageInfos
 
 
 @dataclasses.dataclass(eq=False)  # Use id-based equality and hashing
@@ -145,7 +145,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
         room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
-        image_infos = meshstuff.ImageInfos()
+        image_infos = mesh.ImageInfos()
         for obj in room_coll.all_objects:
             if obj.type == "EMPTY":
                 obj_dragex: DragExObjectProperties = obj.dragex  # type: ignore
@@ -153,7 +153,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             if obj.type == "MESH":
                 assert isinstance(obj.data, bpy.types.Mesh)
                 # TODO this is inefficient if mesh is shared between rooms
-                mesh_info = meshstuff.mesh_to_mesh_info(
+                mesh_info = mesh.mesh_to_mesh_info(
                     obj,
                     obj.data,
                     export_options.transform,
