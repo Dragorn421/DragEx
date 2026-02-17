@@ -7,6 +7,10 @@
 
 // Rooms
 
+#define DEF_ROOM(enumName, segmentName)
+#include "../table_rooms.h"
+#undef DEF_ROOM
+
 enum {
 #define DEF_ROOM(enumName, segmentName) enumName,
 #include "../table_rooms.h"
@@ -22,6 +26,10 @@ extern RomFile map_prefix_lower_RoomList[0
 
 // Spawns
 
+#define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params)
+#include "../table_spawns.h"
+#undef DEF_SPAWN
+
 enum {
 #define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params) spawnEnumName,
 #include "../table_spawns.h"
@@ -34,6 +42,10 @@ extern ActorEntry map_prefix_lower_PlayerEntryList[MAP_PREFIX_UPPER_SPAWN_MAX];
 
 // Environment light settings
 
+#define DEF_ENV_LIGHT_SETTINGS(enumName, data)
+#include "../table_envlightsettings.h"
+#undef DEF_ENV_LIGHT_SETTINGS
+
 enum {
 #define DEF_ENV_LIGHT_SETTINGS(enumName, data) enumName,
 #include "../table_envlightsettings.h"
@@ -44,6 +56,10 @@ enum {
 extern EnvLightSettings map_prefix_lower_EnvLightSettingsList[MAP_PREFIX_UPPER_ENV_LIGHT_SETTINGS_MAX];
 
 // Cameras
+
+#define DEF_CAMERA(enumName, camSetting)
+#include "../table_cameras.h"
+#undef DEF_CAMERA
 
 enum {
 #define DEF_CAMERA(enumName, camSetting) enumName,

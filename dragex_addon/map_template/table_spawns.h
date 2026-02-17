@@ -1,3 +1,4 @@
+#include "player.h"
 #include "exported/positions.h"
 
 DEF_SPAWN(MAP_PREFIX_UPPER_SPAWN_0, MAP_PREFIX_UPPER_ROOM_ROOM_NAME,

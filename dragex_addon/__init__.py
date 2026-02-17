@@ -1505,10 +1505,15 @@ extern RoomShapeNormal {room_shape_name};
                 raise NotImplementedError(type(room_shape))
 
     (exported_dir_p / "positions.h").write_text(
-        "".join(
+        f"#ifndef {map_prefix_upper}_POSITIONS_H\n"
+        f"#define {map_prefix_upper}_POSITIONS_H\n"
+        "\n"
+        + "".join(
             f"#define {name} {x}, {y}, {z}\n"
             for name, (x, y, z) in oot_scene.positions.items()
         )
+        + "\n"
+        "#endif\n"
     )
 
     replacements = {
@@ -1552,8 +1557,15 @@ extern RoomShapeNormal {room_shape_name};
         map_template_dir_p / "frag_table_rooms.h"
     ).read_text()
     glue_room_c_template = (map_template_dir_p / "glue/glue_room_0.c").read_text()
+    glue_room_h_template = (map_template_dir_p / "glue/glue_room_0.h").read_text()
     header_room_inc_c_template = (
         map_template_dir_p / "header_room_0.inc.c"
+    ).read_text()
+    table_actors_room_h_template = (
+        map_template_dir_p / "table_actors_room_0.h"
+    ).read_text()
+    table_objects_room_h_template = (
+        map_template_dir_p / "table_objects_room_0.h"
     ).read_text()
     frag_spec_room_inc_template = (
         map_template_dir_p / "frag_spec_room.inc"
@@ -1581,8 +1593,20 @@ extern RoomShapeNormal {room_shape_name};
             apply_replacements_room(glue_room_c_template),
         )
         write_if_missing(
+            out_dir_p / f"glue/glue_room_{i}.h",
+            apply_replacements_room(glue_room_h_template),
+        )
+        write_if_missing(
             out_dir_p / f"header_room_{i}.inc.c",
             apply_replacements_room(header_room_inc_c_template),
+        )
+        write_if_missing(
+            out_dir_p / f"table_actors_room_{i}.h",
+            apply_replacements_room(table_actors_room_h_template),
+        )
+        write_if_missing(
+            out_dir_p / f"table_objects_room_{i}.h",
+            apply_replacements_room(table_objects_room_h_template),
         )
 
         spec_frags.append(apply_replacements_room(frag_spec_room_inc_template))

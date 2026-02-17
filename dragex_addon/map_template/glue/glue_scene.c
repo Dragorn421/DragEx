@@ -1,9 +1,7 @@
 #include "glue_scene.h"
 
 #include "actor.h"
-#include "camera.h" // for CAM_SET_* in table_cameras.h
 #include "environment.h"
-#include "player.h" // for PLAYER_PARAMS in table_spawns.h
 #include "romfile.h"
 #include "scene.h"
 #include "segment_symbols.h"
