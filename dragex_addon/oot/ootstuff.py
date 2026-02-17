@@ -10,11 +10,11 @@ import numpy as np
 import bpy
 import mathutils
 
-from . import meshstuff
-from . import util
+from .. import meshstuff
+from .. import util
 
 if TYPE_CHECKING:
-    from ..dragex_backend import dragex_backend
+    from ...dragex_backend import dragex_backend
 else:
     try:
         import dragex_backend

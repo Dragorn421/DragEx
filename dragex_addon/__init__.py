@@ -10,7 +10,7 @@ import mathutils
 
 from .build_id import BUILD_ID
 from . import meshstuff
-from . import ootstuff
+from .oot import ootstuff
 from .props import other_mode_props
 from .props import tiles_props
 from .props import combiner_props
