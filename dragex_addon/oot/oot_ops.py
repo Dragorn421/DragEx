@@ -174,6 +174,10 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
         spawn_empty_obj_dragex.oot.empty.export_pos_name = (
             f"POS_{util.make_c_identifier(scene_name).upper()}_SPAWN"
         )
+        spawn_empty_obj_dragex.oot.empty.export_yaw = True
+        spawn_empty_obj_dragex.oot.empty.export_yaw_name = (
+            f"YAW_{util.make_c_identifier(scene_name).upper()}_SPAWN"
+        )
         scene_coll.objects.link(spawn_empty_obj)
 
         scene.collection.children.link(scene_coll)
