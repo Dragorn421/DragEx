@@ -330,6 +330,7 @@ struct MeshInfo {
 void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh);
 
 struct MeshInfo *create_MeshInfo_from_buffers(
+    char *mesh_name,                                                   //
     float *buf_vertices_co, size_t buf_vertices_co_len,                //
     unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
     unsigned int *buf_triangles_material_index,

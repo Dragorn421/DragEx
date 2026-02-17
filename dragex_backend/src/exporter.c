@@ -124,6 +124,7 @@ unsigned int *remap_materials(unsigned int *buf_triangles_material_index,
 }
 
 struct MeshInfo *create_MeshInfo_from_buffers(
+    char *mesh_name,                                                   //
     float *buf_vertices_co, size_t buf_vertices_co_len,                //
     unsigned int *buf_triangles_loops, size_t buf_triangles_loops_len, //
     unsigned int *buf_triangles_material_index,
@@ -191,7 +192,7 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         log_error("malloc mesh failed");
         return NULL;
     }
-    mesh->name = strdup("mesh");
+    mesh->name = strdup(mesh_name);
 
     mesh->n_verts = n_loops;
     mesh->verts = malloc(sizeof(struct VertexInfo) * n_loops);

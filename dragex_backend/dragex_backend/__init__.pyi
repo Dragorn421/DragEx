@@ -149,6 +149,7 @@ class MeshInfo:
     def write_c(self, fd: int, /) -> str: ...
 
 def create_MeshInfo(
+    mesh_name: str,
     buf_vertices_co: Buffer,
     buf_triangles_loops: Buffer,
     buf_triangles_material_index: Buffer,

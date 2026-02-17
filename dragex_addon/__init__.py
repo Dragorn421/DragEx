@@ -77,6 +77,7 @@ class ImageInfos:
 
 
 def material_to_MaterialInfo(
+    c_identifiers_prefix: str,
     mat: bpy.types.Material,
     image_infos: ImageInfos,
 ):
@@ -96,9 +97,9 @@ def material_to_MaterialInfo(
             image_key = ImageKey(image, tile.format, tile.size)
             image_info = image_infos.info_by_key.get(image_key)
             if image_info is None:
-                c_identifier = make_c_identifier(image.name)
+                c_identifier = c_identifiers_prefix + make_c_identifier(image.name)
                 if c_identifier in image_infos.key_by_c_identifier:
-                    c_identifier = make_c_identifier(
+                    c_identifier = c_identifiers_prefix + make_c_identifier(
                         f"{image.name}_{tile.format}{tile.size}"
                     )
                     c_identifier_candidate = c_identifier
@@ -140,7 +141,7 @@ def material_to_MaterialInfo(
         )
 
     mat_info = dragex_backend.MaterialInfo(
-        name=make_c_identifier(mat.name),
+        name=c_identifiers_prefix + make_c_identifier(mat.name),
         uv_basis_s=mat_dragex.uv_basis_s,
         uv_basis_t=mat_dragex.uv_basis_t,
         other_modes=dragex_backend.MaterialInfoOtherModes(
@@ -245,6 +246,7 @@ def mesh_to_mesh_info(
     mesh: bpy.types.Mesh,
     transform: mathutils.Matrix,
     image_infos: ImageInfos,
+    c_identifiers_prefix: str,
 ):
     # TODO test more with different matrix_world
     transform = transform.to_4x4() @ obj.matrix_world
@@ -320,7 +322,7 @@ def mesh_to_mesh_info(
         if mat is None:
             mat_info = None
         else:
-            mat_info = material_to_MaterialInfo(mat, image_infos)
+            mat_info = material_to_MaterialInfo(c_identifiers_prefix, mat, image_infos)
         material_infos.append(mat_info)
     default_material_info = dragex_backend.MaterialInfo(
         name="DEFAULT_MATERIAL",
@@ -436,6 +438,7 @@ def mesh_to_mesh_info(
         ),
     )
     mesh_info = dragex_backend.create_MeshInfo(
+        c_identifiers_prefix + make_c_identifier(obj.name),
         buf_vertices_co,
         buf_triangles_loops,
         buf_triangles_material_index,
@@ -521,6 +524,7 @@ class DragExBackendDemoOperator(bpy.types.Operator):
             mesh,
             (transform_zup_to_yup @ mathutils.Matrix.Scale(1, 3)),
             image_infos,
+            "",
         )
         with open(
             "/home/dragorn421/Documents/dragex/dragex_attempt2/output.c", "w"
@@ -1129,6 +1133,8 @@ class CollectMapException(Exception):
 
 
 def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions"):
+    scene_c_identifier = make_c_identifier(coll_scene.name)
+
     transform_inverted = export_options.transform.inverted()
 
     room_colls = dict[int, bpy.types.Collection]()
@@ -1156,6 +1162,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
 
     for i in range(n_rooms):
         room_coll = room_colls[i]
+        room_c_identifier = make_c_identifier(room_coll.name)
         room_coll_dragex: DragExCollectionProperties = room_coll.dragex  # type: ignore
         entries_opa = list[dragex_backend.MeshInfo]()
         entries_xlu = list[dragex_backend.MeshInfo]()
@@ -1172,6 +1179,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                     obj.data,
                     export_options.transform,
                     image_infos,
+                    f"{scene_c_identifier}_{room_c_identifier}_",
                 )
                 # TODO prop to set draw layer opa/xlu
                 entries_opa.append(mesh_info)
@@ -1183,7 +1191,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
         )
 
         room = OoTRoom(
-            c_identifier=make_c_identifier(room_coll.name),
+            c_identifier=room_c_identifier,
             shape=shape,
         )
         rooms.append(room)
@@ -1213,7 +1221,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                 )
 
     oot_scene = OoTScene(
-        c_identifier=make_c_identifier(coll_scene.name),
+        c_identifier=scene_c_identifier,
         rooms=rooms,
         collision=collision,
         positions=positions,
@@ -1409,7 +1417,9 @@ extern RoomShapeNormal {room_shape_name};
                     )
 
                 with open(room_fd, "w", closefd=False) as f:
-                    dlists_entries_name = f"{map_prefix_lower}_DListsEntries"
+                    dlists_entries_name = (
+                        f"{map_prefix_lower}_{room.c_identifier}_DListsEntries"
+                    )
                     f.write(f"RoomShapeDListsEntry {dlists_entries_name}[] = " "{\n")
                     for opa_dl_name, xlu_dl_name in zip(
                         opa_dlists_names, xlu_dlists_names

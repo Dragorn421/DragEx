@@ -155,6 +155,7 @@ int converter_MaterialInfoObject_or_None_sequence(PyObject *obj,
 }
 
 PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
+    char *mesh_name;
     Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
         buf_triangles_material_index_view, buf_loops_vertex_index_view,
         buf_loops_normal_view, buf_corners_color_view, buf_points_color_view,
@@ -163,7 +164,8 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     PyObject *_default_material_info;
 
     if (!PyArg_ParseTuple(
-            args, "O&O&O&O&O&O&O&O&O&O!",                                //
+            args, "sO&O&O&O&O&O&O&O&O&O!",                               //
+            &mesh_name,                                                  //
             converter_contiguous_float_buffer, &buf_vertices_co_view,    //
             converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
             converter_contiguous_uint_buffer,
@@ -223,6 +225,7 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     struct MeshInfo *mesh;
 
     mesh = create_MeshInfo_from_buffers(
+        mesh_name,                                                       //
         buf_vertices_co_view.buf, buf_vertices_co_view.shape[0],         //
         buf_triangles_loops_view.buf, buf_triangles_loops_view.shape[0], //
         buf_triangles_material_index_view.buf,
