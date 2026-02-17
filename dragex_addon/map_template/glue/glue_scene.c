@@ -1,8 +1,9 @@
 #include "glue_scene.h"
 
 #include "actor.h"
+#include "camera.h" // for CAM_SET_* in table_cameras.h
 #include "environment.h"
-#include "player.h" // for PLAYER_PARAMS in spawns_table.h
+#include "player.h" // for PLAYER_PARAMS in table_spawns.h
 #include "romfile.h"
 #include "scene.h"
 #include "segment_symbols.h"
@@ -70,6 +71,12 @@ SurfaceType map_prefix_lower_SurfaceTypes[] = {
 #define DEF_SURFACETYPE(name, st0, st1, flagsA, flagsB) {{st0, st1}},
 #include "../table_polytypes.h"
 #undef DEF_SURFACETYPE
+};
+
+BgCamInfo map_prefix_lower_BgCamList[] = {
+#define DEF_CAMERA(enumName, camSetting) {(camSetting), 0, NULL},
+#include "../table_cameras.h"
+#undef DEF_CAMERA
 };
 
 #include "../exported/collision.inc.c"

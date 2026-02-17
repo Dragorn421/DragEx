@@ -43,4 +43,13 @@ enum {
 
 extern EnvLightSettings map_prefix_lower_EnvLightSettingsList[MAP_PREFIX_UPPER_ENV_LIGHT_SETTINGS_MAX];
 
+// Cameras
+
+enum {
+#define DEF_CAMERA(enumName, camSetting) enumName,
+#include "../table_cameras.h"
+#undef DEF_CAMERA
+    MAP_PREFIX_UPPER_CAMERA_MAX
+};
+
 #endif

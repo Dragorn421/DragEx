@@ -1278,6 +1278,7 @@ def export_coll_scene(
         col_vtx_list_name = f"{map_prefix_lower}_VtxList"
         col_poly_list_name = f"{map_prefix_lower}_PolyList"
         col_surface_types_name = f"{map_prefix_lower}_SurfaceTypes"
+        col_bg_cam_list_name = f"{map_prefix_lower}_BgCamList"
 
         with open(collision_inc_c_fd, "w", closefd=False) as f:
             f.write(
@@ -1321,7 +1322,7 @@ def export_coll_scene(
                 f"    ARRAY_COUNT({col_poly_list_name}),\n"
                 f"    {col_poly_list_name},\n"
                 f"    {col_surface_types_name},\n"
-                f"    NULL,\n"  # TODO BgCamList
+                f"    {col_bg_cam_list_name},\n"
                 f"    0,\n"  # TODO waterboxes
                 f"    NULL,\n"
                 "};\n"
@@ -1474,6 +1475,7 @@ extern RoomShapeNormal {room_shape_name};
         Path("glue/glue_scene.c"),
         Path("glue/glue_scene.h"),
         Path("header_scene.inc.c"),
+        Path("table_cameras.h"),
         Path("table_envlightsettings.h"),
         Path("table_polytypes.h"),
         Path("table_spawns.h"),
