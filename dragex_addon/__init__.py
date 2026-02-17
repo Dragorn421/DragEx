@@ -10,7 +10,9 @@ import mathutils
 
 from .build_id import BUILD_ID
 from . import meshstuff
-from .oot import ootstuff
+from .oot import oot_ops
+from .oot import oot_panels
+from .oot import oot_props
 from .props import other_mode_props
 from .props import tiles_props
 from .props import combiner_props
@@ -655,10 +657,10 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
 
 
 class DragExCollectionProperties(bpy.types.PropertyGroup):
-    oot_: bpy.props.PointerProperty(type=ootstuff.DragExCollectionOoTProperties)
+    oot_: bpy.props.PointerProperty(type=oot_props.DragExCollectionOoTProperties)
 
     @property
-    def oot(self) -> ootstuff.DragExCollectionOoTProperties:
+    def oot(self) -> oot_props.DragExCollectionOoTProperties:
         return self.oot_
 
 
@@ -678,18 +680,18 @@ class DragExSceneProperties(bpy.types.PropertyGroup):
         ),
     )
 
-    oot_: bpy.props.PointerProperty(type=ootstuff.DragExSceneOoTProperties)
+    oot_: bpy.props.PointerProperty(type=oot_props.DragExSceneOoTProperties)
 
     @property
-    def oot(self) -> ootstuff.DragExSceneOoTProperties:
+    def oot(self) -> oot_props.DragExSceneOoTProperties:
         return self.oot_
 
 
 class DragExObjectProperties(bpy.types.PropertyGroup):
-    oot_: bpy.props.PointerProperty(type=ootstuff.DragExObjectOoTProperties)
+    oot_: bpy.props.PointerProperty(type=oot_props.DragExObjectOoTProperties)
 
     @property
-    def oot(self) -> ootstuff.DragExObjectOoTProperties:
+    def oot(self) -> oot_props.DragExObjectOoTProperties:
         return self.oot_
 
 
@@ -721,23 +723,23 @@ classes = (
     DragExMaterialRDPProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
-    ootstuff.DragExMaterialOoTCollisionPanel,
-    ootstuff.DragExCollectionOoTSceneProperties,
-    ootstuff.DragExCollectionOoTRoomProperties,
-    ootstuff.DragExCollectionOoTProperties,
+    oot_panels.DragExMaterialOoTCollisionPanel,
+    oot_props.DragExCollectionOoTSceneProperties,
+    oot_props.DragExCollectionOoTRoomProperties,
+    oot_props.DragExCollectionOoTProperties,
     DragExCollectionProperties,
-    ootstuff.DragExSceneOoTProperties,
+    oot_props.DragExSceneOoTProperties,
     DragExSceneProperties,
-    ootstuff.DragExObjectOoTEmptyProperties,
-    ootstuff.DragExObjectOoTProperties,
+    oot_props.DragExObjectOoTEmptyProperties,
+    oot_props.DragExObjectOoTProperties,
     DragExObjectProperties,
     DragExTargetPanel,
-    ootstuff.DragExOoTNewSceneOperator,
-    ootstuff.DragExOoTPanel,
-    ootstuff.DragExCollectionOoTPanel,
-    ootstuff.DragExObjectOoTEmptyPanel,
+    oot_ops.DragExOoTNewSceneOperator,
+    oot_panels.DragExOoTPanel,
+    oot_panels.DragExCollectionOoTPanel,
+    oot_panels.DragExObjectOoTEmptyPanel,
     DragExBackendDemoOperator,
-    ootstuff.DragExOoTExportSceneOperator,
+    oot_ops.DragExOoTExportSceneOperator,
     DragExSetMaterialModeOperator,
 )
 
