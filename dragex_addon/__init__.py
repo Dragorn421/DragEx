@@ -488,7 +488,12 @@ def mesh_to_OoTCollisionMesh(
         if mat is None:
             colmat = None
         else:
-            colmat = None  # material_to_OoTCollisionMaterial(mat)  # TODO
+            mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+            polytype_name = mat_dragex.polytype_name
+            if polytype_name:
+                colmat = dragex_backend.OoTCollisionMaterial(name=polytype_name)
+            else:
+                colmat = None
         materials.append(colmat)
 
     default_material = dragex_backend.OoTCollisionMaterial(name="DEFAULT")
@@ -1017,6 +1022,27 @@ class DragExMaterialRDPProperties(bpy.types.PropertyGroup):
         return self.vals_
 
 
+def search_polytype_names(self, context: bpy.types.Context, edit_text: str):
+    if not hasattr(context, "object") or context.object is None:
+        return list[str]()
+    obj = context.object
+    search = edit_text.lower()
+    used_polytypes = set[str]()
+    for coll in bpy.data.collections.values():
+        assert coll is not None
+        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+        if coll_dragex.oot.type == "SCENE" and obj in coll.all_objects.values():
+            for obj in coll.all_objects:
+                if obj.type == "MESH":
+                    for mat_slot in obj.material_slots:
+                        mat = mat_slot.material
+                        if mat is not None:
+                            mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+                            if search in mat_dragex.polytype_name.lower():
+                                used_polytypes.add(mat_dragex.polytype_name)
+    return sorted(used_polytypes)
+
+
 class DragExMaterialProperties(bpy.types.PropertyGroup):
     mode: bpy.props.EnumProperty(
         items=material_mode_items,
@@ -1043,6 +1069,16 @@ class DragExMaterialProperties(bpy.types.PropertyGroup):
     def rsp(self) -> rsp_props.DragExMaterialRSPProperties:
         return self.rsp_
 
+    polytype_name: bpy.props.StringProperty(
+        name="Polytype",
+        description=(
+            "The name of the polytype (surface type) this material uses"
+            " for exporting collision, as found in table_polytypes.h"
+        ),
+        default="DEFAULT",
+        search=search_polytype_names,
+    )
+
 
 class DragExMaterialPanel(bpy.types.Panel):
     bl_idname = "MATERIAL_PT_dragex"
@@ -1065,6 +1101,28 @@ class DragExMaterialPanel(bpy.types.Panel):
         mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
         self.layout.operator(DragExSetMaterialModeOperator.bl_idname)
         material_modes_dict[mat_dragex.mode].draw(self.layout, mat)
+
+
+class DragExMaterialOoTCollisionPanel(bpy.types.Panel):
+    bl_idname = "MATERIAL_PT_dragex_oot_collision"
+    bl_label = "DragEx OoT Collision"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+
+    @classmethod
+    def poll(cls, context):
+        if context.scene is None:
+            return False
+        scene_dragex: DragExSceneProperties = context.scene.dragex  # type: ignore
+        return scene_dragex.target == "OOT_F3DEX2_PL" and context.material is not None
+
+    def draw(self, context):
+        assert self.layout is not None
+        mat = context.material
+        assert mat is not None
+        mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+        self.layout.prop(mat_dragex, "polytype_name")
 
 
 class DragExSetMaterialModeOperator(bpy.types.Operator):
@@ -1949,6 +2007,7 @@ classes = (
     DragExMaterialRDPProperties,
     DragExMaterialProperties,
     DragExMaterialPanel,
+    DragExMaterialOoTCollisionPanel,
     DragExCollectionOoTSceneProperties,
     DragExCollectionOoTRoomProperties,
     DragExCollectionOoTProperties,
