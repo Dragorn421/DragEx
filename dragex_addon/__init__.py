@@ -20,7 +20,7 @@ from .props import vals_props
 from .props import rsp_props
 
 if TYPE_CHECKING:
-    import dragex_backend
+    from ..dragex_backend import dragex_backend
 else:
     try:
         import dragex_backend
