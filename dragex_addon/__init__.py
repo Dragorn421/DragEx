@@ -588,7 +588,7 @@ class BasicMaterialMode(MaterialMode):
         mode_basic = material_dragex.modes.basic
         layout.template_ID(mode_basic, "texture", new="image.new", open="image.open")
         texture = mode_basic.texture
-        if texture is not None:
+        if texture is not None and tuple(texture.size) != (0, 0):
             texture_w, texture_h = texture.size
             if texture_w * texture_h * 2 > TMEM_SIZE:
                 layout.label(text="Texture too big: max 32x64 or 64x32", icon="ERROR")
