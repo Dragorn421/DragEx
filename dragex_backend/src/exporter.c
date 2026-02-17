@@ -657,6 +657,8 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
     fprintf(f, "Gfx %s_mat_dl[] = {\n", name);
 
+    fprintf(f, "    gsDPPipeSync(),\n");
+
     fprintf(f, "    gsDPPipelineMode(%s),\n",
             om->atomic_prim ? "G_PM_1PRIMITIVE" : "G_PM_NPRIMITIVE");
 
