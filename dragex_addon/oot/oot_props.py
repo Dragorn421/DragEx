@@ -1,5 +1,9 @@
+from typing import TYPE_CHECKING
+
 import bpy
 
+if TYPE_CHECKING:
+    from .. import DragExCollectionProperties, DragExMaterialProperties
 from .. import util
 
 
@@ -128,3 +132,36 @@ class DragExObjectOoTProperties(bpy.types.PropertyGroup):
     @property
     def empty(self) -> DragExObjectOoTEmptyProperties:
         return self.empty_
+
+
+def search_polytype_names(self, context: bpy.types.Context, edit_text: str):
+    if not hasattr(context, "object") or context.object is None:
+        return list[str]()
+    obj = context.object
+    search = edit_text.lower()
+    used_polytypes = set[str]()
+    for coll in bpy.data.collections.values():
+        assert coll is not None
+        coll_dragex: DragExCollectionProperties = coll.dragex  # type: ignore
+        if coll_dragex.oot.type == "SCENE" and obj in coll.all_objects.values():
+            for obj in coll.all_objects:
+                if obj.type == "MESH":
+                    for mat_slot in obj.material_slots:
+                        mat = mat_slot.material
+                        if mat is not None:
+                            mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
+                            if search in mat_dragex.oot.polytype_name.lower():
+                                used_polytypes.add(mat_dragex.oot.polytype_name)
+    return sorted(used_polytypes)
+
+
+class DragExMaterialOoTProperties(bpy.types.PropertyGroup):
+    polytype_name: bpy.props.StringProperty(
+        name="Polytype",
+        description=(
+            "The name of the polytype (surface type) this material uses"
+            " for exporting collision, as found in table_polytypes.h"
+        ),
+        default="DEFAULT",
+        search=search_polytype_names,
+    )

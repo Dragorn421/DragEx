@@ -1,11 +1,14 @@
+from typing import TYPE_CHECKING
+
 import bpy
 
-from .. import (
-    DragExCollectionProperties,
-    DragExMaterialProperties,
-    DragExObjectProperties,
-    DragExSceneProperties,
-)
+if TYPE_CHECKING:
+    from .. import (
+        DragExCollectionProperties,
+        DragExMaterialProperties,
+        DragExObjectProperties,
+        DragExSceneProperties,
+    )
 from . import oot_ops
 
 

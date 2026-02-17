@@ -6,6 +6,8 @@ import numpy as np
 import bpy
 import mathutils
 
+if TYPE_CHECKING:
+    from . import DragExMaterialProperties
 from . import util
 
 if TYPE_CHECKING:

@@ -1,13 +1,15 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import bpy
 import mathutils
 
-from .. import (
-    DragExCollectionProperties,
-    DragExObjectProperties,
-    DragExSceneProperties,
-)
+if TYPE_CHECKING:
+    from .. import (
+        DragExCollectionProperties,
+        DragExObjectProperties,
+        DragExSceneProperties,
+    )
 from . import oot_export_map
 from .. import util
 

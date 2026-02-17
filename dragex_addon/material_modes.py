@@ -1,9 +1,11 @@
 import abc
 import math
+from typing import TYPE_CHECKING
 
 import bpy
 
-from . import DragExMaterialProperties
+if TYPE_CHECKING:
+    from . import DragExMaterialProperties
 
 
 def intlog2(v: int):

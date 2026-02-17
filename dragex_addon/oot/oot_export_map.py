@@ -10,6 +10,12 @@ import numpy as np
 import bpy
 import mathutils
 
+if TYPE_CHECKING:
+    from .. import (
+        DragExCollectionProperties,
+        DragExMaterialProperties,
+        DragExObjectProperties,
+    )
 from .. import mesh
 from .. import util
 
@@ -58,7 +64,7 @@ def mesh_to_OoTCollisionMesh(
             colmat = None
         else:
             mat_dragex: DragExMaterialProperties = mat.dragex  # type: ignore
-            polytype_name = mat_dragex.polytype_name
+            polytype_name = mat_dragex.oot.polytype_name
             if polytype_name:
                 colmat = dragex_backend.OoTCollisionMaterial(name=polytype_name)
             else:
@@ -77,6 +83,7 @@ def mesh_to_OoTCollisionMesh(
     )
 
     return collision_mesh
+
 
 @dataclasses.dataclass(eq=False)
 class OoTRoomShape(abc.ABC):
