@@ -1763,19 +1763,24 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
 
     def execute(self, context):  # type: ignore
         map_name: str = self.map_name
-        cont = True
-        i = 0
-        scene_name = ""
-        room_names = []
-        while cont:
-            scene_name = f"{map_name} Scene"
-            room_names = [f"{map_name} Room {_i}" for _i in range(self.n_rooms)]
-            cont = scene_name in bpy.data.collections or any(
+        scene_name = f"{map_name} Scene"
+        room_names = [f"Room {_i}" for _i in range(self.n_rooms)]
+
+        def are_names_taken(scene_name: str, room_names: list[str]):
+            return scene_name in bpy.data.collections or any(
                 _room_name in bpy.data.collections for _room_name in room_names
             )
-            if cont:
-                i += 1
-                map_name = self.map_name + f".{i:03}"
+
+        if are_names_taken(scene_name, room_names):
+            cont = True
+            i = 0
+            while cont:
+                scene_name = f"{map_name} Scene"
+                room_names = [f"{map_name} Room {_i}" for _i in range(self.n_rooms)]
+                cont = are_names_taken(scene_name, room_names)
+                if cont:
+                    i += 1
+                    map_name = self.map_name + f".{i:03}"
 
         scene = context.scene
         assert scene is not None
@@ -1818,7 +1823,7 @@ class DragExOoTNewSceneOperator(bpy.types.Operator):
         spawn_empty_obj.empty_display_type = "ARROWS"
         spawn_empty_obj_dragex.oot.empty.export_pos = True
         spawn_empty_obj_dragex.oot.empty.export_pos_name = (
-            f"POS_{make_c_identifier(map_name).upper()}_SCENE_SPAWN"
+            f"POS_{make_c_identifier(scene_name).upper()}_SPAWN"
         )
         scene_coll.objects.link(spawn_empty_obj)
 
