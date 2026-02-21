@@ -1,8 +1,8 @@
 useWorldSpaceLighting = True
-ambientColor = (0, 1, 0, 1)
-light0Color = (1, 0, 0, 1)
+ambientColor = (1, 1, 1, 1)
+light0Color = (0, 0, 0, 1)
 light0Direction = (1, 0, 0)
-light1Color = (1, 0, 0, 1)
+light1Color = (0, 0, 0, 1)
 light1Direction = (1, 0, 0)
 f3d_type = "f3dex2"
 gameEditorMode = "_"
