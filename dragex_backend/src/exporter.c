@@ -453,11 +453,57 @@ enum shading_type { SHADING_NULL, SHADING_COLORS, SHADING_NORMALS };
 struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                                   int uv_basis_t,
                                   enum shading_type shading_type) {
+    // convert vertices from VertexInfo to f3d_vertex
+
+    struct f3d_vertex *mesh_verts_f3d =
+        malloc(sizeof(struct f3d_vertex) * mesh->n_verts);
+
+    if (mesh_verts_f3d == NULL) {
+        log_error("malloc indices or remap failed");
+        free(mesh_verts_f3d);
+        return NULL;
+    }
+
+    for (unsigned int i = 0; i < mesh->n_verts; i++) {
+        struct VertexInfo *vi = &mesh->verts[i];
+        struct f3d_vertex *f3d_v = &mesh_verts_f3d[i];
+        f3d_v->coords[0] = (int16_t)vi->coords[0];
+        f3d_v->coords[1] = (int16_t)vi->coords[1];
+        f3d_v->coords[2] = (int16_t)vi->coords[2];
+
+        // TODO uv -> st conversion
+        // (this seems correct for basic UVing and clamping)
+        f3d_v->st[0] = (int16_t)(int)(vi->uv[0] * uv_basis_s * (1 << 5));
+        f3d_v->st[1] =
+            (int16_t)(int)((1.0f - vi->uv[1]) * uv_basis_t * (1 << 5));
+
+        switch (shading_type) {
+        case SHADING_COLORS:
+            for (int j = 0; j < 3; j++)
+                f3d_v->cn[j] = vi->color[j];
+            break;
+        case SHADING_NORMALS:
+            for (int j = 0; j < 3; j++) {
+                f3d_v->cn[j] =
+                    (uint8_t)(int)clampf(vi->normal[j] * 0x7F, -0x7F, 0x7F);
+            }
+            break;
+        case SHADING_NULL:
+        default:
+            f3d_v->cn[0] = f3d_v->cn[1] = f3d_v->cn[2] = 0;
+            break;
+        }
+        f3d_v->alpha = vi->color[3];
+    }
+
+    // remap vertices (merge identical ones)
+
     unsigned int *indices = malloc(sizeof(unsigned int) * mesh->n_faces * 3);
     unsigned int *remap = malloc(sizeof(unsigned int) * mesh->n_verts);
 
     if (indices == NULL || remap == NULL) {
         log_error("malloc indices or remap failed");
+        free(mesh_verts_f3d);
         free(indices);
         free(remap);
         return NULL;
@@ -470,27 +516,24 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         }
     }
 
-    // TODO convert VertexInfo.coords to int16_t somewhere before doing the
-    // remap actually just convert VertexInfo to f3d_vertex entirely before
-    // doing the remap as VertexInfo contains more data than is relevant (eg
-    // both color and normal)
-
     size_t n_unique_verts = meshopt_generateVertexRemap(
-        remap, indices, mesh->n_faces * 3, mesh->verts, mesh->n_verts,
-        sizeof(struct VertexInfo));
+        remap, indices, mesh->n_faces * 3, mesh_verts_f3d, mesh->n_verts,
+        sizeof(struct f3d_vertex));
 
-    struct VertexInfo *vertices =
-        malloc(sizeof(struct VertexInfo) * n_unique_verts);
+    struct f3d_vertex *vertices =
+        malloc(sizeof(struct f3d_vertex) * n_unique_verts);
     if (vertices == NULL) {
         log_error("malloc vertices failed");
+        free(mesh_verts_f3d);
         free(indices);
         free(remap);
         return NULL;
     }
     meshopt_remapIndexBuffer(indices, indices, mesh->n_faces * 3, remap);
-    meshopt_remapVertexBuffer(vertices, mesh->verts, mesh->n_verts,
-                              sizeof(struct VertexInfo), remap);
+    meshopt_remapVertexBuffer(vertices, mesh_verts_f3d, mesh->n_verts,
+                              sizeof(struct f3d_vertex), remap);
 
+    free(mesh_verts_f3d);
     free(remap);
 
     meshopt_optimizeVertexCache(indices, indices, mesh->n_faces * 3,
@@ -498,14 +541,14 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
 
     // TODO check malloc results
 
-    size_t f3d_vertices_buf_len = n_unique_verts * 2;
-    struct f3d_vertex *f3d_vertices =
-        malloc(sizeof(struct f3d_vertex) * f3d_vertices_buf_len);
+    size_t vertices_buf_len = n_unique_verts * 2;
+    struct f3d_vertex *vertices_buf =
+        malloc(sizeof(struct f3d_vertex) * vertices_buf_len);
 #define VERTEX_CACHE 32
     size_t f3d_entries_buf_len = 1 + 2 * mesh->n_faces / VERTEX_CACHE;
     struct f3d_mesh_load_entry *f3d_entries =
         malloc(sizeof(struct f3d_mesh_load_entry) * f3d_entries_buf_len);
-    size_t i_f3d_vertices = 0;
+    size_t i_vertices_buf = 0;
     size_t i_f3d_entries = 0;
     size_t cur_entry_tris_buf_len = VERTEX_CACHE;
     f3d_entries[0].tris =
@@ -545,48 +588,20 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                     i_vertex_cache_next++;
 
                     // append vertex to f3d_vertices
-                    if (i_f3d_vertices >= f3d_vertices_buf_len) {
-                        f3d_vertices_buf_len *= 2;
+                    if (i_vertices_buf >= vertices_buf_len) {
+                        vertices_buf_len *= 2;
                         void *tmp =
-                            realloc(f3d_vertices, sizeof(struct f3d_vertex) *
-                                                      f3d_vertices_buf_len);
+                            realloc(vertices_buf, sizeof(struct f3d_vertex) *
+                                                      vertices_buf_len);
                         if (tmp == NULL) {
                             // TODO
                         }
-                        f3d_vertices = tmp;
+                        vertices_buf = tmp;
                     }
-                    struct VertexInfo *vi = &vertices[indices[i_tri * 3 + i]];
-                    assert(i_f3d_vertices < f3d_vertices_buf_len);
-                    struct f3d_vertex *f3d_v = &f3d_vertices[i_f3d_vertices];
-                    f3d_v->coords[0] = (int16_t)vi->coords[0];
-                    f3d_v->coords[1] = (int16_t)vi->coords[1];
-                    f3d_v->coords[2] = (int16_t)vi->coords[2];
-
-                    // TODO uv -> st conversion
-                    // (this seems correct for basic UVing and clamping)
-                    f3d_v->st[0] =
-                        (int16_t)(int)(vi->uv[0] * uv_basis_s * (1 << 5));
-                    f3d_v->st[1] = (int16_t)(int)((1.0f - vi->uv[1]) *
-                                                  uv_basis_t * (1 << 5));
-
-                    switch (shading_type) {
-                    case SHADING_COLORS:
-                        for (int j = 0; j < 3; j++)
-                            f3d_v->cn[j] = vi->color[j];
-                        break;
-                    case SHADING_NORMALS:
-                        for (int j = 0; j < 3; j++) {
-                            f3d_v->cn[j] = (uint8_t)(int)clampf(
-                                vi->normal[j] * 0x7F, -0x7F, 0x7F);
-                        }
-                        break;
-                    case SHADING_NULL:
-                    default:
-                        f3d_v->cn[0] = f3d_v->cn[1] = f3d_v->cn[2] = 0;
-                        break;
-                    }
-                    f3d_v->alpha = vi->color[3];
-                    i_f3d_vertices++;
+                    assert(i_vertices_buf < vertices_buf_len);
+                    vertices_buf[i_vertices_buf] =
+                        vertices[indices[i_tri * 3 + i]];
+                    i_vertices_buf++;
                 }
             }
 
@@ -629,7 +644,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                 malloc(sizeof(struct f3d_mesh_load_entry_tri) *
                        cur_entry_tris_buf_len);
             // TODO check malloc
-            f3d_entries[i_f3d_entries].buffer_i = i_f3d_vertices;
+            f3d_entries[i_f3d_entries].buffer_i = i_vertices_buf;
             f3d_entries[i_f3d_entries].n = 0;
             f3d_entries[i_f3d_entries].v0 = 0;
             f3d_entries[i_f3d_entries].n_tris = 0;
@@ -646,9 +661,9 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
     free(indices);
 
     struct f3d_mesh *f3d_mesh = malloc(sizeof(struct f3d_mesh));
-    f3d_mesh->vertices = f3d_vertices;
+    f3d_mesh->vertices = vertices_buf;
     f3d_mesh->entries = f3d_entries;
-    f3d_mesh->n_vertices = i_f3d_vertices;
+    f3d_mesh->n_vertices = i_vertices_buf;
     f3d_mesh->n_entries = i_f3d_entries + 1;
     return f3d_mesh;
 }
