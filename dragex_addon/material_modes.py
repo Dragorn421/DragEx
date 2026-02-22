@@ -438,7 +438,7 @@ class MultitextureMaterialMode(MaterialMode):
         tile1.image = texture2
         tile1.format = "RGBA"
         tile1.size = "16"
-        if tile0.image is None:
+        if tile0.image is None or texture1 == texture2:
             tile1.address = 0
         else:
             assert texture1 is not None
@@ -451,7 +451,7 @@ class MultitextureMaterialMode(MaterialMode):
             texture2_w, texture2_h = texture2.size
             if texture2_w * texture2_h * 2 > TMEM_SIZE:
                 tile1.image = None
-            if texture1 is None:
+            if tile0.image is None:
                 material_dragex.uv_basis_s = texture2_w
                 material_dragex.uv_basis_t = texture2_h
             if texture2_w * 2 % 8 != 0:
