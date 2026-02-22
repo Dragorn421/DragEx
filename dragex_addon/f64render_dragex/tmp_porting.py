@@ -9,4 +9,4 @@ gameEditorMode = "_"
 
 
 def is_dragex_material(mat):
-    return True
+    return mat.dragex.mode != "NONE"

@@ -269,7 +269,13 @@ def mesh_to_mesh_info(
         if mat is None:
             mat_info = None
         else:
-            mat_info = material_to_MaterialInfo(c_identifiers_prefix, mat, image_infos)
+            mat_dragex = util.DRAGEX(mat)
+            if mat_dragex.mode == "NONE":
+                mat_info = None
+            else:
+                mat_info = material_to_MaterialInfo(
+                    c_identifiers_prefix, mat, image_infos
+                )
         material_infos.append(mat_info)
     default_material_info = dragex_backend.MaterialInfo(
         name="DEFAULT_MATERIAL",
