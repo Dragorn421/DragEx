@@ -23,7 +23,7 @@ class DragExMaterialOoTCollisionPanel(bpy.types.Panel):
         mat = context.material
         assert mat is not None
         mat_dragex = util.DRAGEX(mat)
-        self.layout.prop(mat_dragex, "polytype_name")
+        self.layout.prop(mat_dragex.oot, "polytype_name")
 
 
 class DragExOoTPanel(bpy.types.Panel):
