@@ -205,6 +205,7 @@ classes = (
     combiner_props.DragExMaterialCombinerProperties,
     vals_props.DragExMaterialValsProperties,
     material_modes.DragExMaterialModesBasicProperties,
+    material_modes.DragExMaterialModesMultitextureProperties,
     material_modes.DragExMaterialModesProperties,
     DragExMaterialRDPProperties,
     oot_props.DragExMaterialOoTProperties,
