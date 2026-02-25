@@ -210,22 +210,22 @@ class DragExMaterialCombinerProperties(bpy.types.PropertyGroup):
 
     alpha_A_0: bpy.props.EnumProperty(
         name="Alpha A 1",
-        description="RGB A Input (First Cycle)",
+        description="Alpha A Input (First Cycle)",
         items=alpha_A_inputs_items,
     )
     alpha_B_0: bpy.props.EnumProperty(
         name="Alpha B 1",
-        description="RGB B Input (First Cycle)",
+        description="Alpha B Input (First Cycle)",
         items=alpha_B_inputs_items,
     )
     alpha_C_0: bpy.props.EnumProperty(
         name="Alpha C 1",
-        description="RGB C Input (First Cycle)",
+        description="Alpha C Input (First Cycle)",
         items=alpha_C_inputs_items,
     )
     alpha_D_0: bpy.props.EnumProperty(
         name="Alpha D 1",
-        description="RGB D Input (First Cycle)",
+        description="Alpha D Input (First Cycle)",
         items=alpha_D_inputs_items,
     )
 
@@ -252,21 +252,21 @@ class DragExMaterialCombinerProperties(bpy.types.PropertyGroup):
 
     alpha_A_1: bpy.props.EnumProperty(
         name="Alpha A 2",
-        description="RGB A Input (Second Cycle)",
+        description="Alpha A Input (Second Cycle)",
         items=alpha_A_inputs_items,
     )
     alpha_B_1: bpy.props.EnumProperty(
         name="Alpha B 2",
-        description="RGB B Input (Second Cycle)",
+        description="Alpha B Input (Second Cycle)",
         items=alpha_B_inputs_items,
     )
     alpha_C_1: bpy.props.EnumProperty(
         name="Alpha C 2",
-        description="RGB C Input (Second Cycle)",
+        description="Alpha C Input (Second Cycle)",
         items=alpha_C_inputs_items,
     )
     alpha_D_1: bpy.props.EnumProperty(
         name="Alpha D 2",
-        description="RGB D Input (Second Cycle)",
+        description="Alpha D Input (Second Cycle)",
         items=alpha_D_inputs_items,
     )
