@@ -395,6 +395,8 @@ class MultitextureMaterialMode(MaterialMode):
         texture1: bpy.types.Image | None = multitexture_props.texture1
         texture2: bpy.types.Image | None = multitexture_props.texture2
 
+        # TODO check if both textures together fit in TMEM
+
         tile0 = material_dragex.rdp.tiles.tiles[0]
         tile0.image = texture1
         tile0.format = "RGBA"

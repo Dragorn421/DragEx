@@ -827,26 +827,40 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
         struct MaterialInfoImage *image = tile->image;
         if (image != NULL) {
-            // TODO use gsDPLoadMultiTile for textures with line%8!=0 ?
-            // TODO use gsDPLoadMultiBlock_4b for RDP_TILE_SIZE_4 images
-            fprintf(f,
-                    "    gsDPLoadMultiBlock("
-                    "%s, 0x%03X, %d, "
-                    "%s, %s, %d, %d, %d, "
-                    "%s | %s, %s | %s, "
-                    "%d, %d, %d, %d),\n",
-                    image->c_identifier, tile->address, i_tile,
+            // If a TMEM address is used several times,
+            // only write the first texture upload.
+            // This is done to support multitexturing a texture with itself
+            // without uploading it twice.
+            bool address_already_used = false;
+            for (int j = 0; j < i_tile; j++) {
+                if (tile->address == mat_info->tiles[j].address) {
+                    address_already_used = true;
+                }
+            }
 
-                    tile_format_names[tile->format],
-                    tile_size_names[tile->size], image->width, image->height,
-                    tile->palette,
+            if (!address_already_used) {
+                // TODO use gsDPLoadMultiTile for textures with line%8!=0 ?
+                // TODO use gsDPLoadMultiBlock_4b for RDP_TILE_SIZE_4 images
+                fprintf(f,
+                        "    gsDPLoadMultiBlock("
+                        "%s, 0x%03X, %d, "
+                        "%s, %s, %d, %d, %d, "
+                        "%s | %s, %s | %s, "
+                        "%d, %d, %d, %d),\n",
+                        image->c_identifier, tile->address, i_tile,
 
-                    tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
-                    tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP",
-                    tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
-                    tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
+                        tile_format_names[tile->format],
+                        tile_size_names[tile->size], image->width,
+                        image->height, tile->palette,
 
-                    tile->mask_S, tile->mask_T, tile->shift_S, tile->shift_T);
+                        tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                        tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP",
+                        tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                        tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
+
+                        tile->mask_S, tile->mask_T, tile->shift_S,
+                        tile->shift_T);
+            }
         }
     }
 
@@ -1027,6 +1041,7 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
             environment_color.r, environment_color.g, environment_color.b,
             environment_color.a);
 
+    // TODO props for gsSPTexture arguments
     fprintf(f, "    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),\n");
 
     if (mat_info->geometry_mode.zbuffer)
