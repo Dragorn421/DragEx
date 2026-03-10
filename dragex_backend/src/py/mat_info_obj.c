@@ -8,10 +8,14 @@
 
 #include "objs.h"
 
+#include "../logging/logging.h"
+
 #include "../exporter.h"
 
 static void MaterialInfo_dealloc(PyObject *_self) {
     struct MaterialInfoObject *self = (struct MaterialInfoObject *)_self;
+
+    log_trace("entry %s", self->mat_info.name);
 
     for (int i = 0; i < 8; i++)
         Py_XDECREF(self->image_objects[i]);

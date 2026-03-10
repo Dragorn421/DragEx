@@ -269,11 +269,16 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
             default_material_info->image_objects[j];
     }
 
+    // This decreases the reference counts of the MaterialInfoObject instances,
+    // which hold the MaterialInfo data as a substruct. This is fine because
+    // 1) the MaterialInfoObject are still referenced elsewhere due to being
+    // passed as arguments, so they are not immediately deleted
+    // 2) create_MeshInfo_from_buffers copies the MaterialInfo data, so we don't
+    // actually need to keep references
+    //
     // This also decreases the reference counts of the image_objects before we
     // increase it below, but that's fine as the objects are still referenced
     // elsewhere due to being passed as arguments.
-    // FIXME ok but what about the material info objects? what references them
-    // once create_MeshInfo returns?
     free_MaterialInfoSequenceInfo(&material_info_objects);
 
     struct CornerMaterialInfoObject *default_corner_material_info =
@@ -293,7 +298,9 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
                 : &corner_material_info_objects.buffer[i]->corner_mat_info;
     }
 
-    // FIXME see free_MaterialInfoSequenceInfo above
+    // Same comment as on free_MaterialInfoSequenceInfo above: reference counts
+    // are decreased but the objects are still referenced elsewhere and we copy
+    // the data before the function returns.
     free_CornerMaterialInfoSequenceInfo(&corner_material_info_objects);
 
     struct MeshInfo *mesh;
