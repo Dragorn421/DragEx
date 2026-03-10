@@ -66,6 +66,14 @@ struct MaterialInfoObject {
 
 extern PyTypeObject MaterialInfoType;
 
+struct CornerMaterialInfoObject {
+    PyObject_HEAD
+
+        struct CornerMaterialInfo corner_mat_info;
+};
+
+extern PyTypeObject CornerMaterialInfoType;
+
 struct MeshInfoObject {
     PyObject_HEAD
 

@@ -25,6 +25,7 @@ class CustomBuildExt(build_ext):
             else:  # Assume GCC/Clang
                 ext.extra_compile_args = [
                     "-Og",
+                    "-g3",
                     "-Wall",
                     "-Wextra",
                     "-Werror",
@@ -51,6 +52,7 @@ setup(
                 "src/py/mat_info_vals_obj.c",
                 "src/py/mat_info_geometry_mode_obj.c",
                 "src/py/mat_info_obj.c",
+                "src/py/corner_mat_info_obj.c",
                 "src/py/mesh_info_obj.c",
                 "src/py/oot_collision_objs.c",
                 "src/exporter.c",

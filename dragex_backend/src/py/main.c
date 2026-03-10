@@ -73,6 +73,14 @@ static int dragex_backend_exec(PyObject *m) {
         return -1;
     }
 
+    if (PyType_Ready(&CornerMaterialInfoType) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "CornerMaterialInfo",
+                              (PyObject *)&CornerMaterialInfoType) < 0) {
+        return -1;
+    }
+
     if (PyType_Ready(&MeshInfoType) < 0) {
         return -1;
     }

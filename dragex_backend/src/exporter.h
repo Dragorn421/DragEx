@@ -13,6 +13,7 @@ struct VertexInfo {
     float uv[2];
     float normal[3];
     uint8_t color[4]; // RGBA
+    unsigned int material;
 };
 
 struct TriInfo {
@@ -319,12 +320,17 @@ struct MaterialInfo {
     struct MaterialInfoGeometryMode geometry_mode;
 };
 
+struct CornerMaterialInfo {
+    // TODO limbIndex
+};
+
 struct MeshInfo {
     char *name;
     struct VertexInfo *verts;
     struct TriInfo *faces;
     struct MaterialInfo *materials;
-    unsigned int n_verts, n_faces, n_materials;
+    struct CornerMaterialInfo *corner_materials;
+    unsigned int n_verts, n_faces, n_materials, n_corner_materials;
 };
 
 void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh);
@@ -340,8 +346,14 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     float *buf_corners_color, size_t buf_corners_color_len,                  //
     float *buf_points_color, size_t buf_points_color_len,                    //
     float *buf_loops_uv, size_t buf_loops_uv_len,                            //
-    struct MaterialInfo **material_infos, size_t n_material_infos,           //
-    struct MaterialInfo *default_material);
+    unsigned int *buf_corners_material_index,
+    size_t buf_corners_material_index_len,                         //
+    struct MaterialInfo **material_infos, size_t n_material_infos, //
+    struct MaterialInfo *default_material,                         //
+    struct CornerMaterialInfo **corner_material_infos,
+    size_t n_corner_material_infos,                    //
+    struct CornerMaterialInfo *default_corner_material //
+);
 
 // f3d
 
@@ -350,22 +362,35 @@ struct f3d_vertex {
     int16_t st[2];
     uint8_t cn[3]; // color/normal
     uint8_t alpha;
+    unsigned int material;
 };
 
-struct f3d_mesh_load_entry_tri {
+enum f3d_mesh_entry_type { F3D_MESH_ENTRY_VERTICES, F3D_MESH_ENTRY_TRIANGLES };
+
+struct f3d_mesh_entry_base {
+    enum f3d_mesh_entry_type type;
+};
+
+struct f3d_mesh_entry_vertices {
+    struct f3d_mesh_entry_base base;
+    unsigned int corner_material_index;
+    int buffer_i;  // index into vertex buffer to load from
+    uint8_t n, v0; // arguments to SPVertex
+};
+
+struct f3d_mesh_entry_triangles_triangle {
     uint8_t indices[3];
 };
 
-struct f3d_mesh_load_entry {
-    struct f3d_mesh_load_entry_tri *tris;
-    int buffer_i;  // index into vertex buffer to load from
-    uint8_t n, v0; // arguments to SPVertex
-    uint8_t n_tris;
+struct f3d_mesh_entry_triangles {
+    struct f3d_mesh_entry_base base;
+    struct f3d_mesh_entry_triangles_triangle *tris;
+    int n_tris;
 };
 
 struct f3d_mesh {
     struct f3d_vertex *vertices;
-    struct f3d_mesh_load_entry *entries;
+    struct f3d_mesh_entry_base **entries;
     int n_vertices;
     int n_entries;
 };

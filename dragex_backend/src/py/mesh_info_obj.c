@@ -100,6 +100,49 @@ PyTypeObject MeshInfoType = {
     .tp_methods = MeshInfo_methods,
 };
 
+struct GenericObjectSequenceInfo {
+    void **buffer;
+    Py_ssize_t len;
+};
+
+int converter_Object_or_None_sequence_impl(
+    PyObject *obj, struct GenericObjectSequenceInfo *result,
+    PyTypeObject *forType) {
+    Py_ssize_t len = PySequence_Length(obj);
+    if (len < 0)
+        return 0;
+
+    void **buffer = malloc(sizeof(void *) * len);
+    // TODO check malloc
+    for (Py_ssize_t i = 0; i < len; i++) {
+        PyObject *item = PySequence_GetItem(obj, i);
+        if (item == NULL) {
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_XDECREF(buffer[j]);
+            free(buffer);
+            return 0;
+        }
+
+        if (item == Py_None) {
+            buffer[i] = NULL;
+        } else if (PyObject_TypeCheck(item, forType)) {
+            buffer[i] = item;
+        } else {
+            PyErr_Format(PyExc_TypeError,
+                         "Object in sequence at index %ld is not None or a %s",
+                         (long)i, forType->tp_name);
+            for (Py_ssize_t j = 0; j < i; j++)
+                Py_XDECREF(buffer[j]);
+            free(buffer);
+            return 0;
+        }
+    }
+
+    result->buffer = buffer;
+    result->len = len;
+    return 1;
+}
+
 struct MaterialInfoObjectSequenceInfo {
     struct MaterialInfoObject **buffer;
     Py_ssize_t len;
@@ -116,42 +159,43 @@ void free_MaterialInfoSequenceInfo(
 
 int converter_MaterialInfoObject_or_None_sequence(PyObject *obj,
                                                   void *_result) {
-    Py_ssize_t len = PySequence_Length(obj);
-    if (len < 0)
-        return 0;
-
-    struct MaterialInfoObject **buffer =
-        malloc(sizeof(struct MaterialInfoObject *) * len);
-    // TODO check malloc
-    for (Py_ssize_t i = 0; i < len; i++) {
-        PyObject *item = PySequence_GetItem(obj, i);
-        if (item == NULL) {
-            for (Py_ssize_t j = 0; j < i; j++)
-                Py_XDECREF(buffer[j]);
-            free(buffer);
-            return 0;
-        }
-
-        if (item == Py_None) {
-            buffer[i] = NULL;
-        } else if (PyObject_TypeCheck(item, &MaterialInfoType)) {
-            buffer[i] = (struct MaterialInfoObject *)item;
-        } else {
-            PyErr_Format(PyExc_TypeError,
-                         "Object in sequence at index %ld is not None or a %s",
-                         (long)i, MaterialInfoType.tp_name);
-            for (Py_ssize_t j = 0; j < i; j++)
-                Py_XDECREF(buffer[j]);
-            free(buffer);
-            return 0;
-        }
+    struct GenericObjectSequenceInfo genericResult;
+    int res = converter_Object_or_None_sequence_impl(obj, &genericResult,
+                                                     &MaterialInfoType);
+    if (res == 1) {
+        struct MaterialInfoObjectSequenceInfo *result = _result;
+        result->buffer = (struct MaterialInfoObject **)genericResult.buffer;
+        result->len = genericResult.len;
     }
+    return res;
+}
 
-    struct MaterialInfoObjectSequenceInfo *result =
-        (struct MaterialInfoObjectSequenceInfo *)_result;
-    result->buffer = buffer;
-    result->len = len;
-    return 1;
+struct CornerMaterialInfoObjectSequenceInfo {
+    struct CornerMaterialInfoObject **buffer;
+    Py_ssize_t len;
+};
+
+void free_CornerMaterialInfoSequenceInfo(
+    struct CornerMaterialInfoObjectSequenceInfo *corner_material_infos) {
+
+    for (Py_ssize_t i = 0; i < corner_material_infos->len; i++)
+        Py_XDECREF(corner_material_infos->buffer[i]);
+
+    free(corner_material_infos->buffer);
+}
+
+int converter_CornerMaterialInfoObject_or_None_sequence(PyObject *obj,
+                                                        void *_result) {
+    struct GenericObjectSequenceInfo genericResult;
+    int res = converter_Object_or_None_sequence_impl(obj, &genericResult,
+                                                     &CornerMaterialInfoType);
+    if (res == 1) {
+        struct CornerMaterialInfoObjectSequenceInfo *result = _result;
+        result->buffer =
+            (struct CornerMaterialInfoObject **)genericResult.buffer;
+        result->len = genericResult.len;
+    }
+    return res;
 }
 
 PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
@@ -159,12 +203,14 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     Py_buffer buf_vertices_co_view, buf_triangles_loops_view,
         buf_triangles_material_index_view, buf_loops_vertex_index_view,
         buf_loops_normal_view, buf_corners_color_view, buf_points_color_view,
-        buf_loops_uv_view;
+        buf_loops_uv_view, buf_corners_material_index_view;
     struct MaterialInfoObjectSequenceInfo material_info_objects;
     PyObject *_default_material_info;
+    struct CornerMaterialInfoObjectSequenceInfo corner_material_info_objects;
+    PyObject *_default_corner_material_info;
 
     if (!PyArg_ParseTuple(
-            args, "sO&O&O&O&O&O&O&O&O&O!",                               //
+            args, "sO&O&O&O&O&O&O&O&O&O&O!O&O!",                         //
             &mesh_name,                                                  //
             converter_contiguous_float_buffer, &buf_vertices_co_view,    //
             converter_contiguous_uint_buffer, &buf_triangles_loops_view, //
@@ -177,9 +223,15 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
             converter_contiguous_float_buffer_optional,
             &buf_points_color_view,                                         //
             converter_contiguous_float_buffer_optional, &buf_loops_uv_view, //
+            converter_contiguous_uint_buffer,
+            &buf_corners_material_index_view, //
             converter_MaterialInfoObject_or_None_sequence,
-            &material_info_objects, //
-            &MaterialInfoType, &_default_material_info))
+            &material_info_objects,                     //
+            &MaterialInfoType, &_default_material_info, //
+            converter_CornerMaterialInfoObject_or_None_sequence,
+            &corner_material_info_objects,                          //
+            &CornerMaterialInfoType, &_default_corner_material_info //
+            ))
         return NULL;
 
     struct MaterialInfoObject *default_material_info =
@@ -220,7 +272,29 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     // This also decreases the reference counts of the image_objects before we
     // increase it below, but that's fine as the objects are still referenced
     // elsewhere due to being passed as arguments.
+    // FIXME ok but what about the material info objects? what references them
+    // once create_MeshInfo returns?
     free_MaterialInfoSequenceInfo(&material_info_objects);
+
+    struct CornerMaterialInfoObject *default_corner_material_info =
+        (struct CornerMaterialInfoObject *)_default_corner_material_info;
+
+    struct CornerMaterialInfo **corner_material_infos;
+    size_t n_corner_material_infos = corner_material_info_objects.len;
+
+    corner_material_infos =
+        malloc(sizeof(struct CornerMaterialInfo *) * n_corner_material_infos);
+    // TODO check malloc
+
+    for (Py_ssize_t i = 0; i < corner_material_info_objects.len; i++) {
+        corner_material_infos[i] =
+            corner_material_info_objects.buffer[i] == NULL
+                ? NULL
+                : &corner_material_info_objects.buffer[i]->corner_mat_info;
+    }
+
+    // FIXME see free_MaterialInfoSequenceInfo above
+    free_CornerMaterialInfoSequenceInfo(&corner_material_info_objects);
 
     struct MeshInfo *mesh;
 
@@ -241,8 +315,13 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
                                           : buf_points_color_view.shape[0], //
         buf_loops_uv_view.buf,
         buf_loops_uv_view.buf == NULL ? 0 : buf_loops_uv_view.shape[0], //
-        material_infos, n_material_infos,                               //
-        &default_material_info->mat_info);
+        buf_corners_material_index_view.buf,
+        buf_corners_material_index_view.shape[0],       //
+        material_infos, n_material_infos,               //
+        &default_material_info->mat_info,               //
+        corner_material_infos, n_corner_material_infos, //
+        &default_corner_material_info->corner_mat_info  //
+    );
 
     PyBuffer_Release(&buf_vertices_co_view);
     PyBuffer_Release(&buf_triangles_loops_view);
@@ -256,6 +335,7 @@ PyObject *create_MeshInfo(PyObject *self, PyObject *args) {
     if (buf_loops_uv_view.buf != NULL)
         PyBuffer_Release(&buf_loops_uv_view);
     free(material_infos);
+    free(corner_material_infos);
 
     if (mesh == NULL) {
         PyErr_SetString(PyExc_MemoryError,

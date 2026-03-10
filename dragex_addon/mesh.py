@@ -263,6 +263,9 @@ def mesh_to_mesh_info(
         buf_loops_uv = util.new_float_buf(2 * len(mesh.loops))
         active_uv_layer.uv.foreach_get("vector", buf_loops_uv)
 
+    buf_corners_material_index = util.new_uint_buf(len(mesh.loops))
+    buf_corners_material_index[:] = 0
+
     material_infos = list[dragex_backend.MaterialInfo | None]()
     for mat_index in range(len(obj.material_slots)):
         mat = obj.material_slots[mat_index].material
@@ -390,6 +393,10 @@ def mesh_to_mesh_info(
             shade_smooth=False,
         ),
     )
+
+    corner_material_infos = []
+    default_corner_material_info = dragex_backend.CornerMaterialInfo()
+
     mesh_info = dragex_backend.create_MeshInfo(
         c_identifiers_prefix + util.make_c_identifier(obj.name),
         buf_vertices_co,
@@ -400,7 +407,10 @@ def mesh_to_mesh_info(
         buf_corners_color,
         buf_points_color,
         buf_loops_uv,
+        buf_corners_material_index,
         material_infos,
         default_material_info,
+        corner_material_infos,
+        default_corner_material_info,
     )
     return mesh_info

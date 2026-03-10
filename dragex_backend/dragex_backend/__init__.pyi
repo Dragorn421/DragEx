@@ -145,6 +145,11 @@ class MaterialInfo:
         geometry_mode: MaterialInfoGeometryMode,
     ) -> None: ...
 
+class CornerMaterialInfo:
+    def __init__(
+        self,
+    ) -> None: ...
+
 class MeshInfo:
     def write_c(self, fd: int, /) -> str: ...
 
@@ -158,8 +163,11 @@ def create_MeshInfo(
     buf_corners_color: Buffer | None,
     buf_points_color: Buffer | None,
     buf_loops_uv: Buffer | None,
+    buf_corners_material_index: Buffer,
     material_infos: Sequence[MaterialInfo | None],
     default_material: MaterialInfo,
+    corner_material_infos: Sequence[CornerMaterialInfo | None],
+    default_corner_material: CornerMaterialInfo,
     /,
 ) -> MeshInfo: ...
 

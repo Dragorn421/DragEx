@@ -40,6 +40,11 @@ void copy_MaterialInfo(struct MaterialInfo *dest, struct MaterialInfo *src) {
     dest->name = strdup(dest->name);
 }
 
+void copy_CornerMaterialInfo(struct CornerMaterialInfo *dest,
+                             struct CornerMaterialInfo *src) {
+    *dest = *src;
+}
+
 void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
     if (mesh != NULL) {
         free(mesh->name);
@@ -51,6 +56,7 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
             }
             free(mesh->materials);
         }
+        free(mesh->corner_materials);
         free(mesh);
     }
 }
@@ -63,9 +69,9 @@ void free_create_MeshInfo_from_buffers(struct MeshInfo *mesh) {
  * mapped to the special returned material index `*default_material_index_out`.
  * There are such indices only if `*use_default_material_out` is true.
  */
-unsigned int *remap_materials(unsigned int *buf_triangles_material_index,
-                              unsigned int n_faces, void **materials_in,
-                              size_t n_materials_in,
+unsigned int *remap_materials(unsigned int *buf_material_index,
+                              unsigned int buf_material_index_len,
+                              void **materials_in, size_t n_materials_in,
                               unsigned int *n_materials_out,
                               bool *use_default_material_out,
                               unsigned int *default_material_index_out) {
@@ -82,8 +88,8 @@ unsigned int *remap_materials(unsigned int *buf_triangles_material_index,
     for (unsigned int i = 0; i < material_index_map_len; i++) {
         material_index_map[i] = ~0u;
     }
-    for (unsigned int i_face = 0; i_face < n_faces; i_face++) {
-        unsigned int mat_index = buf_triangles_material_index[i_face];
+    for (unsigned int j = 0; j < buf_material_index_len; j++) {
+        unsigned int mat_index = buf_material_index[j];
 
         if (mat_index >= material_index_map_len) {
             unsigned int prev_material_index_map_len = material_index_map_len;
@@ -134,8 +140,14 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     float *buf_corners_color, size_t buf_corners_color_len,                  //
     float *buf_points_color, size_t buf_points_color_len,                    //
     float *buf_loops_uv, size_t buf_loops_uv_len,                            //
-    struct MaterialInfo **material_infos, size_t n_material_infos,           //
-    struct MaterialInfo *default_material) {
+    unsigned int *buf_corners_material_index,
+    size_t buf_corners_material_index_len,                         //
+    struct MaterialInfo **material_infos, size_t n_material_infos, //
+    struct MaterialInfo *default_material,                         //
+    struct CornerMaterialInfo **corner_material_infos,
+    size_t n_corner_material_infos,                    //
+    struct CornerMaterialInfo *default_corner_material //
+) {
 
     if (buf_corners_color != NULL && buf_points_color != NULL) {
         log_error("Can't provide both buf_corners_color and "
@@ -166,6 +178,11 @@ struct MeshInfo *create_MeshInfo_from_buffers(
                   buf_loops_uv_len, n_loops);
         return NULL;
     }
+    if (buf_corners_material_index_len != n_loops) {
+        log_error("buf_corners_material_index_len=%zd and n_loops=%u mismatch",
+                  buf_corners_material_index_len, n_loops);
+        return NULL;
+    }
 
     unsigned int n_faces = (unsigned int)(buf_triangles_loops_len / 3);
     if (buf_triangles_material_index_len != n_faces) {
@@ -183,13 +200,28 @@ struct MeshInfo *create_MeshInfo_from_buffers(
                         (void **)material_infos, n_material_infos, &n_materials,
                         &use_default_material, &default_material_index);
     if (material_index_map == NULL) {
-        log_error("remap_materials failed");
+        log_error("remap_materials on triangles materials failed");
+        return NULL;
+    }
+
+    unsigned int n_corner_materials;
+    bool use_default_corner_material;
+    unsigned int default_corner_material_index;
+    unsigned int *corner_material_index_map = remap_materials(
+        buf_corners_material_index, n_loops, (void **)corner_material_infos,
+        n_corner_material_infos, &n_corner_materials,
+        &use_default_corner_material, &default_corner_material_index);
+    if (corner_material_index_map == NULL) {
+        log_error("remap_materials on corners materials failed");
+        free(material_index_map);
         return NULL;
     }
 
     struct MeshInfo *mesh = malloc(sizeof(struct MeshInfo));
     if (mesh == NULL) {
         log_error("malloc mesh failed");
+        free(material_index_map);
+        free(corner_material_index_map);
         return NULL;
     }
     mesh->name = strdup(mesh_name);
@@ -203,6 +235,10 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     mesh->n_materials = n_materials;
     mesh->materials = malloc(sizeof(struct MaterialInfo) * n_materials);
 
+    mesh->n_corner_materials = n_corner_materials;
+    mesh->corner_materials =
+        malloc(sizeof(struct CornerMaterialInfo) * n_corner_materials);
+
     if (mesh->materials != NULL) {
         // for free_create_MeshInfo_from_buffers
         for (unsigned int i = 0; i < n_materials; i++) {
@@ -211,8 +247,11 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     }
 
     if (mesh->name == NULL || mesh->verts == NULL || mesh->faces == NULL ||
-        mesh->materials == NULL) {
-        log_error("malloc name, verts, faces or materials failed");
+        mesh->materials == NULL || mesh->corner_materials == NULL) {
+        log_error(
+            "malloc name, verts, faces, materials or corner_materials failed");
+        free(material_index_map);
+        free(corner_material_index_map);
         free_create_MeshInfo_from_buffers(mesh);
         return NULL;
     }
@@ -224,6 +263,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
                 log_error(
                     "i_loop=%u: v=%u out of bounds (buf_vertices_co_len=%zd)",
                     i_loop, v, buf_vertices_co_len);
+                free(material_index_map);
+                free(corner_material_index_map);
                 free_create_MeshInfo_from_buffers(mesh);
                 return NULL;
             }
@@ -247,6 +288,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
                     log_error("i_loop=%u: v=%u out of bounds "
                               "(buf_points_color_len=%zd)",
                               i_loop, v, buf_points_color_len);
+                    free(material_index_map);
+                    free(corner_material_index_map);
                     free_create_MeshInfo_from_buffers(mesh);
                     return NULL;
                 }
@@ -256,6 +299,9 @@ struct MeshInfo *create_MeshInfo_from_buffers(
                 mesh->verts[i_loop].color[j] = 255;
             }
         }
+
+        mesh->verts[i_loop].material =
+            corner_material_index_map[buf_corners_material_index[i_loop]];
     }
 
     for (unsigned int i = 0; i < n_faces; i++) {
@@ -264,6 +310,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
             if (loop >= n_loops) {
                 log_error("face %u: loop=%u out of bounds (n_loops=%u)", i,
                           loop, n_loops);
+                free(material_index_map);
+                free(corner_material_index_map);
                 free_create_MeshInfo_from_buffers(mesh);
                 return NULL;
             }
@@ -292,6 +340,30 @@ struct MeshInfo *create_MeshInfo_from_buffers(
         assert(default_material_index != ~0u);
         copy_MaterialInfo(&mesh->materials[default_material_index],
                           default_material);
+    }
+
+    for (unsigned int i = 0; i < n_corner_material_infos; i++) {
+        if (corner_material_index_map[i] == ~0u ||
+            (use_default_corner_material &&
+             corner_material_index_map[i] == default_corner_material_index))
+            continue;
+        struct CornerMaterialInfo *corner_mat_info = corner_material_infos[i];
+
+        // because corner_material_index_map[i] != default_corner_material_index
+        assert(corner_mat_info != NULL);
+
+        copy_CornerMaterialInfo(
+            &mesh->corner_materials[corner_material_index_map[i]],
+            corner_mat_info);
+    }
+
+    free(corner_material_index_map);
+
+    if (use_default_corner_material) {
+        assert(default_corner_material_index != ~0u);
+        copy_CornerMaterialInfo(
+            &mesh->corner_materials[default_corner_material_index],
+            default_corner_material);
     }
 
     return mesh;
@@ -440,7 +512,15 @@ void free_mesh_to_f3d_mesh(struct f3d_mesh *mesh) {
         free(mesh->vertices);
         if (mesh->entries != NULL) {
             for (int i = 0; i < mesh->n_entries; i++) {
-                free(mesh->entries[i].tris);
+                switch (mesh->entries[i]->type) {
+                case F3D_MESH_ENTRY_VERTICES:
+                    break;
+                case F3D_MESH_ENTRY_TRIANGLES:
+                    free(((struct f3d_mesh_entry_triangles *)mesh->entries[i])
+                             ->tris);
+                    break;
+                }
+                free(mesh->entries[i]);
             }
             free(mesh->entries);
         }
@@ -494,6 +574,8 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             break;
         }
         f3d_v->alpha = vi->color[3];
+
+        f3d_v->material = vi->material;
     }
 
     // remap vertices (merge identical ones)
@@ -545,18 +627,19 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
     struct f3d_vertex *vertices_buf =
         malloc(sizeof(struct f3d_vertex) * vertices_buf_len);
 #define VERTEX_CACHE 32
-    size_t f3d_entries_buf_len = 1 + 2 * mesh->n_faces / VERTEX_CACHE;
-    struct f3d_mesh_load_entry *f3d_entries =
-        malloc(sizeof(struct f3d_mesh_load_entry) * f3d_entries_buf_len);
+    size_t f3d_entries_buf_len = 2 + 2 * mesh->n_faces / VERTEX_CACHE;
+    struct f3d_mesh_entry_base **f3d_entries =
+        malloc(sizeof(void *) * f3d_entries_buf_len);
     size_t i_vertices_buf = 0;
-    size_t i_f3d_entries = 0;
-    size_t cur_entry_tris_buf_len = VERTEX_CACHE;
-    f3d_entries[0].tris =
-        malloc(sizeof(struct f3d_mesh_load_entry_tri) * cur_entry_tris_buf_len);
-    f3d_entries[0].buffer_i = 0;
-    f3d_entries[0].n = 0;
-    f3d_entries[0].v0 = 0;
-    f3d_entries[0].n_tris = 0;
+    size_t next_i_f3d_entry = 0;
+    size_t cur_batch_tris_buf_len = VERTEX_CACHE;
+    struct f3d_mesh_entry_triangles_triangle *cur_batch_tris =
+        malloc(sizeof(struct f3d_mesh_entry_triangles_triangle) *
+               cur_batch_tris_buf_len);
+    int cur_batch_buffer_i = 0;
+    uint8_t cur_batch_n = 0;
+    uint8_t cur_batch_v0 = 0;
+    unsigned int cur_batch_n_tris = 0;
     unsigned int vertex_cache[VERTEX_CACHE];
     int i_vertex_cache_next = 0;
     unsigned int i_tri = 0;
@@ -575,16 +658,16 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         }
         int n_in_vertex_cache =
             in_vertex_cache[0] + in_vertex_cache[1] + in_vertex_cache[2];
+        bool tri_verts_fit_in_cache =
+            cur_batch_v0 + cur_batch_n + 3 - n_in_vertex_cache <= VERTEX_CACHE;
         // if the vertices in the tri not in cache fit in the cache, add them
-        if (f3d_entries[i_f3d_entries].v0 + f3d_entries[i_f3d_entries].n + 3 -
-                n_in_vertex_cache <=
-            VERTEX_CACHE) {
+        if (tri_verts_fit_in_cache) {
             for (int i = 0; i < 3; i++) {
                 if (!in_vertex_cache[i]) {
                     // update cache
                     cache_index[i] = i_vertex_cache_next;
                     vertex_cache[i_vertex_cache_next] = indices[i_tri * 3 + i];
-                    f3d_entries[i_f3d_entries].n++;
+                    cur_batch_n++;
                     i_vertex_cache_next++;
 
                     // append vertex to f3d_vertices
@@ -606,48 +689,114 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
             }
 
             // append tri to tris
-            if (f3d_entries[i_f3d_entries].n_tris >= cur_entry_tris_buf_len) {
-                cur_entry_tris_buf_len *= 2;
-                void *tmp = realloc(f3d_entries[i_f3d_entries].tris,
-                                    sizeof(struct f3d_mesh_load_entry_tri) *
-                                        cur_entry_tris_buf_len);
+            if (cur_batch_n_tris >= cur_batch_tris_buf_len) {
+                cur_batch_tris_buf_len *= 2;
+                void *tmp =
+                    realloc(cur_batch_tris,
+                            sizeof(struct f3d_mesh_entry_triangles_triangle) *
+                                cur_batch_tris_buf_len);
                 if (tmp == NULL) {
                     // TODO
                 }
-                f3d_entries[i_f3d_entries].tris = tmp;
+                cur_batch_tris = tmp;
             }
             for (int i = 0; i < 3; i++) {
-                f3d_entries[i_f3d_entries]
-                    .tris[f3d_entries[i_f3d_entries].n_tris]
-                    .indices[i] = cache_index[i];
+                cur_batch_tris[cur_batch_n_tris].indices[i] = cache_index[i];
             }
-            f3d_entries[i_f3d_entries].n_tris++;
+            cur_batch_n_tris++;
 
             i_tri++;
         }
-        // otherwise push the entry
-        else {
-            // advance f3d entry
-            if (i_f3d_entries + 1 >= f3d_entries_buf_len) {
-                f3d_entries_buf_len *= 2;
+        // otherwise push the entries
+        // (and also push the entries if there are no more tris after)
+        // Note i_tri has already been incremented above if the triangle has
+        // been accepted into the batch, hence comparing to n_faces and not
+        // n_faces - 1
+        bool is_last_tri = i_tri == mesh->n_faces;
+        if (!tri_verts_fit_in_cache || is_last_tri) {
+            // Count how many vertices entries (SPVertex) we need to push
+
+            // Start with an unset material ~0u so that the first entry is
+            // always counted, even if it can inherit the material from the
+            // previous batch.
+            // This is because even if there's no material switch, we still need
+            // to push a vertices entry
+            unsigned int new_entries_cur_corner_material = ~0u;
+            unsigned int n_corner_material_switches = 0;
+            for (uint8_t i = 0; i < cur_batch_n; i++) {
+                if (vertices_buf[cur_batch_buffer_i + i].material !=
+                    new_entries_cur_corner_material) {
+                    n_corner_material_switches++;
+                    new_entries_cur_corner_material =
+                        vertices_buf[cur_batch_buffer_i + i].material;
+                }
+            }
+
+            // + 1 triangles entry
+            unsigned int n_new_entries = n_corner_material_switches + 1;
+
+            // ensure the f3d_entries array of entries is large enough
+            if (next_i_f3d_entry + n_new_entries > f3d_entries_buf_len) {
+                f3d_entries_buf_len = MAX(2 * f3d_entries_buf_len,
+                                          next_i_f3d_entry + n_new_entries);
                 void *tmp =
-                    realloc(f3d_entries, sizeof(struct f3d_mesh_load_entry) *
-                                             f3d_entries_buf_len);
+                    realloc(f3d_entries, sizeof(void *) * f3d_entries_buf_len);
                 if (tmp == NULL) {
                     // TODO
                 }
                 f3d_entries = tmp;
             }
-            i_f3d_entries++;
-            cur_entry_tris_buf_len = VERTEX_CACHE;
-            f3d_entries[i_f3d_entries].tris =
-                malloc(sizeof(struct f3d_mesh_load_entry_tri) *
-                       cur_entry_tris_buf_len);
+
+            unsigned int cur_corner_material = ~0u;
+            struct f3d_mesh_entry_vertices *cur_vertices_entry = NULL;
+            for (uint8_t i = 0; i < cur_batch_n; i++) {
+                if (vertices_buf[cur_batch_buffer_i + i].material !=
+                    cur_corner_material) {
+                    // Push a vertices entry referencing just this vertex (for
+                    // now). The entry may grow in subsequent iterations until
+                    // the corner material changes
+                    cur_vertices_entry =
+                        malloc(sizeof(struct f3d_mesh_entry_vertices));
+                    // TODO check malloc
+                    cur_vertices_entry->base.type = F3D_MESH_ENTRY_VERTICES;
+                    cur_vertices_entry->corner_material_index =
+                        vertices_buf[cur_batch_buffer_i].material;
+                    cur_vertices_entry->buffer_i = cur_batch_buffer_i + i;
+                    cur_vertices_entry->n = 1;
+                    cur_vertices_entry->v0 = cur_batch_v0 + i;
+
+                    f3d_entries[next_i_f3d_entry] = &cur_vertices_entry->base;
+                    next_i_f3d_entry++;
+
+                    cur_corner_material =
+                        cur_vertices_entry->corner_material_index;
+                } else {
+                    // cur_vertices_entry should always be non-NULL here because
+                    // cur_corner_material is initialized to ~0u, so the first
+                    // vertex will always run the other branch above
+                    assert(cur_vertices_entry != NULL);
+
+                    cur_vertices_entry->n++;
+                }
+            }
+
+            struct f3d_mesh_entry_triangles *triangles_entry =
+                malloc(sizeof(struct f3d_mesh_entry_triangles));
+            triangles_entry->base.type = F3D_MESH_ENTRY_TRIANGLES;
+            triangles_entry->tris = cur_batch_tris;
+            triangles_entry->n_tris = cur_batch_n_tris;
+            f3d_entries[next_i_f3d_entry] = &triangles_entry->base;
+            next_i_f3d_entry++;
+
+            cur_batch_tris_buf_len = VERTEX_CACHE;
+            cur_batch_tris =
+                malloc(sizeof(struct f3d_mesh_entry_triangles_triangle) *
+                       cur_batch_tris_buf_len);
             // TODO check malloc
-            f3d_entries[i_f3d_entries].buffer_i = i_vertices_buf;
-            f3d_entries[i_f3d_entries].n = 0;
-            f3d_entries[i_f3d_entries].v0 = 0;
-            f3d_entries[i_f3d_entries].n_tris = 0;
+            cur_batch_buffer_i = i_vertices_buf;
+            cur_batch_n = 0;
+            cur_batch_v0 = 0;
+            cur_batch_n_tris = 0;
 
             // reset the cache state
             i_vertex_cache_next = 0;
@@ -657,14 +806,19 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         }
     }
 
+    // cur_batch_tris is allocated in advance, it's simpler to just free the
+    // extra unused one at the end
+    free(cur_batch_tris);
+
     free(vertices);
     free(indices);
 
     struct f3d_mesh *f3d_mesh = malloc(sizeof(struct f3d_mesh));
+    // TODO check malloc
     f3d_mesh->vertices = vertices_buf;
     f3d_mesh->entries = f3d_entries;
     f3d_mesh->n_vertices = i_vertices_buf;
-    f3d_mesh->n_entries = i_f3d_entries + 1;
+    f3d_mesh->n_entries = next_i_f3d_entry;
     return f3d_mesh;
 }
 
@@ -1114,32 +1268,42 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
 
     fprintf(f, "Gfx %s_mesh_dl[] = {\n", name);
     for (int i = 0; i < mesh->n_entries; i++) {
-        struct f3d_mesh_load_entry *e = &mesh->entries[i];
-
-        fprintf(f,
-                "    gsSPVertex("
-                "&%s_mesh_vtx[%d], %" PRIu8 ", %" PRIu8 "),\n",
-                name, e->buffer_i, e->n, e->v0);
-
-        for (int j = 0; j + 1 < e->n_tris; j += 2) {
-            struct f3d_mesh_load_entry_tri *tri1 = &e->tris[j];
-            struct f3d_mesh_load_entry_tri *tri2 = &e->tris[j + 1];
-
+        switch (mesh->entries[i]->type) {
+        case F3D_MESH_ENTRY_VERTICES: {
+            struct f3d_mesh_entry_vertices *e =
+                (struct f3d_mesh_entry_vertices *)mesh->entries[i];
             fprintf(f,
-                    "    gsSP2Triangles("
-                    "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0, "
-                    "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0),\n",
-                    tri1->indices[0], tri1->indices[1], tri1->indices[2],
-                    tri2->indices[0], tri2->indices[1], tri2->indices[2]);
-        }
+                    "    gsSPVertex("
+                    "&%s_mesh_vtx[%d], %" PRIu8 ", %" PRIu8 "),\n",
+                    name, e->buffer_i, e->n, e->v0);
+        } break;
 
-        if (e->n_tris % 2 != 0) {
-            struct f3d_mesh_load_entry_tri *tri = &e->tris[e->n_tris - 1];
+        case F3D_MESH_ENTRY_TRIANGLES: {
+            struct f3d_mesh_entry_triangles *e =
+                (struct f3d_mesh_entry_triangles *)mesh->entries[i];
+            for (int j = 0; j + 1 < e->n_tris; j += 2) {
+                struct f3d_mesh_entry_triangles_triangle *tri1 = &e->tris[j];
+                struct f3d_mesh_entry_triangles_triangle *tri2 =
+                    &e->tris[j + 1];
 
-            fprintf(f,
-                    "    gsSP1Triangle("
-                    "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0),\n",
-                    tri->indices[0], tri->indices[1], tri->indices[2]);
+                fprintf(f,
+                        "    gsSP2Triangles("
+                        "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0, "
+                        "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0),\n",
+                        tri1->indices[0], tri1->indices[1], tri1->indices[2],
+                        tri2->indices[0], tri2->indices[1], tri2->indices[2]);
+            }
+
+            if (e->n_tris % 2 != 0) {
+                struct f3d_mesh_entry_triangles_triangle *tri =
+                    &e->tris[e->n_tris - 1];
+
+                fprintf(f,
+                        "    gsSP1Triangle("
+                        "%" PRIu8 ", %" PRIu8 ", %" PRIu8 ", 0),\n",
+                        tri->indices[0], tri->indices[1], tri->indices[2]);
+            }
+        } break;
         }
     }
     fprintf(f, "    gsSPEndDisplayList(),\n");
