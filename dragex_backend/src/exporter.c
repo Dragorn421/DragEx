@@ -1372,6 +1372,7 @@ void free_create_OoTCollisionMesh_from_buffers(struct OoTCollisionMesh *mesh) {
         free(mesh->materials[i].name);
     }
     free(mesh->materials);
+    free(mesh);
 }
 
 struct OoTCollisionMesh *create_OoTCollisionMesh_from_buffers(

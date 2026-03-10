@@ -358,8 +358,12 @@ PyObject *join_OoTCollisionMeshes(PyObject *self, PyObject *args) {
     for (Py_ssize_t i = 0; i < meshes_objects.len; i++)
         meshes[i] = meshes_objects.buffer[i]->mesh;
 
+    free_OoTCollisionMeshSequenceInfo(&meshes_objects);
+
     struct OoTCollisionMesh *mesh =
         join_OoTCollisionMeshes_impl(meshes, (size_t)meshes_objects.len);
+
+    free(meshes);
 
     struct OoTCollisionMeshObject *mesh_object;
 
