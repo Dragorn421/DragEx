@@ -229,6 +229,7 @@ classes = (
     oot_ops.DragExOoTExportSceneOperator,
     oot_ops.DragExOoTExportSkeletonOperator,
     oot_ops.DragExOoTFindNotSingleBindVerticesOperator,
+    oot_ops.DragExOoTExportAnimationOperator,
     DragExSetMaterialModeOperator,
 )
 

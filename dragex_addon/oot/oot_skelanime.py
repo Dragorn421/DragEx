@@ -1,6 +1,7 @@
 import dataclasses
+import math
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import bpy
 import mathutils
@@ -17,6 +18,25 @@ else:
         import dragex_backend
     except ModuleNotFoundError:
         dragex_backend = None
+
+
+def find_root_bone(bones: Iterable[bpy.types.Bone]):
+
+    root_bones: set[bpy.types.Bone] = set()
+    for bone in bones:
+        if not bone.use_deform:
+            continue
+        if bone.parent is None:
+            root_bones.add(bone)
+        else:
+            root_bones.add(bone.parent_recursive[-1])
+    if len(root_bones) != 1:
+        raise Exception(
+            f"Found {len(root_bones)} root bones instead of exactly 1: "
+            + ", ".join(_b.name for _b in root_bones)
+        )
+    (root_bone,) = root_bones
+    return root_bone
 
 
 @dataclasses.dataclass
@@ -57,20 +77,7 @@ def do_work(
     export_directory: Path,
     decomp_repo_p: Path,
 ):
-    root_bones: set[bpy.types.Bone] = set()
-    for bone in armature_data.bones:
-        if not bone.use_deform:
-            continue
-        if bone.parent is None:
-            root_bones.add(bone)
-        else:
-            root_bones.add(bone.parent_recursive[-1])
-    if len(root_bones) != 1:
-        raise Exception(
-            f"Found {len(root_bones)} root bones instead of exactly 1: "
-            + ", ".join(_b.name for _b in root_bones)
-        )
-    (root_bone,) = root_bones
+    root_bone = find_root_bone(armature_data.bones)
 
     rbh = build_hierarchy(root_bone, [])
 
@@ -87,15 +94,8 @@ def do_work(
 
     all_bones = get_all_bones(rbh)
 
-    if rbh.bone.head_local != mathutils.Vector((0, 0, 0)):
-        # SkelAnime_DrawFlex ignores StandardLimb.jointPos for the root bone,
-        # so I guess it is expected to be 0,0,0
-        # TODO test what happens if we lift this restriction
-        raise Exception("root bone head must be at 0,0,0 in the armature")
-    vertex_transforms_per_limb = [
-        mathutils.Matrix.Identity(4),  # root bone
-    ]
-    for bh in all_bones[1:]:
+    vertex_transforms_per_limb: list[mathutils.Matrix] = []
+    for bh in all_bones:
         vertex_transforms_per_limb.append(
             mathutils.Matrix.Translation(-bh.bone.head_local)
         )
@@ -256,6 +256,10 @@ def do_work(
             f.write("} " f"{skeleton_c_identifier}Limb;\n")
             for limb, bh in enumerate(all_bones):
                 if bh.bone.parent is None:
+                    # the jointPos of the root limb is unused
+                    # (see e.g. SkelAnime_DrawFlex)
+                    # A root bone that is not located at 0,0,0 relative to the armature
+                    # is still supported by encoding that position as part of animations
                     jointPos = mathutils.Vector((0, 0, 0))
                 else:
                     jointPos = global_transform @ (
@@ -290,3 +294,146 @@ def do_work(
             f.write("    },\n")
             f.write(f"    {len(all_bones)},\n")
             f.write("};\n")
+
+
+def rad2bin(rad: float):
+    binang = round(rad / math.pi * 0x8000) % 0x1_0000
+    if binang >= 0x8000:
+        binang -= 0x1_0000
+    return binang
+
+
+def HEx(v: int, n_digits: int = 0):
+    return f"{v:#0{n_digits + 2 + (1 if v < 0 else 0)}X}".replace("0X", "0x")
+
+
+def export_anim(
+    armature_obj: bpy.types.Object,
+    armature_data: bpy.types.Armature,
+    frame_start: int,
+    frame_count: int,
+    global_transform: mathutils.Matrix,
+    export_directory: Path,
+    anim_c_identifier: str,
+):
+    scene = bpy.context.scene
+    assert scene is not None
+
+    root_bone = find_root_bone(armature_data.bones)
+    rbh = build_hierarchy(root_bone, [])
+    all_bones = get_all_bones(rbh)
+
+    saved_frame_current = scene.frame_current
+    saved_frame_subframe = scene.frame_subframe
+
+    global_transform3 = global_transform.to_3x3()
+    global_transform3_inv = global_transform3.inverted()
+
+    joint_tables: list[tuple[tuple[int, int, int], ...]] = []
+
+    try:
+        for frame in range(frame_start, frame_start + frame_count):
+            scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            armature_obj_eval = armature_obj.evaluated_get(depsgraph)
+            assert armature_obj_eval.pose is not None
+            pose_bones = armature_obj_eval.pose.bones
+            root_pose_bone = pose_bones[root_bone.name]
+            # Note the pose bone head location includes the bone rest pose location,
+            # plus the animated location. This allows the root bone to not have to be
+            # at 0,0,0 relative to the armature in the rest pose
+            root_loc = global_transform @ root_pose_bone.head
+            root_rot = (
+                global_transform3
+                @ root_pose_bone.matrix_channel.to_3x3()
+                @ global_transform3_inv
+            ).to_euler("XYZ")
+
+            rots: list[mathutils.Euler] = [root_rot]
+
+            for bh in all_bones[1:]:
+                pb = pose_bones[bh.bone.name]
+                assert pb.parent is not None
+                rot = (
+                    global_transform3
+                    @ pb.parent.matrix_channel.to_3x3().transposed()
+                    @ pb.matrix_channel.to_3x3()
+                    @ global_transform3_inv
+                ).to_euler("XYZ")
+                rots.append(rot)
+
+            joint_table = (
+                (round(root_loc.x), round(root_loc.y), round(root_loc.z)),
+                *((rad2bin(rot.x), rad2bin(rot.y), rad2bin(rot.z)) for rot in rots),
+            )
+
+            dragex_backend.logging.debug(
+                f"Vec3s {anim_c_identifier}JointTable{frame}[] = "
+                "{\n"
+                + "".join(
+                    "    { " f"{HEx(x, 4)}, {HEx(y, 4)}, {HEx(z, 4)}" " },\n"
+                    for x, y, z in joint_table
+                )
+                + "};"
+            )
+
+            joint_tables.append(joint_table)
+    finally:
+        scene.frame_set(saved_frame_current, subframe=saved_frame_subframe)
+
+    len_joint_table = 1 + len(all_bones)
+
+    joint_indices: dict[tuple[int, int], int] = {}
+    frame_data: list[int] = []
+    dynamic_channels: list[tuple[int, int]] = []
+
+    for i in range(len_joint_table):
+        for j in range(3):
+            if len({_joint_table[i][j] for _joint_table in joint_tables}) == 1:
+                static_value = joint_tables[0][i][j]
+                try:
+                    index = frame_data.index(static_value)
+                except ValueError:
+                    index = None
+                if index is None:
+                    index = len(frame_data)
+                    frame_data.append(static_value)
+                joint_indices[(i, j)] = index
+            else:
+                dynamic_channels.append((i, j))
+
+    static_index_max = len(frame_data)
+
+    for i, j in dynamic_channels:
+        joint_indices[(i, j)] = len(frame_data)
+        frame_data.extend(_joint_table[i][j] for _joint_table in joint_tables)
+
+    with (export_directory / f"{anim_c_identifier}.c").open("w") as f:
+        f.write('#include "ultra64.h"\n')
+        f.write('#include "animation.h"\n')
+
+        f.write(f"s16 {anim_c_identifier}FrameData[] = " "{\n")
+        i = 0
+        while i < len(frame_data):
+            j = min(i + 50, len(frame_data))
+            f.write(
+                "    " + ", ".join(HEx(frame_data[_k], 4) for _k in range(i, j)) + ",\n"
+            )
+            i = j
+        f.write("};\n")
+
+        f.write(f"JointIndex {anim_c_identifier}JointIndices[] = " "{\n")
+        for i in range(len_joint_table):
+            f.write(
+                "    { "
+                + ", ".join(str(joint_indices[(i, _j)]) for _j in range(3))
+                + " },\n"
+            )
+        f.write("};\n")
+
+        f.write(f"AnimationHeader {anim_c_identifier} = " "{\n")
+        f.write("    { " f"{len(joint_tables)}" " },\n")
+        f.write(f"    {anim_c_identifier}FrameData,\n")
+        f.write(f"    {anim_c_identifier}JointIndices,\n")
+        f.write(f"    {static_index_max},\n")
+        f.write("};\n")

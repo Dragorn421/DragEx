@@ -59,6 +59,7 @@ class DragExOoTPanel(bpy.types.Panel):
             oot_ops.DragExOoTFindNotSingleBindVerticesOperator.bl_idname,
             text="Find multi-assigned vertices",
         ).select = "MULTIASSIGNED"
+        self.layout.operator(oot_ops.DragExOoTExportAnimationOperator.bl_idname)
 
 
 class DragExCollectionOoTPanel(bpy.types.Panel):

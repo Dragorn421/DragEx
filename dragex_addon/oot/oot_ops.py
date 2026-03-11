@@ -252,6 +252,70 @@ class DragExOoTFindNotSingleBindVerticesOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class DragExOoTExportAnimationOperator(bpy.types.Operator):
+    bl_idname = "dragex.oot_export_animation"
+    bl_label = "DragEx OoT Export Animation"
+
+    directory: bpy.props.StringProperty(subtype="DIR_PATH", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        if scene is None:
+            return False
+        scene_dragex = util.DRAGEX(scene)
+        return (
+            scene_dragex.target == "OOT_F3DEX2_PL"
+            and context.active_object is not None
+            and context.active_object.type == "ARMATURE"
+        )
+
+    def execute(self, context):  # type: ignore
+        import time
+
+        start = time.time()
+
+        scene = context.scene
+        assert scene is not None
+        scene_dragex = util.DRAGEX(scene)
+
+        armature_object = context.active_object
+        assert armature_object is not None
+        armature_data = armature_object.data
+        assert isinstance(armature_data, bpy.types.Armature)
+
+        export_directory = Path(self.directory)
+
+        global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
+            1 / scene_dragex.oot.scale, 4
+        )
+
+        assert armature_object.animation_data is not None
+        assert armature_object.animation_data.action is not None
+        frame_start, frame_end = armature_object.animation_data.action.frame_range
+        frame_count = frame_end - frame_start + 1
+
+        oot_skelanime.export_anim(
+            armature_object,
+            armature_data,
+            round(frame_start),
+            round(frame_count),
+            global_transform,
+            export_directory,
+            util.make_c_identifier(armature_object.animation_data.action.name),
+        )
+
+        end = time.time()
+        print("export time:", end - start, "s")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):  # type: ignore
+        assert context.window_manager is not None
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+
 class DragExOoTNewSceneOperator(bpy.types.Operator):
     bl_idname = "dragex.oot_new_scene"
     bl_label = "New OoT Scene"
