@@ -1326,50 +1326,78 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
     // TODO props for gsSPTexture arguments
     fprintf(f, "    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),\n");
 
-    if (mat_info->geometry_mode.zbuffer)
-        fprintf(f, "    gsSPSetGeometryMode(G_ZBUFFER),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_ZBUFFER),\n");
+#define N_GEOMETRY_MODES_MAX 9
+    const char *clear_geometry_mode[N_GEOMETRY_MODES_MAX];
+    int len_clear_geometry_mode = 0;
+    const char *set_geometry_mode[N_GEOMETRY_MODES_MAX];
+    int len_set_geometry_mode = 0;
+
+#define ADD_GEOMETRY_MODE_CLEAR(flag)                                          \
+    do {                                                                       \
+        assert(len_clear_geometry_mode < N_GEOMETRY_MODES_MAX);                \
+        clear_geometry_mode[len_clear_geometry_mode++] = (flag);               \
+    } while (0)
+
+#define ADD_GEOMETRY_MODE_SET(flag)                                            \
+    do {                                                                       \
+        assert(len_set_geometry_mode < N_GEOMETRY_MODES_MAX);                  \
+        set_geometry_mode[len_set_geometry_mode++] = (flag);                   \
+    } while (0)
+
+#define ADD_GEOMETRY_MODE(cond_for_set, flag)                                  \
+    do {                                                                       \
+        if (cond_for_set)                                                      \
+            ADD_GEOMETRY_MODE_SET(flag);                                       \
+        else                                                                   \
+            ADD_GEOMETRY_MODE_CLEAR(flag);                                     \
+    } while (0)
+
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.zbuffer, "G_ZBUFFER");
+
     // TODO also need to set G_SHADE if fog is enabled?
     // (if yes, make fog also enable SHADING_WHITE instead of SHADING_NULL in
     // the case of !lighting && !vertex_colors)
-    if (mat_info->geometry_mode.lighting ||
-        mat_info->geometry_mode.vertex_colors)
-        fprintf(f, "    gsSPSetGeometryMode(G_SHADE),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_SHADE),\n");
-    if (mat_info->geometry_mode.lighting)
-        fprintf(f, "    gsSPSetGeometryMode(G_LIGHTING),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_LIGHTING),\n");
-    if (mat_info->geometry_mode.cull_front)
-        fprintf(f, "    gsSPSetGeometryMode(G_CULL_FRONT),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_CULL_FRONT),\n");
-    if (mat_info->geometry_mode.cull_back)
-        fprintf(f, "    gsSPSetGeometryMode(G_CULL_BACK),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_CULL_BACK),\n");
-    if (mat_info->geometry_mode.fog)
-        fprintf(f, "    gsSPSetGeometryMode(G_FOG),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_FOG),\n");
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.lighting ||
+                          mat_info->geometry_mode.vertex_colors,
+                      "G_SHADE");
+
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.lighting, "G_LIGHTING");
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.cull_front, "G_CULL_FRONT");
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.cull_back, "G_CULL_BACK");
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.fog, "G_FOG");
 
     // TODO check somewhere that !(spherical && linear)
-    if (mat_info->geometry_mode.uv_gen_spherical)
-        fprintf(f,
-                "    gsSPGeometryMode(G_TEXTURE_GEN_LINEAR, G_TEXTURE_GEN),\n");
-    else if (mat_info->geometry_mode.uv_gen_linear)
-        fprintf(
-            f,
-            "    gsSPSetGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_TEXTURE_GEN),\n");
+    if (mat_info->geometry_mode.uv_gen_spherical) {
+        ADD_GEOMETRY_MODE_CLEAR("G_TEXTURE_GEN_LINEAR");
+        ADD_GEOMETRY_MODE_SET("G_TEXTURE_GEN");
+    } else if (mat_info->geometry_mode.uv_gen_linear) {
+        ADD_GEOMETRY_MODE_SET("G_TEXTURE_GEN");
+        ADD_GEOMETRY_MODE_SET("G_TEXTURE_GEN_LINEAR");
+    } else {
+        ADD_GEOMETRY_MODE_CLEAR("G_TEXTURE_GEN");
+    }
 
-    if (mat_info->geometry_mode.shade_smooth)
-        fprintf(f, "    gsSPSetGeometryMode(G_SHADING_SMOOTH),\n");
-    else
-        fprintf(f, "    gsSPClearGeometryMode(G_SHADING_SMOOTH),\n");
+    ADD_GEOMETRY_MODE(mat_info->geometry_mode.shade_smooth, "G_SHADING_SMOOTH");
+
+    fprintf(f, "    gsSPGeometryMode(\n");
+    if (len_clear_geometry_mode == 0) {
+        fprintf(f, "        0\n");
+    } else {
+        fprintf(f, "        %s\n", clear_geometry_mode[0]);
+        for (int i = 1; i < len_clear_geometry_mode; i++) {
+            fprintf(f, "      | %s\n", clear_geometry_mode[i]);
+        }
+    }
+    fprintf(f, "        ,\n");
+    if (len_set_geometry_mode == 0) {
+        fprintf(f, "        0\n");
+    } else {
+        fprintf(f, "        %s\n", set_geometry_mode[0]);
+        for (int i = 1; i < len_set_geometry_mode; i++) {
+            fprintf(f, "      | %s\n", set_geometry_mode[i]);
+        }
+    }
+    fprintf(f, "    ),\n");
 
     fprintf(f, "    gsSPEndDisplayList(),\n");
     fprintf(f, "};\n");
