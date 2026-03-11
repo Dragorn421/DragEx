@@ -1115,26 +1115,33 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
             if (!address_already_used) {
                 // TODO use gsDPLoadMultiTile for textures with line%8!=0 ?
-                // TODO use gsDPLoadMultiBlock_4b for RDP_TILE_SIZE_4 images
-                fprintf(f,
-                        "    gsDPLoadMultiBlock("
-                        "%s, 0x%03X, %d, "
-                        "%s, %s, %d, %d, %d, "
-                        "%s | %s, %s | %s, "
-                        "%d, %d, %d, %d),\n",
-                        image->c_identifier, tile->address, i_tile,
+                fprintf(
+                    f,
+                    "    %s("
+                    "%s, 0x%03X, %d, "
+                    "%s, %s%s"
+                    "%d, %d, %d, "
+                    "%s | %s, %s | %s, "
+                    "%d, %d, %d, %d),\n",
 
-                        tile_format_names[tile->format],
-                        tile_size_names[tile->size], image->width,
-                        image->height, tile->palette,
+                    tile->size == RDP_TILE_SIZE_4 ? "gsDPLoadMultiBlock_4b"
+                                                  : "gsDPLoadMultiBlock",
 
-                        tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
-                        tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP",
-                        tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
-                        tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
+                    image->c_identifier, tile->address, i_tile,
 
-                        tile->mask_S, tile->mask_T, tile->shift_S,
-                        tile->shift_T);
+                    tile_format_names[tile->format],
+                    tile->size == RDP_TILE_SIZE_4 ? ""
+                                                  : tile_size_names[tile->size],
+                    tile->size == RDP_TILE_SIZE_4 ? "" : ", ",
+
+                    image->width, image->height, tile->palette,
+
+                    tile->mirror_S ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                    tile->clamp_S ? "G_TX_CLAMP" : "G_TX_WRAP",
+                    tile->mirror_T ? "G_TX_MIRROR" : "G_TX_NOMIRROR",
+                    tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
+
+                    tile->mask_S, tile->mask_T, tile->shift_S, tile->shift_T);
             }
         }
     }
