@@ -956,38 +956,12 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
     fprintf(f, "    gsDPPipeSync(),\n");
 
-    fprintf(f, "    gsDPPipelineMode(%s),\n",
-            om->atomic_prim ? "G_PM_1PRIMITIVE" : "G_PM_NPRIMITIVE");
-
     static const char *cycle_type_names[] = {
         [RDP_OM_CYCLE_TYPE_1CYCLE] = "G_CYC_1CYCLE",
         [RDP_OM_CYCLE_TYPE_2CYCLE] = "G_CYC_2CYCLE",
         [RDP_OM_CYCLE_TYPE_COPY] = "G_CYC_COPY",
         [RDP_OM_CYCLE_TYPE_FILL] = "G_CYC_FILL",
     };
-    fprintf(f, "    gsDPSetCycleType(%s),\n", cycle_type_names[om->cycle_type]);
-
-    fprintf(f, "    gsDPSetTexturePersp(%s),\n",
-            om->persp_tex_en ? "G_TP_PERSP" : "G_TP_NONE");
-
-    // Note: having both detail and sharpen at once is invalid
-    // N64brew discord:
-    // https://discord.com/channels/205520502922543113/205520502922543113/1392399686819774575
-    fprintf(f, "    gsDPSetTextureDetail(%s),\n",
-            om->detail_tex_en    ? "G_TD_DETAIL"
-            : om->sharpen_tex_en ? "G_TD_SHARPEN"
-                                 : "G_TD_CLAMP");
-
-    fprintf(f, "    gsDPSetTextureLOD(%s),\n",
-            om->tex_lod_en ? "G_TL_LOD" : "G_TL_TILE");
-
-    fprintf(f, "    gsDPSetTextureLUT(%s),\n",
-            om->tlut_en ? (om->tlut_type ? "G_TT_IA16" : "G_TT_RGBA16")
-                        : "G_TT_NONE");
-
-    fprintf(f, "    gsDPSetTextureFilter(%s),\n",
-            om->sample_type ? (om->mid_texel ? "G_TF_AVERAGE" : "G_TF_BILERP")
-                            : "G_TF_POINT");
 
     const char *textConv;
     // Note: this is approximate
@@ -997,10 +971,6 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         textConv = "G_TC_FILTCONV";
     else
         textConv = "G_TC_CONV";
-    fprintf(f, "    gsDPSetTextureConvert(%s),\n", textConv);
-
-    fprintf(f, "    gsDPSetCombineKey(%s),\n",
-            om->key_en ? "G_CK_KEY" : "G_CK_NONE");
 
     static const char *rgb_dither_sel_names[] = {
         [RDP_OM_RGB_DITHER_MAGIC_SQUARE] = "G_CD_MAGICSQ",
@@ -1008,8 +978,6 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         [RDP_OM_RGB_DITHER_RANDOM_NOISE] = "G_CD_NOISE",
         [RDP_OM_RGB_DITHER_NONE] = "G_CD_DISABLE",
     };
-    fprintf(f, "    gsDPSetColorDither(%s),\n",
-            rgb_dither_sel_names[om->rgb_dither_sel]);
 
     static const char *alpha_dither_sel_names[] = {
         [RDP_OM_ALPHA_DITHER_SAME_AS_RGB] = "G_AD_PATTERN",
@@ -1017,8 +985,6 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         [RDP_OM_ALPHA_DITHER_RANDOM_NOISE] = "G_AD_NOISE",
         [RDP_OM_ALPHA_DITHER_NONE] = "G_AD_DISABLE",
     };
-    fprintf(f, "    gsDPSetAlphaDither(%s),\n",
-            alpha_dither_sel_names[om->alpha_dither_sel]);
 
     const char *blender_P_M_inputs_names[] = {
         [RDP_OM_BLENDER_P_M_INPUTS_INPUT] = "G_BL_CLR_IN",
@@ -1055,12 +1021,42 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
     fprintf(
         f,
-        "    gsDPSetRenderMode("
-        "%s%s%s%s%s"
-        "%s | %s | "
-        "%s%s%s"
-        "GBL_c1(%s, %s, %s, %s), GBL_c2(%s, %s, %s, %s)"
-        "),\n",
+        "    gsDPSetOtherMode(\n"
+        "        %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "      | %s\n"
+        "        ,\n"
+        "        %s%s%s%s%s%s | %s%s%s%s\n"
+        "      | GBL_c1(%s, %s, %s, %s)\n"
+        "      | GBL_c2(%s, %s, %s, %s)\n"
+        "      | %s\n"
+        "      | %s\n"
+        "    ),\n",
+        om->atomic_prim ? "G_PM_1PRIMITIVE" : "G_PM_NPRIMITIVE",
+        cycle_type_names[om->cycle_type],
+        om->persp_tex_en ? "G_TP_PERSP" : "G_TP_NONE",
+        // Note: having both detail and sharpen at once is invalid
+        // N64brew discord:
+        // https://discord.com/channels/205520502922543113/205520502922543113/1392399686819774575
+        om->detail_tex_en    ? "G_TD_DETAIL"
+        : om->sharpen_tex_en ? "G_TD_SHARPEN"
+                             : "G_TD_CLAMP",
+        om->tex_lod_en ? "G_TL_LOD" : "G_TL_TILE",
+        om->tlut_en ? (om->tlut_type ? "G_TT_IA16" : "G_TT_RGBA16")
+                    : "G_TT_NONE",
+        om->sample_type ? (om->mid_texel ? "G_TF_AVERAGE" : "G_TF_BILERP")
+                        : "G_TF_POINT",
+        textConv, om->key_en ? "G_CK_KEY" : "G_CK_NONE",
+        rgb_dither_sel_names[om->rgb_dither_sel],
+        alpha_dither_sel_names[om->alpha_dither_sel],
 
         om->antialias_en ? "AA_EN | " : "", om->z_compare_en ? "Z_CMP | " : "",
         om->z_update_en ? "Z_UPD | " : "", om->image_read_en ? "IM_RD | " : "",
@@ -1068,9 +1064,9 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
 
         cvg_dest_names[om->cvg_dest], z_mode_names[om->z_mode],
 
-        om->cvg_x_alpha ? "CVG_X_ALPHA | " : "",
-        om->alpha_cvg_select ? "ALPHA_CVG_SEL | " : "",
-        om->force_blend ? "FORCE_BL | " : "",
+        om->cvg_x_alpha ? " | CVG_X_ALPHA" : "",
+        om->alpha_cvg_select ? " | ALPHA_CVG_SEL" : "",
+        om->force_blend ? " | FORCE_BL" : "",
 
         blender_P_M_inputs_names[om->bl_m1a_0],
         blender_A_inputs_names[om->bl_m1b_0],
@@ -1080,14 +1076,12 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         blender_P_M_inputs_names[om->bl_m1a_1],
         blender_A_inputs_names[om->bl_m1b_1],
         blender_P_M_inputs_names[om->bl_m2a_1],
-        blender_B_inputs_names[om->bl_m2b_1]);
+        blender_B_inputs_names[om->bl_m2b_1],
 
-    fprintf(f, "    gsDPSetDepthSource(%s),\n",
-            om->z_source_sel ? "G_ZS_PRIM" : "G_ZS_PIXEL");
-    fprintf(f, "    gsDPSetAlphaCompare(%s),\n",
-            om->alpha_compare_en
-                ? om->dither_alpha_en ? "G_AC_DITHER" : "G_AC_THRESHOLD"
-                : "G_AC_NONE");
+        om->z_source_sel ? "G_ZS_PRIM" : "G_ZS_PIXEL",
+        om->alpha_compare_en
+            ? om->dither_alpha_en ? "G_AC_DITHER" : "G_AC_THRESHOLD"
+            : "G_AC_NONE");
 
     static const char *tile_format_names[] = {
         [RDP_TILE_FORMAT_RGBA] = "G_IM_FMT_RGBA",
