@@ -148,10 +148,16 @@ class MaterialInfo:
 class CornerMaterialInfo:
     def __init__(
         self,
+        limb_index: int,
     ) -> None: ...
 
 class MeshInfo:
-    def write_c(self, fd: int, /) -> str: ...
+    def write_c(
+        self,
+        fd: int,
+        limb_to_matrix_map: Sequence[str | None],
+        /,
+    ) -> str: ...
 
 def create_MeshInfo(
     mesh_name: str,

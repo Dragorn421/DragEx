@@ -49,20 +49,44 @@ static PyObject *MeshInfo_new(PyTypeObject *type, PyObject *args,
 static PyObject *MeshInfo_write_c(PyObject *_self, PyObject *args) {
     struct MeshInfoObject *self = (struct MeshInfoObject *)_self;
     int fd;
+    struct StringSequenceInfo limb_to_matrix_map_string_objects;
 
-    if (!PyArg_ParseTuple(args, "i", &fd))
+    if (!PyArg_ParseTuple(args, "iO&", &fd, converter_string_or_None_sequence,
+                          &limb_to_matrix_map_string_objects))
         return NULL;
 
     FILE *f = fdopen(dup(fd), "w");
     if (f == NULL) {
+        free_StringSequenceInfo(&limb_to_matrix_map_string_objects);
         PyErr_Format(PyExc_IOError, "Failed to open fd for writing. fdopen: %s",
                      strerror(errno));
         return NULL;
     }
 
-    char *dl_name = NULL;
-    int res = write_mesh_info_to_f3d_c(self->mesh, f, &dl_name);
+    const char **limb_to_matrix_map =
+        malloc(sizeof(char *) * limb_to_matrix_map_string_objects.len);
+    if (limb_to_matrix_map == NULL) {
+        PyErr_SetString(PyExc_Exception, "malloc limb_to_matrix_map failed");
+        free_StringSequenceInfo(&limb_to_matrix_map_string_objects);
+        fclose(f);
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < limb_to_matrix_map_string_objects.len; i++) {
+        if (limb_to_matrix_map_string_objects.buffer[i] != NULL) {
+            limb_to_matrix_map[i] = PyUnicode_AsUTF8AndSize(
+                limb_to_matrix_map_string_objects.buffer[i], NULL);
+        } else {
+            limb_to_matrix_map[i] = NULL;
+        }
+    }
 
+    char *dl_name = NULL;
+    int res = write_mesh_info_to_f3d_c(self->mesh, limb_to_matrix_map,
+                                       limb_to_matrix_map_string_objects.len, f,
+                                       &dl_name);
+
+    free_StringSequenceInfo(&limb_to_matrix_map_string_objects);
+    free(limb_to_matrix_map);
     fclose(f);
 
     if (res != 0) {
@@ -99,49 +123,6 @@ PyTypeObject MeshInfoType = {
     .tp_dealloc = MeshInfo_dealloc,
     .tp_methods = MeshInfo_methods,
 };
-
-struct GenericObjectSequenceInfo {
-    void **buffer;
-    Py_ssize_t len;
-};
-
-int converter_Object_or_None_sequence_impl(
-    PyObject *obj, struct GenericObjectSequenceInfo *result,
-    PyTypeObject *forType) {
-    Py_ssize_t len = PySequence_Length(obj);
-    if (len < 0)
-        return 0;
-
-    void **buffer = malloc(sizeof(void *) * len);
-    // TODO check malloc
-    for (Py_ssize_t i = 0; i < len; i++) {
-        PyObject *item = PySequence_GetItem(obj, i);
-        if (item == NULL) {
-            for (Py_ssize_t j = 0; j < i; j++)
-                Py_XDECREF(buffer[j]);
-            free(buffer);
-            return 0;
-        }
-
-        if (item == Py_None) {
-            buffer[i] = NULL;
-        } else if (PyObject_TypeCheck(item, forType)) {
-            buffer[i] = item;
-        } else {
-            PyErr_Format(PyExc_TypeError,
-                         "Object in sequence at index %ld is not None or a %s",
-                         (long)i, forType->tp_name);
-            for (Py_ssize_t j = 0; j < i; j++)
-                Py_XDECREF(buffer[j]);
-            free(buffer);
-            return 0;
-        }
-    }
-
-    result->buffer = buffer;
-    result->len = len;
-    return 1;
-}
 
 struct MaterialInfoObjectSequenceInfo {
     struct MaterialInfoObject **buffer;

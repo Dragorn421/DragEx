@@ -25,13 +25,15 @@ static int CornerMaterialInfo_init(PyObject *_self, PyObject *args,
     struct CornerMaterialInfoObject *self =
         (struct CornerMaterialInfoObject *)_self;
     static char *kwlist[] = {
+        "limb_index",
         NULL,
     };
+    int limb_index;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "", kwlist))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &limb_index))
         return -1;
 
-    (void)self;
+    self->corner_mat_info.limb_index = limb_index;
 
     return 0;
 }

@@ -50,6 +50,15 @@ class DragExOoTPanel(bpy.types.Panel):
         self.layout.prop(scene_dragex.oot, "scale")
         self.layout.operator(oot_ops.DragExOoTNewSceneOperator.bl_idname)
         self.layout.operator(oot_ops.DragExOoTExportSceneOperator.bl_idname)
+        self.layout.operator(oot_ops.DragExOoTExportSkeletonOperator.bl_idname)
+        self.layout.operator(
+            oot_ops.DragExOoTFindNotSingleBindVerticesOperator.bl_idname,
+            text="Find unassigned vertices",
+        ).select = "UNASSIGNED"
+        self.layout.operator(
+            oot_ops.DragExOoTFindNotSingleBindVerticesOperator.bl_idname,
+            text="Find multi-assigned vertices",
+        ).select = "MULTIASSIGNED"
 
 
 class DragExCollectionOoTPanel(bpy.types.Panel):

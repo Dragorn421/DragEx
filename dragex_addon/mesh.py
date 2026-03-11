@@ -1,5 +1,5 @@
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 
@@ -195,21 +195,69 @@ def mesh_to_mesh_info(
     image_infos: ImageInfos,
     c_identifiers_prefix: str,
 ):
-    # TODO test more with different matrix_world
-    transform = transform.to_4x4() @ obj.matrix_world
-    if transform[3] != mathutils.Vector((0, 0, 0, 1)):
-        raise Exception("Unexpected transform", transform)
-    transform3 = transform.to_3x3()
-    transform3_np = np.array(transform3)
-    transform_translation = transform.translation
-    transform_translation_np = np.array(transform_translation)
+    transform_per_vertex = np.zeros(len(mesh.vertices), dtype=np.uint)
+    transforms = (transform,)
 
+    mesh.calc_loop_triangles()  # TODO is this costly? we call it twice
+
+    submeshes = (
+        SubMeshInfo(
+            tris_mask=np.ones(len(mesh.loop_triangles), dtype=bool),
+            c_identifiers_suffix="",
+        ),
+    )
+
+    buf_corners_material_index = util.new_uint_buf(len(mesh.loops))
+    buf_corners_material_index[:] = 0
+
+    corner_material_infos = ()
+    default_corner_material_info = dragex_backend.CornerMaterialInfo(
+        limb_index=0,
+    )
+
+    mesh_infos = mesh_to_mesh_infos_general(
+        obj,
+        mesh,
+        transform_per_vertex,
+        transforms,
+        image_infos,
+        c_identifiers_prefix,
+        submeshes,
+        buf_corners_material_index,
+        corner_material_infos,
+        default_corner_material_info,
+    )
+
+    assert len(mesh_infos) == 1, mesh_infos
+
+    return mesh_infos[0]
+
+
+@dataclasses.dataclass
+class SubMeshInfo:
+    tris_mask: np.ndarray
+    c_identifiers_suffix: str
+
+
+def mesh_to_mesh_infos_general(
+    obj: bpy.types.Object,
+    mesh: bpy.types.Mesh,
+    transform_per_vertex: np.ndarray,
+    transforms: Sequence[mathutils.Matrix],
+    image_infos: ImageInfos,
+    c_identifiers_prefix: str,
+    submeshes: Sequence[SubMeshInfo],
+    buf_corners_material_index: np.ndarray,
+    corner_material_infos: Sequence["dragex_backend.CornerMaterialInfo"],
+    default_corner_material_info: "dragex_backend.CornerMaterialInfo",
+):
     # note: if size is too small, error is undescriptive:
     # "RuntimeError: internal error setting the array"
     buf_vertices_co = util.new_float_buf(3 * len(mesh.vertices))
     mesh.vertices.foreach_get("co", buf_vertices_co)
     mesh.calc_loop_triangles()
     buf_triangles_loops = util.new_uint_buf(3 * len(mesh.loop_triangles))
+    buf_triangles_loops_Nx3 = buf_triangles_loops.reshape((len(mesh.loop_triangles), 3))
     buf_triangles_material_index = util.new_uint_buf(len(mesh.loop_triangles))
     mesh.loop_triangles[0].loops
     mesh.loop_triangles[0].material_index
@@ -223,11 +271,30 @@ def mesh_to_mesh_info(
     mesh.loops.foreach_get("normal", buf_loops_normal)
 
     buf_vertices_co_Nx3 = buf_vertices_co.reshape((len(mesh.vertices), 3))
-    np.matmul(transform3_np, buf_vertices_co_Nx3.T, out=buf_vertices_co_Nx3.T)
-    buf_vertices_co_Nx3 += transform_translation_np
+    buf_vertices_co_3xN = buf_vertices_co_Nx3.T
 
-    buf_loops_normal_Nx3 = buf_loops_normal.reshape((len(mesh.loops), 3))
-    np.matmul(transform3_np, buf_loops_normal_Nx3.T, out=buf_loops_normal_Nx3.T)
+    buf_loops_normal_3xN = buf_loops_normal.reshape((len(mesh.loops), 3)).T
+
+    if not set(transform_per_vertex).issubset(range(len(transforms))):
+        raise Exception("There are vertices for which no transform is provided")
+
+    for i_transform, transform in enumerate(transforms):
+        transform = transform.to_4x4()
+        if transform[3] != mathutils.Vector((0, 0, 0, 1)):
+            raise Exception("Unexpected transform", i_transform, transform)
+        transform3 = transform.to_3x3()
+        transform3_np = np.array(transform3)
+        transform_translation = transform.translation
+        transform_translation_np = np.array(transform_translation)
+
+        # TODO make faster using np.matmul(out=) and np.add(out=)
+        buf_vertices_co_3xN[:, transform_per_vertex == i_transform] = (
+            (
+                transform3_np
+                @ buf_vertices_co_3xN[:, transform_per_vertex == i_transform]
+            ).T
+            + transform_translation_np
+        ).T
 
     active_color_attribute = mesh.color_attributes.active_color
     if active_color_attribute is None:
@@ -262,9 +329,6 @@ def mesh_to_mesh_info(
     else:
         buf_loops_uv = util.new_float_buf(2 * len(mesh.loops))
         active_uv_layer.uv.foreach_get("vector", buf_loops_uv)
-
-    buf_corners_material_index = util.new_uint_buf(len(mesh.loops))
-    buf_corners_material_index[:] = 0
 
     material_infos = list[dragex_backend.MaterialInfo | None]()
     for mat_index in range(len(obj.material_slots)):
@@ -394,23 +458,28 @@ def mesh_to_mesh_info(
         ),
     )
 
-    corner_material_infos = []
-    default_corner_material_info = dragex_backend.CornerMaterialInfo()
+    mesh_infos_list: list[dragex_backend.MeshInfo] = []
 
-    mesh_info = dragex_backend.create_MeshInfo(
-        c_identifiers_prefix + util.make_c_identifier(obj.name),
-        buf_vertices_co,
-        buf_triangles_loops,
-        buf_triangles_material_index,
-        buf_loops_vertex_index,
-        buf_loops_normal,
-        buf_corners_color,
-        buf_points_color,
-        buf_loops_uv,
-        buf_corners_material_index,
-        material_infos,
-        default_material_info,
-        corner_material_infos,
-        default_corner_material_info,
-    )
-    return mesh_info
+    for submesh_info in submeshes:
+        mesh_info = dragex_backend.create_MeshInfo(
+            (
+                c_identifiers_prefix
+                + util.make_c_identifier(obj.name)
+                + submesh_info.c_identifiers_suffix
+            ),
+            buf_vertices_co,
+            buf_triangles_loops_Nx3[submesh_info.tris_mask, :].ravel(),
+            buf_triangles_material_index[submesh_info.tris_mask],
+            buf_loops_vertex_index,
+            buf_loops_normal,
+            buf_corners_color,
+            buf_points_color,
+            buf_loops_uv,
+            buf_corners_material_index,
+            material_infos,
+            default_material_info,
+            corner_material_infos,
+            default_corner_material_info,
+        )
+        mesh_infos_list.append(mesh_info)
+    return mesh_infos_list

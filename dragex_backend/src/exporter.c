@@ -235,6 +235,8 @@ struct MeshInfo *create_MeshInfo_from_buffers(
     mesh->n_materials = n_materials;
     mesh->materials = malloc(sizeof(struct MaterialInfo) * n_materials);
 
+    log_debug("n_corner_materials=%u", n_corner_materials);
+
     mesh->n_corner_materials = n_corner_materials;
     mesh->corner_materials =
         malloc(sizeof(struct CornerMaterialInfo) * n_corner_materials);
@@ -382,6 +384,7 @@ void free_split_mesh_by_material(struct MeshInfo **meshes, int n_meshes) {
                     free(m->materials[0].name);
                     free(m->materials);
                 }
+                free(m->corner_materials);
                 free(m);
             }
         }
@@ -421,6 +424,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
             m->verts = NULL;
             m->faces = NULL;
             m->materials = NULL;
+            m->corner_materials = NULL;
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
         }
@@ -447,9 +451,12 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         m->verts = malloc(sizeof(struct VertexInfo) * n_vertices_used);
         m->faces = malloc(sizeof(struct TriInfo) * n_faces_used);
         m->materials = malloc(sizeof(struct MaterialInfo[1]));
+        m->corner_materials = malloc(sizeof(struct CornerMaterialInfo) *
+                                     in_mesh->n_corner_materials);
         if (m->name == NULL || m->verts == NULL || m->faces == NULL ||
-            m->materials == NULL) {
-            log_error("malloc name, verts, faces or materials failed");
+            m->materials == NULL || m->corner_materials == NULL) {
+            log_error("malloc name, verts, faces, materials or "
+                      "corner_materials failed");
             free(vertices_used);
             free_split_mesh_by_material(out_meshes, in_mesh->n_materials);
             return NULL;
@@ -461,6 +468,7 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         m->n_verts = n_vertices_used;
         m->n_faces = n_faces_used;
         m->n_materials = 1;
+        m->n_corner_materials = in_mesh->n_corner_materials;
 
         unsigned int i_face_new = 0;
         unsigned int i_vert_new = 0;
@@ -502,6 +510,11 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
         free(vertices_used);
 
         copy_MaterialInfo(&m->materials[0], &in_mesh->materials[i_mat]);
+
+        for (unsigned int i = 0; i < in_mesh->n_corner_materials; i++) {
+            copy_CornerMaterialInfo(&m->corner_materials[i],
+                                    &in_mesh->corner_materials[i]);
+        }
     }
 
     return out_meshes;
@@ -509,6 +522,10 @@ struct MeshInfo **split_mesh_by_material(struct MeshInfo *in_mesh) {
 
 void free_mesh_to_f3d_mesh(struct f3d_mesh *mesh) {
     if (mesh != NULL) {
+        for (int i = 0; i < mesh->n_corner_materials; i++) {
+            free(mesh->corner_materials[i].matrix);
+        }
+        free(mesh->corner_materials);
         free(mesh->vertices);
         if (mesh->entries != NULL) {
             for (int i = 0; i < mesh->n_entries; i++) {
@@ -528,18 +545,108 @@ void free_mesh_to_f3d_mesh(struct f3d_mesh *mesh) {
     }
 }
 
+struct sort_f3d_vertices_by_corner_material_elem {
+    struct f3d_vertex *vertex;
+    unsigned int orig_index;
+};
+
+int sort_f3d_vertices_by_corner_material_compare_fn(const void *_a,
+                                                    const void *_b) {
+    const struct sort_f3d_vertices_by_corner_material_elem *a = _a;
+    const struct sort_f3d_vertices_by_corner_material_elem *b = _b;
+    if (a->vertex->material < b->vertex->material) {
+        return -1;
+    } else if (a->vertex->material > b->vertex->material) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+bool sort_f3d_vertices_by_corner_material(
+    struct f3d_vertex *vertices, unsigned int n_vertices,
+    struct f3d_mesh_entry_triangles_triangle *tris, unsigned int n_tris) {
+    struct sort_f3d_vertices_by_corner_material_elem *indices = malloc(
+        sizeof(struct sort_f3d_vertices_by_corner_material_elem) * n_vertices);
+    struct f3d_vertex *vertices_copy =
+        malloc(sizeof(struct f3d_vertex) * n_vertices);
+    unsigned int *remap = malloc(sizeof(unsigned int) * n_vertices);
+    if (indices == NULL || vertices_copy == NULL || remap == NULL) {
+        log_error("malloc indices, vertices_copy or remap failed");
+        free(indices);
+        free(vertices_copy);
+        free(remap);
+        return false;
+    }
+    for (unsigned int i = 0; i < n_vertices; i++) {
+        indices[i].vertex = &vertices[i];
+        indices[i].orig_index = i;
+    }
+    qsort(indices, n_vertices,
+          sizeof(struct sort_f3d_vertices_by_corner_material_elem),
+          sort_f3d_vertices_by_corner_material_compare_fn);
+    memcpy(vertices_copy, vertices, sizeof(struct f3d_vertex) * n_vertices);
+    for (unsigned int i = 0; i < n_vertices; i++) {
+        vertices[i] = vertices_copy[indices[i].orig_index];
+        remap[indices[i].orig_index] = i;
+    }
+    for (unsigned int i = 0; i < n_tris; i++) {
+        for (unsigned int j = 0; j < 3; j++) {
+            tris[i].indices[j] = remap[tris[i].indices[j]];
+        }
+    }
+    free(indices);
+    free(vertices_copy);
+    free(remap);
+    return true;
+}
+
 enum shading_type { SHADING_NULL, SHADING_COLORS, SHADING_NORMALS };
 
-struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
+struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh,
+                                  const char **limb_to_matrix_map,
+                                  int limb_to_matrix_map_len, int uv_basis_s,
                                   int uv_basis_t,
                                   enum shading_type shading_type) {
+    // convert corner materials
+
+    struct f3d_mesh_corner_material *f3d_corner_materials = malloc(
+        sizeof(struct f3d_mesh_corner_material) * mesh->n_corner_materials);
+
+    if (f3d_corner_materials == NULL) {
+        log_error("malloc f3d_corner_materials failed");
+        return NULL;
+    }
+
+    log_debug("mesh->n_corner_materials=%u", mesh->n_corner_materials);
+
+    for (unsigned int i = 0; i < mesh->n_corner_materials; i++) {
+        if (mesh->corner_materials[i].limb_index < limb_to_matrix_map_len) {
+            f3d_corner_materials[i].matrix = strdup(
+                limb_to_matrix_map[mesh->corner_materials[i].limb_index]);
+            if (f3d_corner_materials[i].matrix == NULL) {
+                log_error("strdup matrix failed");
+                for (unsigned int j = 0; j < i; j++) {
+                    free(f3d_corner_materials[j].matrix);
+                }
+                return NULL;
+            }
+        } else {
+            f3d_corner_materials[i].matrix = NULL;
+        }
+    }
+
     // convert vertices from VertexInfo to f3d_vertex
 
     struct f3d_vertex *mesh_verts_f3d =
         malloc(sizeof(struct f3d_vertex) * mesh->n_verts);
 
     if (mesh_verts_f3d == NULL) {
-        log_error("malloc indices or remap failed");
+        log_error("malloc mesh_verts_f3d failed");
+        for (unsigned int i = 0; i < mesh->n_corner_materials; i++) {
+            free(f3d_corner_materials[i].matrix);
+        }
+        free(f3d_corner_materials);
         free(mesh_verts_f3d);
         return NULL;
     }
@@ -585,6 +692,10 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
 
     if (indices == NULL || remap == NULL) {
         log_error("malloc indices or remap failed");
+        for (unsigned int i = 0; i < mesh->n_corner_materials; i++) {
+            free(f3d_corner_materials[i].matrix);
+        }
+        free(f3d_corner_materials);
         free(mesh_verts_f3d);
         free(indices);
         free(remap);
@@ -606,6 +717,10 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         malloc(sizeof(struct f3d_vertex) * n_unique_verts);
     if (vertices == NULL) {
         log_error("malloc vertices failed");
+        for (unsigned int i = 0; i < mesh->n_corner_materials; i++) {
+            free(f3d_corner_materials[i].matrix);
+        }
+        free(f3d_corner_materials);
         free(mesh_verts_f3d);
         free(indices);
         free(remap);
@@ -670,7 +785,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                     cur_batch_n++;
                     i_vertex_cache_next++;
 
-                    // append vertex to f3d_vertices
+                    // append vertex to vertices_buf
                     if (i_vertices_buf >= vertices_buf_len) {
                         vertices_buf_len *= 2;
                         void *tmp =
@@ -714,6 +829,16 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
         // n_faces - 1
         bool is_last_tri = i_tri == mesh->n_faces;
         if (!tri_verts_fit_in_cache || is_last_tri) {
+            // sort vertices_buf[cur_batch_buffer_i:][:cur_batch_n] by (corner)
+            // material, making sure to remap cur_batch_tris[:cur_batch_n_tris]
+            // too
+            if (!sort_f3d_vertices_by_corner_material(
+                    vertices_buf + cur_batch_buffer_i, cur_batch_n,
+                    cur_batch_tris, cur_batch_n_tris)) {
+                log_error("sort_f3d_vertices_by_corner_material failed");
+                // TODO
+            }
+
             // Count how many vertices entries (SPVertex) we need to push
 
             // Start with an unset material ~0u so that the first entry is
@@ -760,7 +885,7 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
                     // TODO check malloc
                     cur_vertices_entry->base.type = F3D_MESH_ENTRY_VERTICES;
                     cur_vertices_entry->corner_material_index =
-                        vertices_buf[cur_batch_buffer_i].material;
+                        vertices_buf[cur_batch_buffer_i + i].material;
                     cur_vertices_entry->buffer_i = cur_batch_buffer_i + i;
                     cur_vertices_entry->n = 1;
                     cur_vertices_entry->v0 = cur_batch_v0 + i;
@@ -815,8 +940,10 @@ struct f3d_mesh *mesh_to_f3d_mesh(struct MeshInfo *mesh, int uv_basis_s,
 
     struct f3d_mesh *f3d_mesh = malloc(sizeof(struct f3d_mesh));
     // TODO check malloc
+    f3d_mesh->corner_materials = f3d_corner_materials;
     f3d_mesh->vertices = vertices_buf;
     f3d_mesh->entries = f3d_entries;
+    f3d_mesh->n_corner_materials = mesh->n_corner_materials;
     f3d_mesh->n_vertices = i_vertices_buf;
     f3d_mesh->n_entries = next_i_f3d_entry;
     return f3d_mesh;
@@ -1266,12 +1393,31 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
     }
     fprintf(f, "};\n");
 
+    unsigned int cur_corner_material = ~0u;
+
     fprintf(f, "Gfx %s_mesh_dl[] = {\n", name);
     for (int i = 0; i < mesh->n_entries; i++) {
         switch (mesh->entries[i]->type) {
         case F3D_MESH_ENTRY_VERTICES: {
             struct f3d_mesh_entry_vertices *e =
                 (struct f3d_mesh_entry_vertices *)mesh->entries[i];
+            if (e->corner_material_index != cur_corner_material) {
+                log_trace("cur_corner_material: %u -> %u", cur_corner_material,
+                          e->corner_material_index);
+                cur_corner_material = e->corner_material_index;
+                log_trace(
+                    "matrix=%s",
+                    mesh->corner_materials[cur_corner_material].matrix == NULL
+                        ? "(null)"
+                        : mesh->corner_materials[cur_corner_material].matrix);
+                if (mesh->corner_materials[cur_corner_material].matrix !=
+                    NULL) {
+                    fprintf(f,
+                            "    gsSPMatrix(%s, "
+                            "G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW),\n",
+                            mesh->corner_materials[cur_corner_material].matrix);
+                }
+            }
             fprintf(f,
                     "    gsSPVertex("
                     "&%s_mesh_vtx[%d], %" PRIu8 ", %" PRIu8 "),\n",
@@ -1312,7 +1458,9 @@ int write_f3d_mesh(FILE *f, struct f3d_mesh *mesh, const char *name) {
     return 0;
 }
 
-int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
+int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info,
+                             const char **limb_to_matrix_map,
+                             int limb_to_matrix_map_len, FILE *f,
                              char **dl_name) {
     fprintf(f, "// Hi from write_mesh_info_to_f3d_c\n");
     struct MeshInfo **meshes = split_mesh_by_material(mesh_info);
@@ -1330,7 +1478,8 @@ int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
             : mat_info->geometry_mode.vertex_colors ? SHADING_COLORS
                                                     : SHADING_NULL;
         struct f3d_mesh *f3d_mesh = mesh_to_f3d_mesh(
-            mesh, mat_info->uv_basis_s, mat_info->uv_basis_t, shading_type);
+            mesh, limb_to_matrix_map, limb_to_matrix_map_len,
+            mat_info->uv_basis_s, mat_info->uv_basis_t, shading_type);
         write_f3d_mesh(f, f3d_mesh, mesh->name);
         free_mesh_to_f3d_mesh(f3d_mesh);
     }

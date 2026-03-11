@@ -227,6 +227,8 @@ classes = (
     oot_panels.DragExCollectionOoTPanel,
     oot_panels.DragExObjectOoTEmptyPanel,
     oot_ops.DragExOoTExportSceneOperator,
+    oot_ops.DragExOoTExportSkeletonOperator,
+    oot_ops.DragExOoTFindNotSingleBindVerticesOperator,
     DragExSetMaterialModeOperator,
 )
 

@@ -27,8 +27,6 @@ def mesh_to_OoTCollisionMesh(
     mesh: bpy.types.Mesh,
     transform: mathutils.Matrix,
 ):
-    # TODO test more with different matrix_world
-    transform = transform.to_4x4() @ obj.matrix_world
     print(f"{transform=}")
     if transform[3] != mathutils.Vector((0, 0, 0, 1)):
         raise Exception("Unexpected transform", transform)
@@ -115,7 +113,8 @@ class CollectMapException(Exception):
 def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions"):
     scene_c_identifier = util.make_c_identifier(coll_scene.name)
 
-    transform_inverted = export_options.transform.inverted()
+    transform3 = export_options.transform.to_3x3()
+    transform3_inverted = transform3.inverted()
 
     room_colls = dict[int, bpy.types.Collection]()
     for coll in coll_scene.children_recursive:
@@ -157,7 +156,8 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                 mesh_info = mesh.mesh_to_mesh_info(
                     obj,
                     obj.data,
-                    export_options.transform,
+                    # TODO test more with different matrix_world
+                    export_options.transform @ obj.matrix_world,
                     image_infos,
                     f"{scene_c_identifier}_{room_c_identifier}_",
                 )
@@ -183,7 +183,8 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             collision_mesh = mesh_to_OoTCollisionMesh(
                 obj,
                 obj.data,
-                export_options.transform,
+                # TODO test more with different matrix_world
+                export_options.transform @ obj.matrix_world,
             )
             collision_meshes.append(collision_mesh)
     collision = dragex_backend.join_OoTCollisionMeshes(collision_meshes)
@@ -214,9 +215,9 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             # 1) check transform @ rot @ 1/transform is correct
             # 2) check Euler ZXY does correspond to oot's YXZ
             obj_transformed_rot_matrix = (
-                export_options.transform
+                transform3
                 @ obj_rot_quaternion.to_matrix()
-                @ transform_inverted
+                @ transform3_inverted
             )
 
             if obj_dragex.oot.empty.export_rot_yxz:
@@ -393,10 +394,10 @@ extern RoomShapeNormal {room_shape_name};
                 xlu_dlists_names = list[str]()
                 for mi in room_shape.entries_opa:
                     # TODO batch the fopen() inside write_c by passing a list of MeshInfo to dragex_backend instead
-                    dl_name = mi.write_c(room_fd)
+                    dl_name = mi.write_c(room_fd, ())
                     opa_dlists_names.append(dl_name)
                 for mi in room_shape.entries_xlu:
-                    dl_name = mi.write_c(room_fd)
+                    dl_name = mi.write_c(room_fd, ())
                     xlu_dlists_names.append(dl_name)
 
                 if len(opa_dlists_names) < len(xlu_dlists_names):

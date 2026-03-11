@@ -1,11 +1,23 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import bpy
 import mathutils
 
 from . import oot_export_map
+from . import oot_skelanime
 from .. import util
+
+
+def find_decomp_repo(export_directory: Path):
+    # TODO pass in the decomp repo path as a prop or something instead
+    candidate_decomp_repo_p = export_directory
+    while not (candidate_decomp_repo_p / "spec").exists():
+        parent_p = candidate_decomp_repo_p.parent
+        if parent_p == candidate_decomp_repo_p:
+            return None
+        candidate_decomp_repo_p = parent_p
+    decomp_repo_p = candidate_decomp_repo_p
+    return decomp_repo_p
 
 
 class DragExOoTExportSceneOperator(bpy.types.Operator):
@@ -54,29 +66,24 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         assert scene is not None
         scene_dragex = util.DRAGEX(scene)
 
-        # TODO pass in the decomp repo path as a prop or something instead
-        candidate_decomp_repo_p = export_directory.parent
-        while not (candidate_decomp_repo_p / "spec").exists():
-            parent_p = candidate_decomp_repo_p.parent
-            if parent_p == candidate_decomp_repo_p:
-                self.report(
-                    {"ERROR"},
-                    (
-                        "Cannot find decomp repo (a folder with spec)"
-                        f" in parents of {export_directory}"
-                    ),
-                )
-                return {"CANCELLED"}
-            candidate_decomp_repo_p = parent_p
-        decomp_repo_p = candidate_decomp_repo_p
+        decomp_repo_p = find_decomp_repo(export_directory)
+        if decomp_repo_p is None:
+            self.report(
+                {"ERROR"},
+                (
+                    "Cannot find decomp repo (a folder with spec)"
+                    f" in parents of {export_directory}"
+                ),
+            )
+            return {"CANCELLED"}
 
         oot_export_map.export_coll_scene(
             coll_scene_to_export,
             export_directory,
             oot_export_map.ExportOptions(
                 transform=(
-                    util.transform_zup_to_yup
-                    @ mathutils.Matrix.Scale(1 / scene_dragex.oot.scale, 3)
+                    util.transform_zup_to_yup.to_4x4()
+                    @ mathutils.Matrix.Scale(1 / scene_dragex.oot.scale, 4)
                 ),
                 decomp_repo_p=decomp_repo_p,
             ),
@@ -91,6 +98,158 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         assert context.window_manager is not None
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
+
+
+WEIGHT_EPSILON = 0.01
+
+
+class DragExOoTExportSkeletonOperator(bpy.types.Operator):
+    bl_idname = "dragex.oot_export_skeleton"
+    bl_label = "DragEx OoT Export Skeleton"
+
+    directory: bpy.props.StringProperty(subtype="DIR_PATH", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        if scene is None:
+            return False
+        scene_dragex = util.DRAGEX(scene)
+        return (
+            scene_dragex.target == "OOT_F3DEX2_PL"
+            and context.active_object is not None
+            and context.active_object.type == "ARMATURE"
+        )
+
+    def execute(self, context):  # type: ignore
+        import time
+
+        start = time.time()
+
+        scene = context.scene
+        assert scene is not None
+        scene_dragex = util.DRAGEX(scene)
+
+        armature_object = context.active_object
+        assert armature_object is not None
+        armature_data = armature_object.data
+        assert isinstance(armature_data, bpy.types.Armature)
+
+        export_directory = Path(self.directory)
+
+        decomp_repo_p = find_decomp_repo(export_directory)
+        if decomp_repo_p is None:
+            self.report(
+                {"ERROR"},
+                (
+                    "Cannot find decomp repo (a folder with spec)"
+                    f" in parents of {export_directory}"
+                ),
+            )
+            return {"CANCELLED"}
+
+        mesh_objects = [
+            _obj for _obj in armature_object.children_recursive if _obj.type == "MESH"
+        ]
+
+        global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
+            1 / scene_dragex.oot.scale, 4
+        )
+
+        oot_skelanime.do_work(
+            armature_object,
+            armature_data,
+            mesh_objects,
+            global_transform,
+            WEIGHT_EPSILON,
+            export_directory,
+            decomp_repo_p,
+        )
+
+        end = time.time()
+        print("export time:", end - start, "s")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):  # type: ignore
+        assert context.window_manager is not None
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+
+def find_armature_parent(obj: bpy.types.Object):
+    while obj.parent is not None:
+        obj = obj.parent
+        if obj.type == "ARMATURE":
+            return obj
+    return None
+
+
+class DragExOoTFindNotSingleBindVerticesOperator(bpy.types.Operator):
+    bl_idname = "dragex.oot_find_not_single_bind_vertices"
+    bl_label = "DragEx OoT Find not-single-bind Vertices"
+
+    select: bpy.props.EnumProperty(
+        items=(
+            ("UNASSIGNED", "Unassigned", ""),
+            ("MULTIASSIGNED", "Multiassigned", ""),
+        )
+    )
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        if scene is None:
+            return False
+        scene_dragex = util.DRAGEX(scene)
+        return (
+            scene_dragex.target == "OOT_F3DEX2_PL"
+            and context.active_object is not None
+            and context.active_object.type == "MESH"
+            and find_armature_parent(context.active_object) is not None
+        )
+
+    def execute(self, context):  # type: ignore
+        mesh_obj = context.active_object
+        assert mesh_obj is not None
+        mesh = mesh_obj.data
+        assert isinstance(mesh, bpy.types.Mesh)
+        armature_obj = find_armature_parent(mesh_obj)
+        assert armature_obj is not None
+        armature = armature_obj.data
+        assert isinstance(armature, bpy.types.Armature)
+        bones_group_indices = {
+            mesh_obj.vertex_groups[bone.name].index
+            for bone in armature.bones
+            if bone.name in mesh_obj.vertex_groups
+        }
+        n = 0
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        for v in mesh.vertices:
+            v_groups = sorted(
+                (_g for _g in v.groups if _g.group in bones_group_indices),
+                key=lambda _g: _g.weight,
+                reverse=True,
+            )
+            is_unassigned = (
+                len(v_groups) == 0 or v_groups[0].weight < 1 - WEIGHT_EPSILON
+            )
+            is_multiassigned = (
+                len(v_groups) >= 2 and v_groups[1].weight > WEIGHT_EPSILON
+            )
+            if self.select == "UNASSIGNED":
+                v.select = is_unassigned
+                if is_unassigned:
+                    n += 1
+            if self.select == "MULTIASSIGNED":
+                v.select = is_multiassigned
+                if is_multiassigned:
+                    n += 1
+        bpy.ops.object.mode_set(mode="EDIT")
+        self.report({"INFO"}, f"Found {n} {self.select.lower()} vertices")
+        return {"FINISHED"}
 
 
 class DragExOoTNewSceneOperator(bpy.types.Operator):

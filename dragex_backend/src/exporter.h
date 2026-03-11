@@ -321,7 +321,7 @@ struct MaterialInfo {
 };
 
 struct CornerMaterialInfo {
-    // TODO limbIndex
+    int limb_index;
 };
 
 struct MeshInfo {
@@ -357,6 +357,10 @@ struct MeshInfo *create_MeshInfo_from_buffers(
 
 // f3d
 
+struct f3d_mesh_corner_material {
+    char *matrix;
+};
+
 struct f3d_vertex {
     int16_t coords[3];
     int16_t st[2];
@@ -389,15 +393,19 @@ struct f3d_mesh_entry_triangles {
 };
 
 struct f3d_mesh {
+    struct f3d_mesh_corner_material *corner_materials;
     struct f3d_vertex *vertices;
     struct f3d_mesh_entry_base **entries;
+    int n_corner_materials;
     int n_vertices;
     int n_entries;
 };
 
 //
 
-int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info, FILE *f,
+int write_mesh_info_to_f3d_c(struct MeshInfo *mesh_info,
+                             const char **limb_to_matrix_map,
+                             int limb_to_matrix_map_len, FILE *f,
                              char **dl_name);
 
 //

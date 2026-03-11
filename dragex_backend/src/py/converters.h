@@ -12,4 +12,26 @@ int converter_contiguous_float_buffer(PyObject *obj, void *result);
 
 int converter_contiguous_float_buffer_optional(PyObject *obj, void *result);
 
+//
+
+struct GenericObjectSequenceInfo {
+    PyObject **buffer;
+    Py_ssize_t len;
+};
+
+int converter_Object_or_None_sequence_impl(
+    PyObject *obj, struct GenericObjectSequenceInfo *result,
+    PyTypeObject *forType);
+
+//
+
+struct StringSequenceInfo {
+    PyObject **buffer;
+    Py_ssize_t len;
+};
+
+void free_StringSequenceInfo(struct StringSequenceInfo *strings);
+
+int converter_string_or_None_sequence(PyObject *obj, void *result);
+
 #endif
