@@ -1,5 +1,6 @@
 #include "player.h"
 #include "exported/positions.h"
+#include "glue/glue_scene.h"
 
 /*
  * DEF_SPAWN(name, room, position, yaw, params)

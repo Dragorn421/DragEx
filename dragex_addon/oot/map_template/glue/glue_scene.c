@@ -48,6 +48,10 @@ EnvLightSettings map_prefix_lower_EnvLightSettingsList[] = {
 
 // Collision
 
+#define DEF_SURFACETYPE(name, st0, st1, flagsA, flagsB)
+#include "../table_polytypes.h"
+#undef DEF_SURFACETYPE
+
 enum {
 #define DEF_SURFACETYPE(name, st0, st1, flagsA, flagsB)                        \
   MAP_PREFIX_UPPER_COL_##name##_FLAGS_A = (flagsA),                            \

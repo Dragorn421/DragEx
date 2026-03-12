@@ -1,3 +1,6 @@
+#include "bgcheck.h"
+#include "glue/glue_scene.h"
+
 /*
  * DEF_SURFACETYPE(name, surfaceType0, surfaceType1, flagsA, flagsB)
  * - `name` is the name of the surface type: it can be used in the DragEx OoT
