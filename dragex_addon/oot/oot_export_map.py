@@ -248,7 +248,7 @@ class ExportOptions:
     decomp_repo_p: Path
 
 
-def export_coll_scene(
+def export_coll_scene_impl(
     coll_scene: bpy.types.Collection, out_dir_p: Path, export_options: ExportOptions
 ):
     oot_scene = collect_map(coll_scene, export_options)
@@ -259,6 +259,8 @@ def export_coll_scene(
 
     map_prefix_lower = oot_scene.c_identifier.lower()
     map_prefix_upper = oot_scene.c_identifier.upper()
+
+    out_dir_p.mkdir(parents=True, exist_ok=True)
 
     exported_dir_p = out_dir_p / "exported"
     exported_dir_p.mkdir(exist_ok=True)
@@ -561,4 +563,23 @@ extern RoomShapeNormal {room_shape_name};
     write_if_missing(
         out_dir_p / "spec.inc",
         "\n".join(spec_frags),
+    )
+
+
+def export_coll_scene(
+    coll_scene_to_export: bpy.types.Collection,
+    export_directory: Path,
+    scene: bpy.types.Scene,
+    decomp_repo_p: Path,
+):
+    export_coll_scene_impl(
+        coll_scene_to_export,
+        export_directory,
+        ExportOptions(
+            transform=(
+                util.transform_zup_to_yup.to_4x4()
+                @ mathutils.Matrix.Scale(1 / util.DRAGEX(scene).oot.scale, 4)
+            ),
+            decomp_repo_p=decomp_repo_p,
+        ),
     )

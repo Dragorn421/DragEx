@@ -5,19 +5,8 @@ import mathutils
 
 from . import oot_export_map
 from . import oot_skelanime
+from . import oot_util
 from .. import util
-
-
-def find_decomp_repo(export_directory: Path):
-    # TODO pass in the decomp repo path as a prop or something instead
-    candidate_decomp_repo_p = export_directory
-    while not (candidate_decomp_repo_p / "spec").exists():
-        parent_p = candidate_decomp_repo_p.parent
-        if parent_p == candidate_decomp_repo_p:
-            return None
-        candidate_decomp_repo_p = parent_p
-    decomp_repo_p = candidate_decomp_repo_p
-    return decomp_repo_p
 
 
 class DragExOoTExportSceneOperator(bpy.types.Operator):
@@ -64,10 +53,11 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex = util.DRAGEX(scene)
 
-        decomp_repo_p = find_decomp_repo(export_directory)
-        if decomp_repo_p is None:
+        try:
+            # TODO pass in the decomp repo path as a prop or something instead
+            decomp_repo_p = oot_util.find_decomp_repo(export_directory)
+        except oot_util.CannotFindDecompRepoError:
             self.report(
                 {"ERROR"},
                 (
@@ -80,13 +70,8 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         oot_export_map.export_coll_scene(
             coll_scene_to_export,
             export_directory,
-            oot_export_map.ExportOptions(
-                transform=(
-                    util.transform_zup_to_yup.to_4x4()
-                    @ mathutils.Matrix.Scale(1 / scene_dragex.oot.scale, 4)
-                ),
-                decomp_repo_p=decomp_repo_p,
-            ),
+            scene,
+            decomp_repo_p,
         )
 
         end = time.time()
@@ -137,8 +122,10 @@ class DragExOoTExportSkeletonOperator(bpy.types.Operator):
 
         export_directory = Path(self.directory)
 
-        decomp_repo_p = find_decomp_repo(export_directory)
-        if decomp_repo_p is None:
+        try:
+            # TODO pass in the decomp repo path as a prop or something instead
+            decomp_repo_p = oot_util.find_decomp_repo(export_directory)
+        except oot_util.CannotFindDecompRepoError:
             self.report(
                 {"ERROR"},
                 (

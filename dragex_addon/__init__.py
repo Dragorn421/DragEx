@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import bpy
 
 from .build_id import BUILD_ID
+from . import cli_command
 from . import material_modes
 from .oot import oot_ops
 from .oot import oot_panels
@@ -247,6 +248,9 @@ classes = (
 cannot_register = False
 
 
+cli_commands = []
+
+
 def register():
     global cannot_register
     cannot_register = False
@@ -301,6 +305,10 @@ def register():
     bpy.types.Material.dragex = bpy.props.PointerProperty(type=DragExMaterialProperties)  # type: ignore
     bpy.types.Mesh.dragex = bpy.props.PointerProperty(type=DragExMeshProperties)  # type: ignore
 
+    cli_commands.append(
+        bpy.utils.register_cli_command("dragex", cli_command.dragex_command)
+    )
+
     from . import f64render_dragex
 
     f64render_dragex.register()
@@ -318,6 +326,9 @@ def unregister():
 
 
 def unregister_impl():
+    for cmd in cli_commands:
+        bpy.utils.unregister_cli_command(cmd)
+    cli_commands.clear()
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
