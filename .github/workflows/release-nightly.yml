@@ -14,7 +14,7 @@ jobs:
         continue-on-error: true  # In case the release doesn't exist yet
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: src
           fetch-depth: 0
@@ -25,7 +25,7 @@ jobs:
             git -C src push origin nightly
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: bin
 

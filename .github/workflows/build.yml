@@ -18,12 +18,12 @@ jobs:
     env:
       archive_name: dragex-${{ matrix.target.wheel-build-id }}-${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -71,7 +71,7 @@ jobs:
         run: ./blender-4.2.11-windows-x64/blender.exe --command extension build --source-dir dragex_addon --output-filepath ${{ env.archive_name }}.zip
 
       - name: Upload archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ env.archive_name }}
           path: |
