@@ -28,8 +28,19 @@ def find_root_bone(bones: Iterable[bpy.types.Bone]):
             continue
         if bone.parent is None:
             root_bones.add(bone)
-        else:
-            root_bones.add(bone.parent_recursive[-1])
+
+    # If we did not find any deform root bone,
+    # we look at the deform children of non-deform root bones
+    # or deform children of chains of non-deform bones starting at the root.
+    # This allows using non-deform bones to which the deform bones are parented
+    # as helpers for animation making
+    if not root_bones:
+        for bone in bones:
+            if bone.use_deform and all(
+                not _b.use_deform for _b in bone.parent_recursive
+            ):
+                root_bones.add(bone)
+
     if len(root_bones) != 1:
         raise Exception(
             f"Found {len(root_bones)} root bones instead of exactly 1: "
@@ -47,7 +58,10 @@ class BoneHierarchy:
 
 
 def build_hierarchy(b: bpy.types.Bone, siblings: list[bpy.types.Bone]):
-    children_b = sorted(b.children, key=lambda _b: _b.name.lower())
+    children_b = sorted(
+        (_b for _b in b.children if _b.use_deform),
+        key=lambda _b: _b.name.lower(),
+    )
     if children_b:
         child_h = build_hierarchy(children_b[0], children_b[1:])
     else:
