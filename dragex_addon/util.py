@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from . import (
         DragExCollectionProperties,
         DragExMaterialProperties,
+        DragExMeshProperties,
         DragExObjectProperties,
         DragExSceneProperties,
     )
@@ -82,6 +83,8 @@ if TYPE_CHECKING:
     def DRAGEX(data: bpy.types.Collection) -> DragExCollectionProperties: ...
     @typing.overload
     def DRAGEX(data: bpy.types.Material) -> DragExMaterialProperties: ...
+    @typing.overload
+    def DRAGEX(data: bpy.types.Mesh) -> DragExMeshProperties: ...
     @typing.overload
     def DRAGEX(data: bpy.types.Object) -> DragExObjectProperties: ...
     @typing.overload

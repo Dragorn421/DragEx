@@ -152,6 +152,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                 ...
             if obj.type == "MESH":
                 assert isinstance(obj.data, bpy.types.Mesh)
+                mesh_dragex = util.DRAGEX(obj.data)
                 # TODO this is inefficient if mesh is shared between rooms
                 mesh_info = mesh.mesh_to_mesh_info(
                     obj,
@@ -161,8 +162,10 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
                     image_infos,
                     f"{scene_c_identifier}_{room_c_identifier}_",
                 )
-                # TODO prop to set draw layer opa/xlu
-                entries_opa.append(mesh_info)
+                if mesh_dragex.oot.draw_layer == "OPA":
+                    entries_opa.append(mesh_info)
+                else:
+                    entries_xlu.append(mesh_info)
 
         shape = OoTRoomShapeNormal(
             image_infos=image_infos,
@@ -215,9 +218,7 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
             # 1) check transform @ rot @ 1/transform is correct
             # 2) check Euler ZXY does correspond to oot's YXZ
             obj_transformed_rot_matrix = (
-                transform3
-                @ obj_rot_quaternion.to_matrix()
-                @ transform3_inverted
+                transform3 @ obj_rot_quaternion.to_matrix() @ transform3_inverted
             )
 
             if obj_dragex.oot.empty.export_rot_yxz:

@@ -161,3 +161,15 @@ class DragExMaterialOoTProperties(bpy.types.PropertyGroup):
         default="DEFAULT",
         search=search_polytype_names,
     )
+
+
+class DragExMeshOoTProperties(bpy.types.PropertyGroup):
+    draw_layer: bpy.props.EnumProperty(
+        name="Draw Layer",
+        description="",
+        items=(
+            ("OPA", "Opaque", ""),
+            ("XLU", "Translucent", ""),
+        ),
+        default="OPA",
+    )

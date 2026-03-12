@@ -143,3 +143,29 @@ class DragExObjectOoTEmptyPanel(bpy.types.Panel):
                     ),
                     icon="ERROR",
                 )
+
+
+class DragExMeshOoTPanel(bpy.types.Panel):
+    bl_idname = "OBJECT_PT_dragex_oot_mesh"
+    bl_label = "DragEx"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        obj = context.object
+        if scene is None or obj is None:
+            return False
+        scene_dragex = util.DRAGEX(scene)
+        return scene_dragex.target == "OOT_F3DEX2_PL" and obj.type == "MESH"
+
+    def draw(self, context):
+        layout = self.layout
+        assert layout is not None
+        obj = context.object
+        assert obj is not None
+        assert isinstance(obj.data, bpy.types.Mesh)
+        mesh_dragex = util.DRAGEX(obj.data)
+        layout.prop(mesh_dragex.oot, "draw_layer")

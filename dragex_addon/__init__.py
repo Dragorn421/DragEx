@@ -181,6 +181,14 @@ class DragExObjectProperties(bpy.types.PropertyGroup):
         return self.oot_
 
 
+class DragExMeshProperties(bpy.types.PropertyGroup):
+    oot_: bpy.props.PointerProperty(type=oot_props.DragExMeshOoTProperties)
+
+    @property
+    def oot(self) -> oot_props.DragExMeshOoTProperties:
+        return self.oot_
+
+
 class DragExTargetPanel(bpy.types.Panel):
     bl_idname = "DRAGEX_PT_target"
     bl_label = "Target"
@@ -221,11 +229,14 @@ classes = (
     oot_props.DragExObjectOoTEmptyProperties,
     oot_props.DragExObjectOoTProperties,
     DragExObjectProperties,
+    oot_props.DragExMeshOoTProperties,
+    DragExMeshProperties,
     DragExTargetPanel,
     oot_ops.DragExOoTNewSceneOperator,
     oot_panels.DragExOoTPanel,
     oot_panels.DragExCollectionOoTPanel,
     oot_panels.DragExObjectOoTEmptyPanel,
+    oot_panels.DragExMeshOoTPanel,
     oot_ops.DragExOoTExportSceneOperator,
     oot_ops.DragExOoTExportSkeletonOperator,
     oot_ops.DragExOoTFindNotSingleBindVerticesOperator,
@@ -288,6 +299,7 @@ def register():
     )
     bpy.types.Object.dragex = bpy.props.PointerProperty(type=DragExObjectProperties)  # type: ignore
     bpy.types.Material.dragex = bpy.props.PointerProperty(type=DragExMaterialProperties)  # type: ignore
+    bpy.types.Mesh.dragex = bpy.props.PointerProperty(type=DragExMeshProperties)  # type: ignore
 
     from . import f64render_dragex
 
