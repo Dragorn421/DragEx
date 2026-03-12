@@ -85,9 +85,6 @@ class DragExOoTExportSceneOperator(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
 
-WEIGHT_EPSILON = 0.01
-
-
 class DragExOoTExportSkeletonOperator(bpy.types.Operator):
     bl_idname = "dragex.oot_export_skeleton"
     bl_label = "DragEx OoT Export Skeleton"
@@ -113,7 +110,6 @@ class DragExOoTExportSkeletonOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex = util.DRAGEX(scene)
 
         armature_object = context.active_object
         assert armature_object is not None
@@ -135,20 +131,10 @@ class DragExOoTExportSkeletonOperator(bpy.types.Operator):
             )
             return {"CANCELLED"}
 
-        mesh_objects = [
-            _obj for _obj in armature_object.children_recursive if _obj.type == "MESH"
-        ]
-
-        global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
-            1 / scene_dragex.oot.scale, 4
-        )
-
-        oot_skelanime.do_work(
+        oot_skelanime.export_skeleton(
             armature_object,
             armature_data,
-            mesh_objects,
-            global_transform,
-            WEIGHT_EPSILON,
+            scene,
             export_directory,
             decomp_repo_p,
         )
@@ -221,10 +207,11 @@ class DragExOoTFindNotSingleBindVerticesOperator(bpy.types.Operator):
                 reverse=True,
             )
             is_unassigned = (
-                len(v_groups) == 0 or v_groups[0].weight < 1 - WEIGHT_EPSILON
+                len(v_groups) == 0
+                or v_groups[0].weight < 1 - oot_skelanime.WEIGHT_EPSILON
             )
             is_multiassigned = (
-                len(v_groups) >= 2 and v_groups[1].weight > WEIGHT_EPSILON
+                len(v_groups) >= 2 and v_groups[1].weight > oot_skelanime.WEIGHT_EPSILON
             )
             if self.select == "UNASSIGNED":
                 v.select = is_unassigned
@@ -255,6 +242,8 @@ class DragExOoTExportAnimationOperator(bpy.types.Operator):
             scene_dragex.target == "OOT_F3DEX2_PL"
             and context.active_object is not None
             and context.active_object.type == "ARMATURE"
+            and context.active_object.animation_data is not None
+            and context.active_object.animation_data.action is not None
         )
 
     def execute(self, context):  # type: ignore
@@ -264,7 +253,6 @@ class DragExOoTExportAnimationOperator(bpy.types.Operator):
 
         scene = context.scene
         assert scene is not None
-        scene_dragex = util.DRAGEX(scene)
 
         armature_object = context.active_object
         assert armature_object is not None
@@ -273,23 +261,16 @@ class DragExOoTExportAnimationOperator(bpy.types.Operator):
 
         export_directory = Path(self.directory)
 
-        global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
-            1 / scene_dragex.oot.scale, 4
-        )
-
         assert armature_object.animation_data is not None
-        assert armature_object.animation_data.action is not None
-        frame_start, frame_end = armature_object.animation_data.action.frame_range
-        frame_count = frame_end - frame_start + 1
+        action = armature_object.animation_data.action
+        assert action is not None
 
         oot_skelanime.export_anim(
             armature_object,
             armature_data,
-            round(frame_start),
-            round(frame_count),
-            global_transform,
+            scene,
             export_directory,
-            util.make_c_identifier(armature_object.animation_data.action.name),
+            action,
         )
 
         end = time.time()

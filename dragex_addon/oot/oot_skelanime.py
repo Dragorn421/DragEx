@@ -82,7 +82,7 @@ def get_all_bones(bh: BoneHierarchy):
     return bones
 
 
-def do_work(
+def export_skeleton_impl(
     armature_object: bpy.types.Object,
     armature_data: bpy.types.Armature,
     mesh_objects: list[bpy.types.Object],
@@ -311,6 +311,37 @@ def do_work(
             f.write("};\n")
 
 
+WEIGHT_EPSILON = 0.01
+
+
+def export_skeleton(
+    armature_object: bpy.types.Object,
+    armature_data: bpy.types.Armature,
+    scene: bpy.types.Scene,
+    export_directory: Path,
+    decomp_repo_p: Path,
+):
+    mesh_objects = [
+        _obj for _obj in armature_object.children_recursive if _obj.type == "MESH"
+    ]
+
+    scene_dragex = util.DRAGEX(scene)
+
+    global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
+        1 / scene_dragex.oot.scale, 4
+    )
+
+    export_skeleton_impl(
+        armature_object,
+        armature_data,
+        mesh_objects,
+        global_transform,
+        WEIGHT_EPSILON,
+        export_directory,
+        decomp_repo_p,
+    )
+
+
 def rad2bin(rad: float):
     binang = round(rad / math.pi * 0x8000) % 0x1_0000
     if binang >= 0x8000:
@@ -322,7 +353,7 @@ def HEx(v: int, n_digits: int = 0):
     return f"{v:#0{n_digits + 2 + (1 if v < 0 else 0)}X}".replace("0X", "0x")
 
 
-def export_anim(
+def export_anim_impl(
     armature_obj: bpy.types.Object,
     armature_data: bpy.types.Armature,
     frame_start: int,
@@ -452,3 +483,30 @@ def export_anim(
         f.write(f"    {anim_c_identifier}JointIndices,\n")
         f.write(f"    {static_index_max},\n")
         f.write("};\n")
+
+
+def export_anim(
+    armature_obj: bpy.types.Object,
+    armature_data: bpy.types.Armature,
+    scene: bpy.types.Scene,
+    export_directory: Path,
+    action: bpy.types.Action,
+):
+    global_transform = util.transform_zup_to_yup.to_4x4() @ mathutils.Matrix.Scale(
+        1 / util.DRAGEX(scene).oot.scale, 4
+    )
+
+    frame_start, frame_end = action.frame_range
+    frame_count = frame_end - frame_start + 1
+
+    anim_c_identifier = util.make_c_identifier(action.name)
+
+    export_anim_impl(
+        armature_obj,
+        armature_data,
+        round(frame_start),
+        round(frame_count),
+        global_transform,
+        export_directory,
+        anim_c_identifier,
+    )
