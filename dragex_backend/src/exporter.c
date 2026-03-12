@@ -1097,6 +1097,8 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
         [RDP_TILE_SIZE_32] = "G_IM_SIZ_32b",
     };
 
+    bool is_tile_set[8] = {0};
+
     for (int i_tile = 0; i_tile < 8; i_tile++) {
         struct MaterialInfoTile *tile = &mat_info->tiles[i_tile];
 
@@ -1142,12 +1144,21 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
                     tile->clamp_T ? "G_TX_CLAMP" : "G_TX_WRAP",
 
                     tile->mask_S, tile->mask_T, tile->shift_S, tile->shift_T);
+
+                is_tile_set[i_tile] = true;
             }
         }
     }
 
     for (int i_tile = 0; i_tile < 8; i_tile++) {
         struct MaterialInfoTile *tile = &mat_info->tiles[i_tile];
+
+        if (is_tile_set[i_tile])
+            continue;
+
+        // if not mipmapping we only use tiles 0 and 1 at most
+        if (!om->tex_lod_en && i_tile >= 2)
+            continue;
 
         fprintf(f,
                 "    gsDPSetTile("
