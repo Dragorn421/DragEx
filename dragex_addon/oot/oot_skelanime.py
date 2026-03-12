@@ -121,6 +121,8 @@ def do_work(
         for _limb_index in range(len(all_bones))
     ]
 
+    skeleton_c_identifier = util.make_c_identifier(armature_object.name)
+
     image_infos = mesh.ImageInfos()
     mesh_infos_by_limb: dict[int, list[dragex_backend.MeshInfo]] = {}
     for mesh_obj in mesh_objects:
@@ -179,7 +181,7 @@ def do_work(
             transform_per_vertex,
             transforms,
             image_infos,
-            "",
+            skeleton_c_identifier + "_",
             [
                 mesh.SubMeshInfo(
                     submeshes_masks[_i],
@@ -197,7 +199,6 @@ def do_work(
     import os
 
     with util.FDManager() as fdm:
-        skeleton_c_identifier = util.make_c_identifier(armature_object.name)
         fd = fdm.open_w(export_directory / f"{skeleton_c_identifier}.c")
         with os.fdopen(fd, "w", closefd=False) as f:
             f.write('#include "ultra64.h"\n')
