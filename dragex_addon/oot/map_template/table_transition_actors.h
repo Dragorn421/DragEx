@@ -4,6 +4,12 @@
 #include "glue/glue_scene.h"
 
 /*
+ * DEF_TRANSITION_ACTOR(frontRoom, frontCameraIndex, backRoom, backCameraIndex,
+ *                      actorId, pos, yaw, params)
+ * Note: The back-to-front direction corresponds to Blender's +Y
+ */
+
+/*
 DEF_TRANSITION_ACTOR(MAP_PREFIX_UPPER_ROOM_ROOM_NAME,
                      MAP_PREFIX_UPPER_CAMERA_DEFAULT,
                      MAP_PREFIX_UPPER_ROOM_ROOM_NAME,
