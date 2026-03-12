@@ -82,3 +82,28 @@ BgCamInfo map_prefix_lower_BgCamList[] = {
 };
 
 #include "../exported/collision.inc.c"
+
+// Transition actors
+
+TransitionActorEntry map_prefix_lower_TransitionActorList[] = {
+#define DEF_TRANSITION_ACTOR(frontRoom, frontCameraIndex, backRoom,            \
+                             backCameraIndex, actorId, pos, yaw, params)       \
+  {                                                                            \
+      {                                                                        \
+          {                                                                    \
+              (frontRoom),                                                     \
+              (frontCameraIndex),                                              \
+          },                                                                   \
+          {                                                                    \
+              (backRoom),                                                      \
+              (backCameraIndex),                                               \
+          },                                                                   \
+      },                                                                       \
+      (actorId),                                                               \
+      {pos},                                                                   \
+      (yaw),                                                                   \
+      (params),                                                                \
+  },
+#include "../table_transition_actors.h"
+#undef DEF_TRANSITION_ACTOR
+};

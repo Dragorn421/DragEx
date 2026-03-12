@@ -10,6 +10,7 @@
 SceneCmd map_prefix_lower_scene[] = {
     SCENE_CMD_SOUND_SETTINGS(0, NATURE_ID_NONE, NA_BGM_NO_MUSIC),
     SCENE_CMD_ROOM_LIST(ARRAY_COUNT(map_prefix_lower_RoomList), map_prefix_lower_RoomList),
+    SCENE_CMD_TRANSITION_ACTOR_LIST(ARRAY_COUNT(map_prefix_lower_TransitionActorList), map_prefix_lower_TransitionActorList),
     SCENE_CMD_COL_HEADER(&map_prefix_lower_Col),
     SCENE_CMD_SPAWN_LIST(map_prefix_lower_SpawnList),
     SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_NONE, OBJECT_INVALID),

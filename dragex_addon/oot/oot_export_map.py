@@ -486,6 +486,7 @@ extern RoomShapeNormal {room_shape_name};
         Path("table_envlightsettings.h"),
         Path("table_polytypes.h"),
         Path("table_spawns.h"),
+        Path("table_transition_actors.h"),
     ):
         write_if_missing(
             out_dir_p / p,
