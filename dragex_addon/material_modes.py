@@ -944,8 +944,8 @@ material_modes_dict: dict[str, type[MaterialMode]] = {
 
 material_mode_items = (
     # TODO add descriptions
-    ("NONE", "None", ""),
-    ("BASIC", "Basic", ""),
-    ("MULTITEXTURE", "Multitexture", ""),
-    ("FULL", "Full", ""),
+    ("NONE", "None", "", 1),
+    ("BASIC", "Basic", "", 2),
+    ("MULTITEXTURE", "Multitexture", "", 3),
+    ("FULL", "Full", "", 0),
 )
