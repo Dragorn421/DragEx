@@ -384,12 +384,12 @@ def export_anim(
 
             dragex_backend.logging.debug(
                 f"Vec3s {anim_c_identifier}JointTable{frame}[] = "
-                "{\n"
-                + "".join(
-                    "    { " f"{HEx(x, 4)}, {HEx(y, 4)}, {HEx(z, 4)}" " },\n"
+                "{ "
+                + " ".join(
+                    "{ " f"{HEx(x, 4)}, {HEx(y, 4)}, {HEx(z, 4)}" " },"
                     for x, y, z in joint_table
                 )
-                + "};"
+                + " };"
             )
 
             joint_tables.append(joint_table)
