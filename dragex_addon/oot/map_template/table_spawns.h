@@ -1,6 +1,10 @@
 #include "player.h"
 #include "exported/positions.h"
 
+/*
+ * DEF_SPAWN(name, room, position, yaw, params)
+ */
+
 DEF_SPAWN(MAP_PREFIX_UPPER_SPAWN_0, MAP_PREFIX_UPPER_ROOM_ROOM_NAME,
           POS_MAP_PREFIX_UPPER_SPAWN, YAW_MAP_PREFIX_UPPER_SPAWN,
           PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT))

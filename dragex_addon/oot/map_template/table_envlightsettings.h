@@ -6,6 +6,12 @@
   }
 #endif
 
+/*
+ * DEF_ENV_LIGHT_SETTINGS(name, envLightSettings)
+ * - `name` is the camera's name in the camera indices enum, to be used for
+ *   example in table_polytypes.h if using LIGHT_MODE_SETTINGS
+ */
+
 DEF_ENV_LIGHT_SETTINGS(MAP_PREFIX_UPPER_ENV_LIGHT_SETTINGS_0,
                        ENV_LIGHT_SETTINGS_DEFAULT)
 DEF_ENV_LIGHT_SETTINGS(MAP_PREFIX_UPPER_ENV_LIGHT_SETTINGS_1,

@@ -5,4 +5,8 @@
 #define I3(x, y, z) x, y, z
 #endif
 
-//DEF_ACTOR(ACTOR_EN_BOX, POS_CHEST0, I3(0, 0, 0), 0x0000)
+/*
+ * DEF_ACTOR(actorId, position, rotation, params)
+ */
+
+// DEF_ACTOR(ACTOR_EN_BOX, POS_CHEST0, I3(0, 0, 0), 0x0000)

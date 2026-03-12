@@ -1,3 +1,7 @@
 #include "object.h"
 
-//DEF_OBJECT(OBJECT_BOX)
+/*
+ * DEF_OBJECT(object)
+ */
+
+// DEF_OBJECT(OBJECT_BOX)
