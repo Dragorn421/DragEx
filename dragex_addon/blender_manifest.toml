@@ -12,6 +12,8 @@ website = "https://github.com/Dragorn421/DragEx"
 tags = ["Import-Export"]
 
 blender_version_min = "4.2.0"
+# TODO Blender 5.1.0 bumps Python from 3.11 to 3.13
+blender_version_max = "5.1.0"
 
 license = ["SPDX:GPL-3.0-or-later"]
 copyright = ["2025 Dragorn421"]
