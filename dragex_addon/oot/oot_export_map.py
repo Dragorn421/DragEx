@@ -183,6 +183,9 @@ def collect_map(coll_scene: bpy.types.Collection, export_options: "ExportOptions
     for obj in coll_scene.all_objects:
         if obj.type == "MESH":
             assert isinstance(obj.data, bpy.types.Mesh)
+            mesh_dragex = util.DRAGEX(obj.data)
+            if mesh_dragex.oot.ignore_collision:
+                continue
             collision_mesh = mesh_to_OoTCollisionMesh(
                 obj,
                 obj.data,

@@ -164,6 +164,12 @@ class DragExMaterialOoTProperties(bpy.types.PropertyGroup):
 
 
 class DragExMeshOoTProperties(bpy.types.PropertyGroup):
+    ignore_collision: bpy.props.BoolProperty(
+        name="Ignore Collision",
+        description=(
+            "Whether this mesh should be skipped when exporting collision for a scene"
+        ),
+    )
     draw_layer: bpy.props.EnumProperty(
         name="Draw Layer",
         description="",

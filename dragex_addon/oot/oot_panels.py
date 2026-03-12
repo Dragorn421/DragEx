@@ -168,4 +168,5 @@ class DragExMeshOoTPanel(bpy.types.Panel):
         assert obj is not None
         assert isinstance(obj.data, bpy.types.Mesh)
         mesh_dragex = util.DRAGEX(obj.data)
+        layout.prop(mesh_dragex.oot, "ignore_collision")
         layout.prop(mesh_dragex.oot, "draw_layer")
