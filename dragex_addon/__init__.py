@@ -206,6 +206,29 @@ class DragExTargetPanel(bpy.types.Panel):
         self.layout.prop(dragex, "target")
 
 
+class DragExShortcutsPanel(bpy.types.Panel):
+    bl_idname = "DRAGEX_PT_shortcuts"
+    bl_label = "Shortcuts"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "DragEx"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_order = 10
+
+    def draw(self, context):
+        assert self.layout is not None
+        scene = context.scene
+        assert scene is not None
+
+        self.layout.prop(scene.render, "engine")
+
+        if scene.view_settings is not None:
+            self.layout.prop(scene.view_settings, "view_transform")
+
+        self.layout.prop(scene.render, "fps")
+        self.layout.prop(scene.render, "fps_base", text="Base")
+
+
 classes = (
     rsp_props.DragExMaterialRSPProperties,
     other_mode_props.DragExMaterialOtherModesProperties,
@@ -243,6 +266,7 @@ classes = (
     oot_ops.DragExOoTFindNotSingleBindVerticesOperator,
     oot_ops.DragExOoTExportAnimationOperator,
     DragExSetMaterialModeOperator,
+    DragExShortcutsPanel,
 )
 
 cannot_register = False

@@ -32,7 +32,7 @@ class DragExOoTPanel(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "DragEx"
-    bl_order = 1
+    bl_order = 100
 
     @classmethod
     def poll(cls, context):
