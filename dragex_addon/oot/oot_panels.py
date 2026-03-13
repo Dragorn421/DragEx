@@ -88,12 +88,12 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
             layout.prop(coll_dragex.oot.room, "number")
 
 
-class DragExObjectOoTEmptyPanel(bpy.types.Panel):
+class DragExEmptyOoTPanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_dragex_oot_empty"
     bl_label = "DragEx"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_context = "object"
+    bl_context = "data"
 
     @classmethod
     def poll(cls, context):

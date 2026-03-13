@@ -259,7 +259,7 @@ classes = (
     oot_ops.DragExOoTNewSceneOperator,
     oot_panels.DragExOoTPanel,
     oot_panels.DragExCollectionOoTPanel,
-    oot_panels.DragExObjectOoTEmptyPanel,
+    oot_panels.DragExEmptyOoTPanel,
     oot_panels.DragExMeshOoTPanel,
     oot_ops.DragExOoTExportSceneOperator,
     oot_ops.DragExOoTExportSkeletonOperator,
