@@ -3,10 +3,75 @@ from pathlib import Path
 import bpy
 import mathutils
 
+from . import oot_export_dlist
 from . import oot_export_map
 from . import oot_skelanime
 from . import oot_util
 from .. import util
+
+
+class DragExOoTExportDListOperator(bpy.types.Operator):
+    bl_idname = "dragex.oot_export_dlist"
+    bl_label = "DragEx OoT Export DList"
+
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        if scene is None:
+            return False
+        scene_dragex = util.DRAGEX(scene)
+        return (
+            scene_dragex.target == "OOT_F3DEX2_PL"
+            and context.active_object is not None
+            and context.active_object.type == "MESH"
+        )
+
+    def execute(self, context):  # type: ignore
+        import time
+
+        start = time.time()
+
+        mesh_object = context.active_object
+        assert mesh_object is not None
+        export_filepath = Path(self.filepath)
+
+        scene = context.scene
+        assert scene is not None
+
+        try:
+            # TODO pass in the decomp repo path as a prop or something instead
+            decomp_repo_p = oot_util.find_decomp_repo(export_filepath.parent)
+        except oot_util.CannotFindDecompRepoError:
+            self.report(
+                {"ERROR"},
+                (
+                    "Cannot find decomp repo (a folder with spec)"
+                    f" in parents of {export_filepath}"
+                ),
+            )
+            return {"CANCELLED"}
+
+        oot_export_dlist.export_dlist(
+            mesh_object,
+            export_filepath,
+            scene,
+            decomp_repo_p,
+        )
+
+        end = time.time()
+        print("export time:", end - start, "s")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):  # type: ignore
+        assert context.object is not None
+        if self.filepath == "":
+            self.filepath = f"{context.object.name}.c"
+        assert context.window_manager is not None
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
 
 
 class DragExOoTExportSceneOperator(bpy.types.Operator):

@@ -48,6 +48,7 @@ class DragExOoTPanel(bpy.types.Panel):
         assert scene is not None
         scene_dragex = util.DRAGEX(scene)
         self.layout.prop(scene_dragex.oot, "scale")
+        self.layout.operator(oot_ops.DragExOoTExportDListOperator.bl_idname)
         self.layout.operator(oot_ops.DragExOoTNewSceneOperator.bl_idname)
         self.layout.operator(oot_ops.DragExOoTExportSceneOperator.bl_idname)
         self.layout.operator(oot_ops.DragExOoTExportSkeletonOperator.bl_idname)

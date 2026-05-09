@@ -261,6 +261,7 @@ classes = (
     oot_panels.DragExCollectionOoTPanel,
     oot_panels.DragExEmptyOoTPanel,
     oot_panels.DragExMeshOoTPanel,
+    oot_ops.DragExOoTExportDListOperator,
     oot_ops.DragExOoTExportSceneOperator,
     oot_ops.DragExOoTExportSkeletonOperator,
     oot_ops.DragExOoTFindNotSingleBindVerticesOperator,
