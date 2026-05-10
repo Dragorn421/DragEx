@@ -121,9 +121,15 @@ class BasicMaterialMode(MaterialMode):
         if basic_props.shading == "LIGHTING":
             rsp_props.lighting = True
             rsp_props.vertex_colors = False
+            use_shade = True
         elif basic_props.shading == "VERTEX_COLORS":
             rsp_props.lighting = False
             rsp_props.vertex_colors = True
+            use_shade = True
+        elif basic_props.shading == "NONE":
+            rsp_props.lighting = False
+            rsp_props.vertex_colors = False
+            use_shade = False
         else:
             assert False, basic_props.shading
         rsp_props.cull_front = False
@@ -213,12 +219,18 @@ class BasicMaterialMode(MaterialMode):
             cb.rgb_A_0 = "0"
             cb.rgb_B_0 = "0"
             cb.rgb_C_0 = "0"
-            cb.rgb_D_0 = "SHADE"
+            cb.rgb_D_0 = "SHADE" if use_shade else "1"
         else:
-            cb.rgb_A_0 = "TEX0"
-            cb.rgb_B_0 = "0"
-            cb.rgb_C_0 = "SHADE"
-            cb.rgb_D_0 = "0"
+            if use_shade:
+                cb.rgb_A_0 = "TEX0"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "SHADE"
+                cb.rgb_D_0 = "0"
+            else:
+                cb.rgb_A_0 = "0"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "0"
+                cb.rgb_D_0 = "TEX0"
         if basic_props.alpha_blend in {"CUTOUT", "TRANSPARENT"}:
             if basic_props.fog:
                 cb.alpha_A_0 = "0"
@@ -230,12 +242,18 @@ class BasicMaterialMode(MaterialMode):
                     cb.alpha_A_0 = "0"
                     cb.alpha_B_0 = "0"
                     cb.alpha_C_0 = "0"
-                    cb.alpha_D_0 = "SHADE"
+                    cb.alpha_D_0 = "SHADE" if use_shade else "1"
                 else:
-                    cb.alpha_A_0 = "TEX0"
-                    cb.alpha_B_0 = "0"
-                    cb.alpha_C_0 = "SHADE"
-                    cb.alpha_D_0 = "0"
+                    if use_shade:
+                        cb.alpha_A_0 = "TEX0"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "SHADE"
+                        cb.alpha_D_0 = "0"
+                    else:
+                        cb.alpha_A_0 = "0"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "0"
+                        cb.alpha_D_0 = "TEX0"
         else:
             cb.alpha_A_0 = "0"
             cb.alpha_B_0 = "0"
@@ -283,6 +301,7 @@ class DragExMaterialModesBasicProperties(bpy.types.PropertyGroup):
                 "Vertex Colors",
                 "Vertices are colored according to the painted vertex colors",
             ),
+            ("NONE", "None", "Vertices do not use lights nor vertex colors"),
         ),
         default="LIGHTING",
         update=BasicMaterialMode.on_mode_prop_update,
@@ -488,9 +507,15 @@ class MultitextureMaterialMode(MaterialMode):
         if multitexture_props.shading == "LIGHTING":
             rsp_props.lighting = True
             rsp_props.vertex_colors = False
+            use_shade = True
         elif multitexture_props.shading == "VERTEX_COLORS":
             rsp_props.lighting = False
             rsp_props.vertex_colors = True
+            use_shade = True
+        elif multitexture_props.shading == "NONE":
+            rsp_props.lighting = False
+            rsp_props.vertex_colors = False
+            use_shade = False
         else:
             assert False, multitexture_props.shading
         rsp_props.cull_front = False
@@ -573,7 +598,7 @@ class MultitextureMaterialMode(MaterialMode):
             cb.rgb_A_0 = "0"
             cb.rgb_B_0 = "0"
             cb.rgb_C_0 = "0"
-            cb.rgb_D_0 = "SHADE"
+            cb.rgb_D_0 = "SHADE" if use_shade else "1"
             cb.rgb_A_1 = "0"
             cb.rgb_B_1 = "0"
             cb.rgb_C_1 = "0"
@@ -588,7 +613,7 @@ class MultitextureMaterialMode(MaterialMode):
                     cb.alpha_A_0 = "0"
                     cb.alpha_B_0 = "0"
                     cb.alpha_C_0 = "0"
-                    cb.alpha_D_0 = "SHADE"
+                    cb.alpha_D_0 = "SHADE" if use_shade else "1"
             else:
                 cb.alpha_A_0 = "0"
                 cb.alpha_B_0 = "0"
@@ -600,10 +625,16 @@ class MultitextureMaterialMode(MaterialMode):
             cb.alpha_D_1 = "COMBINED"
         elif tile1.image is None:
             assert tile0.image is not None
-            cb.rgb_A_0 = "TEX0"
-            cb.rgb_B_0 = "0"
-            cb.rgb_C_0 = "SHADE"
-            cb.rgb_D_0 = "0"
+            if use_shade:
+                cb.rgb_A_0 = "TEX0"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "SHADE"
+                cb.rgb_D_0 = "0"
+            else:
+                cb.rgb_A_0 = "0"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "0"
+                cb.rgb_D_0 = "TEX0"
             cb.rgb_A_1 = "0"
             cb.rgb_B_1 = "0"
             cb.rgb_C_1 = "0"
@@ -615,10 +646,16 @@ class MultitextureMaterialMode(MaterialMode):
                     cb.alpha_C_0 = "0"
                     cb.alpha_D_0 = "TEX0"
                 else:
-                    cb.alpha_A_0 = "TEX0"
-                    cb.alpha_B_0 = "0"
-                    cb.alpha_C_0 = "SHADE"
-                    cb.alpha_D_0 = "0"
+                    if use_shade:
+                        cb.alpha_A_0 = "TEX0"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "SHADE"
+                        cb.alpha_D_0 = "0"
+                    else:
+                        cb.alpha_A_0 = "0"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "0"
+                        cb.alpha_D_0 = "TEX0"
             else:
                 cb.alpha_A_0 = "0"
                 cb.alpha_B_0 = "0"
@@ -630,10 +667,16 @@ class MultitextureMaterialMode(MaterialMode):
             cb.alpha_D_1 = "COMBINED"
         elif tile0.image is None:
             assert tile1.image is not None
-            cb.rgb_A_0 = "TEX1"
-            cb.rgb_B_0 = "0"
-            cb.rgb_C_0 = "SHADE"
-            cb.rgb_D_0 = "0"
+            if use_shade:
+                cb.rgb_A_0 = "TEX1"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "SHADE"
+                cb.rgb_D_0 = "0"
+            else:
+                cb.rgb_A_0 = "0"
+                cb.rgb_B_0 = "0"
+                cb.rgb_C_0 = "0"
+                cb.rgb_D_0 = "TEX1"
             cb.rgb_A_1 = "0"
             cb.rgb_B_1 = "0"
             cb.rgb_C_1 = "0"
@@ -645,10 +688,16 @@ class MultitextureMaterialMode(MaterialMode):
                     cb.alpha_C_0 = "0"
                     cb.alpha_D_0 = "TEX1"
                 else:
-                    cb.alpha_A_0 = "TEX1"
-                    cb.alpha_B_0 = "0"
-                    cb.alpha_C_0 = "SHADE"
-                    cb.alpha_D_0 = "0"
+                    if use_shade:
+                        cb.alpha_A_0 = "TEX1"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "SHADE"
+                        cb.alpha_D_0 = "0"
+                    else:
+                        cb.alpha_A_0 = "0"
+                        cb.alpha_B_0 = "0"
+                        cb.alpha_C_0 = "0"
+                        cb.alpha_D_0 = "TEX1"
             else:
                 cb.alpha_A_0 = "0"
                 cb.alpha_B_0 = "0"
@@ -668,10 +717,16 @@ class MultitextureMaterialMode(MaterialMode):
             cb.rgb_B_0 = "TEX0"
             cb.rgb_C_0 = "ENVIRONMENT_ALPHA"
             cb.rgb_D_0 = "TEX0"
-            cb.rgb_A_1 = "COMBINED"
-            cb.rgb_B_1 = "0"
-            cb.rgb_C_1 = "SHADE"
-            cb.rgb_D_1 = "0"
+            if use_shade:
+                cb.rgb_A_1 = "COMBINED"
+                cb.rgb_B_1 = "0"
+                cb.rgb_C_1 = "SHADE"
+                cb.rgb_D_1 = "0"
+            else:
+                cb.rgb_A_1 = "0"
+                cb.rgb_B_1 = "0"
+                cb.rgb_C_1 = "0"
+                cb.rgb_D_1 = "COMBINED"
             if multitexture_props.alpha_blend in {"CUTOUT", "TRANSPARENT"}:
                 cb.alpha_A_0 = "TEX1"
                 cb.alpha_B_0 = "TEX0"
@@ -683,10 +738,16 @@ class MultitextureMaterialMode(MaterialMode):
                     cb.alpha_C_1 = "0"
                     cb.alpha_D_1 = "COMBINED"
                 else:
-                    cb.alpha_A_1 = "COMBINED"
-                    cb.alpha_B_1 = "0"
-                    cb.alpha_C_1 = "SHADE"
-                    cb.alpha_D_1 = "0"
+                    if use_shade:
+                        cb.alpha_A_1 = "COMBINED"
+                        cb.alpha_B_1 = "0"
+                        cb.alpha_C_1 = "SHADE"
+                        cb.alpha_D_1 = "0"
+                    else:
+                        cb.alpha_A_1 = "0"
+                        cb.alpha_B_1 = "0"
+                        cb.alpha_C_1 = "0"
+                        cb.alpha_D_1 = "COMBINED"
             else:
                 cb.alpha_A_0 = "0"
                 cb.alpha_B_0 = "0"
@@ -769,6 +830,7 @@ class DragExMaterialModesMultitextureProperties(bpy.types.PropertyGroup):
                 "Vertex Colors",
                 "Vertices are colored according to the painted vertex colors",
             ),
+            ("NONE", "None", "Vertices do not use lights nor vertex colors"),
         ),
         default="LIGHTING",
         update=MultitextureMaterialMode.on_mode_prop_update,
