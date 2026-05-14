@@ -7,7 +7,9 @@ import bpy
 
 from .build_id import BUILD_ID
 from . import cli_command
-from . import material_modes
+from .material_modes import material_modes_main
+from .material_modes import material_mode_basic
+from .material_modes import material_mode_multitexture
 from .oot import oot_ops
 from .oot import oot_panels
 from .oot import oot_props
@@ -56,13 +58,15 @@ class DragExMaterialRDPProperties(bpy.types.PropertyGroup):
 
 class DragExMaterialProperties(bpy.types.PropertyGroup):
     mode: bpy.props.EnumProperty(
-        items=material_modes.material_mode_items,
+        items=material_modes_main.material_mode_items,
         default="NONE",
     )
-    modes_: bpy.props.PointerProperty(type=material_modes.DragExMaterialModesProperties)
+    modes_: bpy.props.PointerProperty(
+        type=material_modes_main.DragExMaterialModesProperties
+    )
 
     @property
-    def modes(self) -> material_modes.DragExMaterialModesProperties:
+    def modes(self) -> material_modes_main.DragExMaterialModesProperties:
         return self.modes_
 
     uv_basis_s: bpy.props.IntProperty(name="UV Basis S", min=1, default=1)
@@ -107,7 +111,7 @@ class DragExMaterialPanel(bpy.types.Panel):
         assert mat is not None
         mat_dragex = util.DRAGEX(mat)
         self.layout.operator(DragExSetMaterialModeOperator.bl_idname)
-        material_modes.material_modes_dict[mat_dragex.mode].draw(self.layout, mat)
+        material_modes_main.material_modes_dict[mat_dragex.mode].draw(self.layout, mat)
 
 
 class DragExSetMaterialModeOperator(bpy.types.Operator):
@@ -116,7 +120,7 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
     bl_property = "mode"
 
     def get_modes(self, context: bpy.types.Context | None):
-        return material_modes.material_mode_items
+        return material_modes_main.material_mode_items
 
     mode: bpy.props.EnumProperty(
         name="Mode",
@@ -133,7 +137,7 @@ class DragExSetMaterialModeOperator(bpy.types.Operator):
         material_dragex = util.DRAGEX(material)
         prev_mode = material_dragex.mode
         material_dragex.mode = self.mode
-        material_modes.material_modes_dict[self.mode].init(material, prev_mode)
+        material_modes_main.material_modes_dict[self.mode].init(material, prev_mode)
         material.update_tag()
         return {"FINISHED"}
 
@@ -236,9 +240,9 @@ classes = (
     tiles_props.DragExMaterialTilesProperties,
     combiner_props.DragExMaterialCombinerProperties,
     vals_props.DragExMaterialValsProperties,
-    material_modes.DragExMaterialModesBasicProperties,
-    material_modes.DragExMaterialModesMultitextureProperties,
-    material_modes.DragExMaterialModesProperties,
+    material_mode_basic.DragExMaterialModesBasicProperties,
+    material_mode_multitexture.DragExMaterialModesMultitextureProperties,
+    material_modes_main.DragExMaterialModesProperties,
     DragExMaterialRDPProperties,
     oot_props.DragExMaterialOoTProperties,
     DragExMaterialProperties,
