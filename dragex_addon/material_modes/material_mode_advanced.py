@@ -597,7 +597,7 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
         if advanced_props.alpha_compare:
             rdp_vals.blend_color = (
                 *rdp_vals.blend_color[:3],
-                advanced_props.src_threshold_alpha,
+                advanced_props.src_threshold_alpha / 255,
             )
             if not advanced_props.src_threshold_write:
                 # TODO implement src_threshold_write
