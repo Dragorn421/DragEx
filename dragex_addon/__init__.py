@@ -10,6 +10,7 @@ from . import cli_command
 from .material_modes import material_modes_main
 from .material_modes import material_mode_basic
 from .material_modes import material_mode_multitexture
+from .material_modes import material_mode_advanced
 from .oot import oot_ops
 from .oot import oot_panels
 from .oot import oot_props
@@ -242,6 +243,7 @@ classes = (
     vals_props.DragExMaterialValsProperties,
     material_mode_basic.DragExMaterialModesBasicProperties,
     material_mode_multitexture.DragExMaterialModesMultitextureProperties,
+    material_mode_advanced.DragExMaterialModesAdvancedProperties,
     material_modes_main.DragExMaterialModesProperties,
     DragExMaterialRDPProperties,
     oot_props.DragExMaterialOoTProperties,

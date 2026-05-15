@@ -3,6 +3,7 @@ import bpy
 from . import material_modes_defs
 from . import material_mode_basic
 from . import material_mode_multitexture
+from . import material_mode_advanced
 from . import material_mode_full
 
 
@@ -35,11 +36,22 @@ class DragExMaterialModesProperties(bpy.types.PropertyGroup):
     ) -> material_mode_multitexture.DragExMaterialModesMultitextureProperties:
         return self.multitexture_
 
+    advanced_: bpy.props.PointerProperty(
+        type=material_mode_advanced.DragExMaterialModesAdvancedProperties
+    )
+
+    @property
+    def advanced(
+        self,
+    ) -> material_mode_advanced.DragExMaterialModesAdvancedProperties:
+        return self.advanced_
+
 
 material_modes_dict: dict[str, type[material_modes_defs.MaterialMode]] = {
     "NONE": NoneMaterialMode,
     "BASIC": material_mode_basic.BasicMaterialMode,
     "MULTITEXTURE": material_mode_multitexture.MultitextureMaterialMode,
+    "ADVANCED": material_mode_advanced.AdvancedMaterialMode,
     "FULL": material_mode_full.FullMaterialMode,
 }
 
@@ -48,5 +60,6 @@ material_mode_items = (
     ("NONE", "None", "", 1),
     ("BASIC", "Basic", "", 2),
     ("MULTITEXTURE", "Multitexture", "", 3),
+    ("ADVANCED", "Advanced", "", 4),
     ("FULL", "Full", "", 0),
 )
