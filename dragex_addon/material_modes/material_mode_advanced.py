@@ -349,6 +349,12 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
             row2.enabled = False  # TODO implement alpha_noise
             row.prop(mode_advanced, "alpha_compare", text="Alpha Compare", toggle=True)
 
+            row = col.row()
+            row.use_property_split = True
+            row.use_property_decorate = False
+            row.prop(mode_advanced, "dlist_call")
+            row.enabled = False  # TODO implement dlist_call
+
     @staticmethod
     def apply_mode_props(material: bpy.types.Material):
         material_dragex = util.DRAGEX(material)
@@ -1429,5 +1435,14 @@ class DragExMaterialModesAdvancedProperties(bpy.types.PropertyGroup):
     )
     alpha_compare: bpy.props.BoolProperty(
         default=False,
+        update=AdvancedMaterialMode.on_mode_prop_update,
+    )
+    # TODO implement dlist_call in the (f3dex2) exporter
+    dlist_call: bpy.props.StringProperty(
+        name="DList Call",
+        description=(
+            "Segmented address of a display list to call, "
+            "as part of the material's display list"
+        ),
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
