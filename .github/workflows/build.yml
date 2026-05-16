@@ -60,6 +60,7 @@ jobs:
           else
             echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
           fi
+        shell: bash
 
       - name: Install cibuildwheel
         run: python3 -m pip install cibuildwheel==3.4.0
