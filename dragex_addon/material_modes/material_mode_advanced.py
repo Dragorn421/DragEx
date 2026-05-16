@@ -1027,213 +1027,255 @@ class DragExMaterialModesAdvancedProperties(bpy.types.PropertyGroup):
 
     template_1_color: bpy.props.EnumProperty(
         items=COMBINER_TEMPLATES,
+        name="Color Combiner Template (First Cycle)",
         default="MULT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_single_src: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_SINGLE_SRC,
+        name="Single Source",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_lerp_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_LERP_SRC1,
+        name="Lerp Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_lerp_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_LERP_SRC2,
+        name="Lerp Source 2",
         default="TEX1",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_lerp_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_LERP_FACTOR,
+        name="Lerp Factor",
         default="ENVIRONMENT_ALPHA",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_add_src1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_ADD_SRC1,
+        name="Add Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_add_src2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_ADD_SRC2,
+        name="Add Source 2",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_add_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_ADD_FACTOR,
+        name="Add Factor",
         default="ENVIRONMENT_ALPHA",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_mult_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_MULT_SRC1,
+        name="Mult Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_color_mult_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR1_MULT_SRC2,
+        name="Mult Source 2",
         default="SHADE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
 
     template_2_color: bpy.props.EnumProperty(
         items=COMBINER_TEMPLATES,
+        name="Color Combiner Template (Second Cycle)",
         default="MULT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_single_src: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_SINGLE_SRC,
+        name="Single Source",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_lerp_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_LERP_SRC1,
+        name="Lerp Source 1",
         default="PRIMITIVE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_lerp_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_LERP_SRC2,
+        name="Lerp Source 2",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_lerp_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_LERP_FACTOR,
+        name="Lerp Factor",
         default="PRIMITIVE_ALPHA",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_add_src1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_ADD_SRC1,
+        name="Add Source 1",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_add_src2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_ADD_SRC2,
+        name="Add Source 2",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_add_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_ADD_FACTOR,
+        name="Add Factor",
         default="PRIMITIVE_ALPHA",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_mult_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_MULT_SRC1,
+        name="Mult Source 1",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_color_mult_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_COLOR2_MULT_SRC2,
+        name="Mult Source 2",
         default="PRIMITIVE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
 
     template_1_alpha: bpy.props.EnumProperty(
         items=COMBINER_TEMPLATES,
+        name="Alpha Combiner Template (First Cycle)",
         default="MULT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_single_src: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_SINGLE_SRC,
+        name="Single Source",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_lerp_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_LERP_SRC1,
+        name="Lerp Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_lerp_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_LERP_SRC2,
+        name="Lerp Source 2",
         default="TEX1",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_lerp_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_LERP_FACTOR,
+        name="Lerp Factor",
         default="ENVIRONMENT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_add_src1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_ADD_SRC1,
+        name="Add Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_add_src2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_ADD_SRC2,
+        name="Add Source 2",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_add_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_ADD_FACTOR,
+        name="Add Factor",
         default="ENVIRONMENT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_mult_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_MULT_SRC1,
+        name="Mult Source 1",
         default="TEX0",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_1_alpha_mult_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA1_MULT_SRC2,
+        name="Mult Source 2",
         default="SHADE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
 
     template_2_alpha: bpy.props.EnumProperty(
         items=COMBINER_TEMPLATES,
+        name="Alpha Combiner Template (Second Cycle)",
         default="MULT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_single_src: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_SINGLE_SRC,
+        name="Single Source",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_lerp_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_LERP_SRC1,
+        name="Lerp Source 1",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_lerp_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_LERP_SRC2,
+        name="Lerp Source 2",
         default="PRIMITIVE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_lerp_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_LERP_FACTOR,
+        name="Lerp Factor",
         default="ENVIRONMENT",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_add_src1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_ADD_SRC1,
+        name="Add Source 1",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_add_src2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_ADD_SRC2,
+        name="Add Source 2",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_add_factor: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_ADD_FACTOR,
+        name="Add Factor",
         default="PRIMITIVE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_mult_src_1: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_MULT_SRC1,
+        name="Mult Source 1",
         default="COMBINED",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_2_alpha_mult_src_2: bpy.props.EnumProperty(
         items=COMBINER_PASS_SOURCE_ALPHA2_MULT_SRC2,
+        name="Mult Source 2",
         default="PRIMITIVE",
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
 
     template_color_two_cycle: bpy.props.BoolProperty(
+        name="Color Combiner Two-Cycle",
         default=False,
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     template_alpha_two_cycle: bpy.props.BoolProperty(
+        name="Alpha Combiner Two-Cycle",
         default=False,
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
