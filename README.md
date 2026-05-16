@@ -49,7 +49,9 @@ ln -s $(realpath dragex_addon) ~/.config/blender/4.2/extensions/user_default/dra
 
 ### Versioning
 
-The version number is stored in `version.txt`. It uses [SemVer](https://semver.org/). Note it should always be ahead of the latest (non-nightly) release.
+The version number is stored in `version.txt`. It uses [SemVer](https://semver.org/).
+
+Note it should always be ahead of the latest (non-nightly) release.
 
 ### Releasing
 
