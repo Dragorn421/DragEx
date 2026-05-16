@@ -316,14 +316,9 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
             row.prop(
                 mode_advanced, "backface_culling", text="Backface Culling", toggle=True
             )
-            row.prop(mode_advanced, "fog", text="Fog", toggle=True)
             row = col.row(align=True)
+            row.prop(mode_advanced, "fog", text="Fog", toggle=True)
             row.prop(mode_advanced, "decal", text="Decal", toggle=True)
-            row2 = row.row()
-            row2.prop(
-                mode_advanced, "enable_pointlights", text="Pointlight", toggle=True
-            )
-            row2.enabled = False  # TODO implement enable_pointlights ?
             row = col.row(align=True)
             row.prop(mode_advanced, "z_read", text="Z Read", toggle=True)
 
@@ -1464,11 +1459,6 @@ class DragExMaterialModesAdvancedProperties(bpy.types.PropertyGroup):
     )
     z_write: bpy.props.BoolProperty(
         default=True,
-        update=AdvancedMaterialMode.on_mode_prop_update,
-    )
-    # TODO implement enable_pointlights in the exporter ?
-    enable_pointlights: bpy.props.BoolProperty(
-        default=False,
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     alpha_noise: bpy.props.BoolProperty(
