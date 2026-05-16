@@ -6,6 +6,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("blender_manifest_in")
     parser.add_argument("blender_manifest_out")
+    parser.add_argument("version")
     parser.add_argument("blender_version_min")
     parser.add_argument("blender_version_max")
     parser.add_argument("platform")
@@ -13,6 +14,12 @@ def main():
     args = parser.parse_args()
 
     blender_manifest = Path(args.blender_manifest_in).read_text()
+
+    assert '"' not in args.version
+    blender_manifest = blender_manifest.replace(
+        "# @version_line@",
+        f'version = "{args.version}"',
+    )
 
     assert '"' not in args.blender_version_min
     blender_manifest = blender_manifest.replace(

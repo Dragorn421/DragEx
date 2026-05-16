@@ -46,3 +46,15 @@ pip install fake-bpy-module
 
 ln -s $(realpath dragex_addon) ~/.config/blender/4.2/extensions/user_default/dragex
 ```
+
+### Versioning
+
+The version number is stored in `version.txt`. It uses [SemVer](https://semver.org/). Note it should always be ahead of the latest (non-nightly) release.
+
+### Releasing
+
+To make a new release:
+
+1. Create a release and associated tag on GitHub. Use the version from `version.txt`.
+2. GitHub actions will automatically build and upload to the release.
+3. Bump the version in `version.txt` (so that future nightly builds have higher precedence).

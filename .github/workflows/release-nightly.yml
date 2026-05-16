@@ -3,7 +3,7 @@ name: Release nightly
 on: [workflow_call]
 
 jobs:
-  release:
+  release-nightly:
     runs-on: ubuntu-latest
     steps:
       - name: Delete previous nightly release

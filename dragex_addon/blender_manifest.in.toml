@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "dragex"
-version = "0.0.1"
+# @version_line@
 name = "DragEx"
 tagline = "Dragorn421's Exporter"
 maintainer = "Dragorn421"

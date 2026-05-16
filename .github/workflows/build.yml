@@ -1,6 +1,14 @@
 name: Build
 
-on: [workflow_call]
+on:
+  workflow_call:
+    inputs:
+      is-nightly:
+        required: true
+        type: boolean
+      archive-suffix:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -30,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.target.os }}
     name: build
     env:
-      archive_name: dragex-${{ matrix.target.wheel-build-id }}-${{ github.sha }}
+      archive_name: dragex-${{ matrix.target.wheel-build-id }}-${{ inputs.archive-suffix }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -43,6 +51,15 @@ jobs:
 
       - name: Generate build_id
         run: python3 .github/scripts/gen_build_id.py
+
+      - name: Generate version info
+        id: version_info
+        run: |
+          if [ ${{ inputs.is-nightly }} = true ]; then
+            echo "version=$(cat version.txt)-nightly.$(cat dragex_backend/build_id.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install cibuildwheel
         run: python3 -m pip install cibuildwheel==3.4.0
@@ -58,7 +75,7 @@ jobs:
       - name: Configure blender_manifest.toml
         run: |
           cd dragex_addon
-          python3 ../.github/scripts/configure_blender_manifest.py blender_manifest.in.toml blender_manifest.toml ${{ matrix.target.blender-manifest-blender_min_version }} ${{ matrix.target.blender-manifest-blender_max_version }} ${{ matrix.target.blender-manifest-platform }} 'wheels/*.whl'
+          python3 ../.github/scripts/configure_blender_manifest.py blender_manifest.in.toml blender_manifest.toml ${{ steps.version_info.outputs.version }} ${{ matrix.target.blender-manifest-blender_min_version }} ${{ matrix.target.blender-manifest-blender_max_version }} ${{ matrix.target.blender-manifest-platform }} 'wheels/*.whl'
           rm blender_manifest.in.toml
 
       - name: Download Blender (Linux)
