@@ -11,17 +11,14 @@ website = "https://github.com/Dragorn421/DragEx"
 
 tags = ["Import-Export"]
 
-blender_version_min = "4.2.0"
-# TODO Blender 5.1.0 bumps Python from 3.11 to 3.13
-blender_version_max = "5.1.0"
+# @blender_version_min_line@
+# @blender_version_max_line@
 
 license = ["SPDX:GPL-3.0-or-later"]
 copyright = ["2025 Dragorn421"]
 
-platforms = [
-    # PLATFORMS START
-    "linux-x64",
-    # PLATFORMS END
+platforms= [
+# @platforms_list@
 ]
 
 # # Optional: bundle 3rd party Python modules.
@@ -35,9 +32,7 @@ platforms = [
 # It also seems like the installed wheel persists even when the wheel is deleted
 # touching the blender_manifest.toml may be required to update the wheel installation?
 wheels = [
-    # WHEELS START
-    "wheels/dragex_backend-0.0.1.dev1751887155-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
-    # WHEELS END
+# @wheels_list@
 ]
 
 [permissions]

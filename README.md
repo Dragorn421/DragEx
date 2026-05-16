@@ -23,6 +23,9 @@ The downloads are named like `dragex-PYTHON-TARGET-COMMIT.zip`, where
 If you are using a version of Blender from 4.2 to 5.0 (inclusive), you need
 `PYTHON`=`cp311`.
 
+If you are using a version of Blender from 5.1 to above (inclusive), you need
+`PYTHON`=`cp313`.
+
 There currently are only builds for x86_64 CPUs, but it should be trivial to add
 more (feel free to open an issue).
 
