@@ -985,8 +985,8 @@ TEXEL_FORMATS = [
     ("IA4", "IA4", ""),
     ("I8", "I8", ""),
     ("I4", "I4", ""),
-    ("CI8", "CI8", ""),
-    ("CI4", "CI4", ""),
+    # ("CI8", "CI8", ""),  # TODO CI formats
+    # ("CI4", "CI4", ""),  # TODO CI formats
 ]
 TEXEL_FORMATS_SPLIT = {
     "RGBA32": ("RGBA", "32"),
