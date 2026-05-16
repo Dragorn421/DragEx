@@ -322,20 +322,7 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
             row = col.row(align=True)
             row.prop(mode_advanced, "z_read", text="Z Read", toggle=True)
 
-            if mode_advanced.alpha_blend_type == "TRANSPARENT":
-                yes = row.row(align=True)
-                yes.enabled = False
-                yes.prop(
-                    mode_advanced,
-                    "z_write",
-                    text="Z Write",
-                    toggle=True,
-                    # just to always display "z_write" as disabled
-                    # TODO instead of this, set z_write to false somewhere in a callback
-                    invert_checkbox=mode_advanced.z_write,
-                )
-            else:
-                row.prop(mode_advanced, "z_write", text="Z Write", toggle=True)
+            row.prop(mode_advanced, "z_write", text="Z Write", toggle=True)
 
             row = col.row(align=True)
             # TODO implement alpha_noise, and then merge alpha_noise and alpha_compare into a three-state enum
@@ -575,7 +562,6 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
             om.z_mode = "DECAL" if advanced_props.decal else "OPAQUE"
             om.cvg_dest = "CLAMP"
             om.color_on_cvg = False
-            om.z_update_en = advanced_props.z_write
         elif advanced_props.alpha_blend_type == "TRANSPARENT":
             om.force_blend = True
             om.alpha_cvg_select = False
@@ -584,11 +570,10 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
             om.z_mode = "TRANSPARENT"
             om.cvg_dest = "WRAP"
             om.color_on_cvg = True
-            assert not advanced_props.z_write  # TODO
-            om.z_update_en = False
         else:
             assert False, advanced_props.alpha_blend_type
         om.image_read_en = True
+        om.z_update_en = advanced_props.z_write
         om.z_compare_en = advanced_props.z_read
         om.antialias_en = True
         om.z_source_sel = False
@@ -737,6 +722,22 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
     def on_mode_prop_update(_self, context: bpy.types.Context):
         material = context.material
         assert material is not None
+        AdvancedMaterialMode.apply_mode_props(material)
+
+    @staticmethod
+    def on_alpha_blend_type_update(_self, context: bpy.types.Context):
+        material = context.material
+        assert material is not None
+        material_dragex = util.DRAGEX(material)
+        advanced_props = material_dragex.modes.advanced
+        if advanced_props.alpha_blend_type == "TRANSPARENT":
+            if advanced_props.z_write:
+                advanced_props.z_write = False
+        elif advanced_props.alpha_blend_type in {"OPAQUE", "CUTOUT"}:
+            if not advanced_props.z_write:
+                advanced_props.z_write = True
+        else:
+            assert False, advanced_props.alpha_blend_type
         AdvancedMaterialMode.apply_mode_props(material)
 
 
@@ -1439,7 +1440,7 @@ class DragExMaterialModesAdvancedProperties(bpy.types.PropertyGroup):
         name="Alpha Blend Type",
         items=ALPHA_BLEND_TYPES,
         default="OPAQUE",
-        update=AdvancedMaterialMode.on_mode_prop_update,
+        update=AdvancedMaterialMode.on_alpha_blend_type_update,
     )
     backface_culling: bpy.props.BoolProperty(
         default=True,
@@ -1458,6 +1459,10 @@ class DragExMaterialModesAdvancedProperties(bpy.types.PropertyGroup):
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
     z_write: bpy.props.BoolProperty(
+        description=(
+            "Enable z-buffer writing.\n"
+            "Automatically set/unset when switching Alpha Blend Type"
+        ),
         default=True,
         update=AdvancedMaterialMode.on_mode_prop_update,
     )
