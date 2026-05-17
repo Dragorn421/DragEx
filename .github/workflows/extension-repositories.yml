@@ -20,14 +20,14 @@ jobs:
       - name: Download latest
         run: |
           mkdir -p ext_repo/latest
-          gh release download ${{ steps.latest_tag.outputs.latest_tag }} --dir ext_repo/latest
+          gh release --repo ${{ github.repository }} download ${{ steps.latest_tag.outputs.latest_tag }} --dir ext_repo/latest
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Download nightly
         run: |
           mkdir -p ext_repo/nightly
-          gh release download nightly --dir ext_repo/nightly
+          gh release --repo ${{ github.repository }} download nightly --dir ext_repo/nightly
         env:
           GH_TOKEN: ${{ github.token }}
 
