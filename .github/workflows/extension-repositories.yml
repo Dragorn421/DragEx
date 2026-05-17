@@ -9,6 +9,9 @@ concurrency:
 
 jobs:
   extension-repositories:
+    permissions:
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Get latest tag
