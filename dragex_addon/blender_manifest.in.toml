@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 id = "dragex"
 # @version_line@
 name = "DragEx"
-tagline = "Dragorn421's Exporter"
+tagline = "Dragorn421's Exporter for OoT64 modding"
 maintainer = "Dragorn421"
 type = "add-on"
 
