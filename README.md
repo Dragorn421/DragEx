@@ -8,6 +8,33 @@ games), but only OoT64 is supported at present.
 
 ## Installing
 
+DragEx can be installed
+through [setting up its extension repository](#extension-repository)
+or by [downloading from releases](#download).
+
+### Extension repository
+
+You can add the extension repository for DragEx by going in Blender to
+Edit > Preferences > Get Extensions > [Repositories](https://docs.blender.org/manual/en/dev/editors/preferences/extensions.html#repositories) > + > Add Remote Repository
+
+And supplying the URL of your choice:
+
+- https://dragorn421.github.io/DragEx/ext_repo/latest/index.json (for latest release)
+- https://dragorn421.github.io/DragEx/ext_repo/nightly/index.json (for nightly release)
+
+You can also add repositories from the command line:
+
+```sh
+blender --command extension repo-add --name 'DragEx latest' --url https://dragorn421.github.io/DragEx/ext_repo/latest/index.json dragex_latest
+blender --command extension repo-add --name 'DragEx nightly' --url https://dragorn421.github.io/DragEx/ext_repo/nightly/index.json dragex_nightly
+```
+
+You can add both latest and nightly repositories and choose later which version of DragEx to install.
+
+After adding the DragEx extension repository, DragEx will be available for install in the extensions list.
+
+### Download
+
 Downloads are available on the
 [releases page](https://github.com/Dragorn421/DragEx/releases).
 
@@ -34,7 +61,7 @@ If you are on Windows, you need `TARGET`=`win_amd64`.
 If you are on Linux, you need `TARGET`=`manylinux_x86_64`.
 
 Once you have downloaded the zip, you can install it by going in Blender to
-Edit > Preferences > Get Extensions > (top-right down arrow) > Install from Disk...
+Edit > Preferences > Get Extensions > (top-right down arrow) > [Install from Disk...](https://docs.blender.org/manual/en/dev/editors/preferences/extensions.html#bpy-ops-extensions-package-install-files)
 
 ## Development notes
 
