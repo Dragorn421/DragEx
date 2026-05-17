@@ -1,0 +1,51 @@
+name: Extension repositories
+
+on: [workflow_call]
+
+concurrency:
+  group: extension-repositories
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest tag
+        id: latest_tag
+        run: echo "latest_tag=$(gh api repos/${{ github.repository }}/releases --jq '[.[] | select(.tag_name | contains("nightly") | not)][0].tag_name'" >> $GITHUB_OUTPUT
+
+      - name: Download latest
+        run: |
+          mkdir -p ext_repo/latest
+          gh release download ${{ steps.latest_tag.outputs.latest_tag }} --dir ext_repo/latest
+
+      - name: Download nightly
+        run: |
+          mkdir -p ext_repo/nightly
+          gh release download nightly --dir ext_repo/nightly
+
+      - name: Download Blender
+        run: curl -o blender-4.2.11-linux-x64.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.11-linux-x64.tar.xz
+
+      - name: Decompress Blender
+        run: tar -xJvf blender-4.2.11-linux-x64.tar.xz
+
+      - name: Generate latest extension repository
+        run: ./blender-4.2.11-linux-x64/blender --command extension server-generate --repo-dir ext_repo/latest
+
+      - name: Generate nightly extension repository
+        run: ./blender-4.2.11-linux-x64/blender --command extension server-generate --repo-dir ext_repo/nightly
+
+      - name: Build pages
+        run: |
+          mkdir -p pages
+          mv ext_repo pages/
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
