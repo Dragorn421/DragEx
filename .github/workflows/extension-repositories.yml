@@ -8,12 +8,12 @@ concurrency:
   queue: max
 
 jobs:
-  release:
+  extension-repositories:
     runs-on: ubuntu-latest
     steps:
       - name: Get latest tag
         id: latest_tag
-        run: echo "latest_tag=$(gh api repos/${{ github.repository }}/releases --jq '[.[] | select(.tag_name | contains("nightly") | not)][0].tag_name'" >> $GITHUB_OUTPUT
+        run: echo "latest_tag=$(gh api repos/${{ github.repository }}/releases --jq '[.[] | select(.tag_name | contains("nightly") | not)][0].tag_name')" >> $GITHUB_OUTPUT
 
       - name: Download latest
         run: |
