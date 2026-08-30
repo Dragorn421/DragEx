@@ -1,5 +1,4 @@
 from collections.abc import Buffer, Sequence
-import os
 from typing import Optional
 
 def get_build_id() -> int: ...
@@ -10,7 +9,9 @@ class MaterialInfoImage:
         c_identifier: str,
         width: int,
         height: int,
+        tlut_c_identifier: str | None,
     ) -> None: ...
+    def get_c_identifier(self) -> str: ...
 
 class MaterialInfoOtherModes:
     def __init__(

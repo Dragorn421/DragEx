@@ -30,6 +30,9 @@ class ImageInfos:
         default_factory=dict
     )
     key_by_c_identifier: dict[str, ImageKey] = dataclasses.field(default_factory=dict)
+    key_by_tlut_c_identifier: dict[str, ImageKey] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 def material_to_MaterialInfo(
@@ -65,14 +68,33 @@ def material_to_MaterialInfo(
                         i += 1
                     c_identifier = c_identifier_candidate
 
+                if tile.format != "CI":
+                    tlut_c_identifier = None
+                else:
+                    # TODO add support for sharing TLUTs
+                    tlut_c_identifier = c_identifier + "TLUT"
+                    if tlut_c_identifier in image_infos.key_by_tlut_c_identifier:
+                        tlut_c_identifier_candidate = tlut_c_identifier
+                        i = 2
+                        while (
+                            tlut_c_identifier_candidate
+                            in image_infos.key_by_tlut_c_identifier
+                        ):
+                            tlut_c_identifier_candidate = f"{tlut_c_identifier}_{i}"
+                            i += 1
+                        tlut_c_identifier = tlut_c_identifier_candidate
+
                 width, height = image.size
                 image_info = dragex_backend.MaterialInfoImage(
                     c_identifier=c_identifier,
                     width=width,
                     height=height,
+                    tlut_c_identifier=tlut_c_identifier,
                 )
                 image_infos.info_by_key[image_key] = image_info
                 image_infos.key_by_c_identifier[c_identifier] = image_key
+                if tlut_c_identifier is not None:
+                    image_infos.key_by_tlut_c_identifier[tlut_c_identifier] = image_key
         mat_info_tiles.append(
             dragex_backend.MaterialInfoTile(
                 image=image_info,

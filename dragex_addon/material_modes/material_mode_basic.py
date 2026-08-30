@@ -19,10 +19,23 @@ class BasicMaterialMode(material_modes_defs.MaterialMode):
         texture = mode_basic.texture
         if texture is not None and tuple(texture.size) != (0, 0):
             texture_w, texture_h = texture.size
-            if texture_w * texture_h * 2 > TMEM_SIZE:
-                layout.label(text="Texture too big: max 32x64 or 64x32", icon="ERROR")
-            if texture_w * 2 % 8 != 0:
-                layout.label(text="Texture width must be a multiple of 4", icon="ERROR")
+            texture_fits_as_rgba16 = texture_w * texture_h * 2 <= TMEM_SIZE
+            texture_fits_as_ci4 = texture_w * texture_h / 2 <= TMEM_SIZE / 2
+            if not texture_fits_as_ci4:
+                layout.label(
+                    text="Texture too big: max 64x64, 32x128, 128x32, etc.",
+                    icon="ERROR",
+                )
+            if texture_fits_as_rgba16:
+                if texture_w * 2 % 8 != 0:
+                    layout.label(
+                        text="Texture width must be a multiple of 4", icon="ERROR"
+                    )
+            else:
+                if texture_w / 2 % 8 != 0:
+                    layout.label(
+                        text="Texture width must be a multiple of 16", icon="ERROR"
+                    )
             if intlog2(texture_w) is None:
                 layout.label(
                     text="Texture width must be a power of 2 for wrapping", icon="INFO"
@@ -50,13 +63,23 @@ class BasicMaterialMode(material_modes_defs.MaterialMode):
         if texture is not None and tuple(texture.size) != (0, 0):
             # TODO check if s=width, t=height (test with non-square texture)
             texture_w, texture_h = texture.size
-            if texture_w * texture_h * 2 > TMEM_SIZE:
+            texture_fits_as_rgba16 = texture_w * texture_h * 2 <= TMEM_SIZE
+            texture_fits_as_ci4 = texture_w * texture_h / 2 <= TMEM_SIZE / 2
+            if not texture_fits_as_ci4:
                 tile0.image = None
+            if not texture_fits_as_rgba16:
+                tile0.format = "CI"
+                tile0.size = "4"
             material_dragex.uv_basis_s = texture_w
             material_dragex.uv_basis_t = texture_h
-            if texture_w * 2 % 8 != 0:
-                tile0.image = None
-            tile0.line = texture_w * 2 // 8
+            if texture_fits_as_rgba16:
+                if texture_w * 2 % 8 != 0:
+                    tile0.image = None
+                tile0.line = texture_w * 2 // 8
+            else:
+                if texture_w / 2 % 8 != 0:
+                    tile0.image = None
+                tile0.line = texture_w // 2 // 8
             mask_S = intlog2(texture_w)
             mask_T = intlog2(texture_h)
             if mask_S is None:
@@ -79,6 +102,8 @@ class BasicMaterialMode(material_modes_defs.MaterialMode):
             tile0.upper_left_T = 0
             tile0.lower_right_S = texture_w - 1
             tile0.lower_right_T = texture_h - 1
+        else:
+            texture_fits_as_rgba16 = True
 
         rsp_props = material_dragex.rsp
 
@@ -115,8 +140,12 @@ class BasicMaterialMode(material_modes_defs.MaterialMode):
         om.detail_tex_en = False
         om.sharpen_tex_en = False
         om.tex_lod_en = False
-        om.tlut_en = False
-        om.tlut_type = False
+        if texture_fits_as_rgba16:
+            om.tlut_en = False
+            om.tlut_type = False
+        else:
+            om.tlut_en = True
+            om.tlut_type = False
         om.sample_type = True
         om.mid_texel = False
         om.bi_lerp_0 = True

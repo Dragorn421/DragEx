@@ -1098,12 +1098,44 @@ int write_f3d_mat(FILE *f, struct MaterialInfo *mat_info, const char *name) {
     };
 
     bool is_tile_set[8] = {0};
+    bool is_tlut_set[16] = {0};
 
     for (int i_tile = 0; i_tile < 8; i_tile++) {
         struct MaterialInfoTile *tile = &mat_info->tiles[i_tile];
 
         struct MaterialInfoImage *image = tile->image;
         if (image != NULL) {
+            if (image->tlut_c_identifier != NULL) {
+                bool tlut_already_set = false;
+                if (tile->size == RDP_TILE_SIZE_4) {
+                    if (tile->palette < 16) {
+                        tlut_already_set = is_tlut_set[tile->palette];
+                    }
+                } else {
+                    tlut_already_set = is_tlut_set[0];
+                }
+
+                if (!tlut_already_set) {
+                    if (tile->size == RDP_TILE_SIZE_4) {
+                        fprintf(f,
+                                "    gsDPLoadTLUT_pal16("
+                                "%d, %s"
+                                "),\n",
+                                tile->palette, image->tlut_c_identifier);
+                        if (tile->palette < 16) {
+                            is_tlut_set[tile->palette] = true;
+                        }
+                    } else {
+                        fprintf(f,
+                                "    gsDPLoadTLUT_pal256("
+                                "%s"
+                                "),\n",
+                                image->tlut_c_identifier);
+                        is_tlut_set[0] = true;
+                    }
+                }
+            }
+
             // If a TMEM address is used several times,
             // only write the first texture upload.
             // This is done to support multitexturing a texture with itself

@@ -23,6 +23,7 @@ struct TriInfo {
 
 struct MaterialInfoImage {
     char *c_identifier;
+    char *tlut_c_identifier;
     int width, height;
 };
 
