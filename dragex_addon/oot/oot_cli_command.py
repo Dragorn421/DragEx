@@ -61,18 +61,20 @@ def export_catalog(
     for export_map_entry in catalog.export_maps:
         coll_scene_to_export = bpy.data.collections[export_map_entry.collection_name]
 
+        export_directory = export_map_entry.to.resolve()
+
         if repo_root_p is None:
             try:
-                decomp_repo_p = oot_util.find_decomp_repo(export_map_entry.to)
+                decomp_repo_p = oot_util.find_decomp_repo(export_directory)
             except:
-                print(f"{export_map_entry.to=}")
+                print(f"{export_directory=}")
                 raise
         else:
             decomp_repo_p = repo_root_p
 
         oot_export_map.export_coll_scene(
             coll_scene_to_export,
-            export_map_entry.to,
+            export_directory,
             scene,
             decomp_repo_p,
         )

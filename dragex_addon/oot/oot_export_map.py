@@ -254,6 +254,10 @@ class ExportOptions:
 def export_coll_scene_impl(
     coll_scene: bpy.types.Collection, out_dir_p: Path, export_options: ExportOptions
 ):
+    # Expecting an absolute path so we can find paths relative to the
+    # export_options.decomp_repo_p, for image #includes
+    assert out_dir_p.is_absolute(), out_dir_p
+
     oot_scene = collect_map(coll_scene, export_options)
 
     from pprint import pprint
