@@ -3,7 +3,6 @@ from pathlib import Path
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
-
 BUILD_ID = int((Path(__file__).parent / "build_id.txt").read_text().strip())
 
 

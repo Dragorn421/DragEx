@@ -1,6 +1,5 @@
 import bpy
 
-
 # TODO cleanup names and descriptions of items
 
 rgb_A_inputs_items = (

@@ -7,7 +7,6 @@ import numpy as np
 import bpy
 import mathutils
 
-
 transform_zup_to_yup = mathutils.Matrix(
     (
         (1, 0, 0),

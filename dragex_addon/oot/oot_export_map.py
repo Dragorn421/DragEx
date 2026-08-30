@@ -283,8 +283,7 @@ def export_coll_scene_impl(
         col_bg_cam_list_name = f"{map_prefix_lower}_BgCamList"
 
         with open(collision_inc_c_fd, "w", closefd=False) as f:
-            f.write(
-                """\
+            f.write("""\
 #include "collision.h"
 
 #include "stddef.h"
@@ -292,8 +291,7 @@ def export_coll_scene_impl(
 #include "bgcheck.h"
 #include "z_math.h"
 
-"""
-            )
+""")
 
         collision_bounds = oot_scene.collision.write_c(
             collision_inc_c_fd,
@@ -331,13 +329,11 @@ def export_coll_scene_impl(
                 "\n"
             )
 
-        (exported_dir_p / "collision.h").write_text(
-            f"""\
+        (exported_dir_p / "collision.h").write_text(f"""\
 #include "bgcheck.h"
 
 extern CollisionHeader {col_header_name};
-"""
-        )
+""")
 
     for i, room in enumerate(oot_scene.rooms):
         with util.FDManager() as fd_manager:
@@ -348,27 +344,23 @@ extern CollisionHeader {col_header_name};
             room_shape_name = f"{map_prefix_lower}_room_{i}_RoomShape"
 
             if isinstance(room.shape, OoTRoomShapeNormal):
-                (exported_dir_p / f"room_{i}_shape.h").write_text(
-                    f"""\
+                (exported_dir_p / f"room_{i}_shape.h").write_text(f"""\
 #include "room.h"
 
 extern RoomShapeNormal {room_shape_name};
-"""
-                )
+""")
             else:
                 raise NotImplementedError(type(room.shape))
 
             with open(room_fd, "w", closefd=False) as f:
-                f.write(
-                    f"""\
+                f.write(f"""\
 #include "room_{i}_shape.h"
 
 #include "ultra64.h"
 #include "array_count.h"
 #include "room.h"
 
-"""
-                )
+""")
 
                 for (
                     tlut_c_identifier,

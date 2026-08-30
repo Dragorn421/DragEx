@@ -1,6 +1,5 @@
 import bpy
 
-
 blender_P_M_inputs_items = (
     (
         "INPUT",

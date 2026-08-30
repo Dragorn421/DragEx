@@ -10,7 +10,6 @@ from . import oot_export_map
 from . import oot_skelanime
 from . import oot_util
 
-
 EXAMPLE_CATALOG_TOML = """\
 [[export_map]]
 collection = "My map Scene"

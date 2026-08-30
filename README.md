@@ -68,7 +68,7 @@ Edit > Preferences > Get Extensions > (top-right down arrow) > [Install from Dis
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-pip install black==25.1.0
+pip install black==26.5.1
 pip install fake-bpy-module
 
 ln -s $(realpath dragex_addon) ~/.config/blender/4.2/extensions/user_default/dragex

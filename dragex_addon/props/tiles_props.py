@@ -2,7 +2,6 @@ from typing import Sequence
 
 import bpy
 
-
 tile_format_items = (
     ("RGBA", "RGBA", "RGBA"),
     ("YUV", "YUV", "YUV"),
