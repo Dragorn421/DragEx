@@ -357,14 +357,19 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
         tile0.image = texture1
         tile0.format, tile0.size = split_texformat(advanced_props.texel_0_format)
         tile0.address = 0
-        if tile0.format == "CI":
-            raise NotImplementedError("CI formats")  # TODO CI formats
+        if tile0.format != "CI":
+            use_ci = False
+        else:
+            use_ci = True
         tile0.palette = 0
         if texture1 is not None and tuple(texture1.size) != (0, 0):
             # TODO check if s=width, t=height (test with non-square texture)
             texture1_w, texture1_h = texture1.size
             texture1_bpp = int(tile0.size)
-            if texture1_w * texture1_h * texture1_bpp > TMEM_SIZE * 8:
+            if (
+                texture1_w * texture1_h * texture1_bpp
+                > (TMEM_SIZE if not use_ci else TMEM_SIZE / 2) * 8
+            ):
                 tile0.image = None
             material_dragex.uv_basis_s = texture1_w
             material_dragex.uv_basis_t = texture1_h
@@ -404,8 +409,12 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
         tile1 = material_dragex.rdp.tiles.tiles[1]
         tile1.image = texture2
         tile1.format, tile1.size = split_texformat(advanced_props.texel_1_format)
-        if tile1.format == "CI":
-            raise NotImplementedError("CI formats")  # TODO CI formats
+        if tile1.format != "CI":
+            if use_ci:
+                tile1.image = None
+        else:
+            if not use_ci:
+                tile1.image = None
         if tile0.image is None or texture1 == texture2:
             tile1.address = 0
         else:
@@ -512,8 +521,12 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
         om.detail_tex_en = False
         om.sharpen_tex_en = False
         om.tex_lod_en = False
-        om.tlut_en = False
-        om.tlut_type = False
+        if not use_ci:
+            om.tlut_en = False
+            om.tlut_type = False
+        else:
+            om.tlut_en = True
+            om.tlut_type = False
         om.sample_type = True
         om.mid_texel = False
         om.bi_lerp_0 = True
@@ -985,8 +998,8 @@ TEXEL_FORMATS = [
     ("IA4", "IA4", ""),
     ("I8", "I8", ""),
     ("I4", "I4", ""),
-    # ("CI8", "CI8", ""),  # TODO CI formats
-    # ("CI4", "CI4", ""),  # TODO CI formats
+    ("CI8", "CI8", ""),
+    ("CI4", "CI4", ""),
 ]
 TEXEL_FORMATS_SPLIT = {
     "RGBA32": ("RGBA", "32"),
