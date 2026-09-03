@@ -35,6 +35,13 @@ class ImageInfos:
     )
 
 
+def color_from_scene_linear_to_srgb(rgba):
+    return (
+        *mathutils.Color(rgba[:3]).from_scene_linear_to_srgb(),
+        rgba[3],
+    )
+
+
 def material_to_MaterialInfo(
     c_identifiers_prefix: str,
     mat: bpy.types.Material,
@@ -187,12 +194,12 @@ def material_to_MaterialInfo(
         vals=dragex_backend.MaterialInfoVals(
             primitive_depth_z=vals.primitive_depth_z,
             primitive_depth_dz=vals.primitive_depth_dz,
-            fog_color=vals.fog_color,
-            blend_color=vals.blend_color,
+            fog_color=color_from_scene_linear_to_srgb(vals.fog_color),
+            blend_color=color_from_scene_linear_to_srgb(vals.blend_color),
             min_level=vals.min_level,
             prim_lod_frac=vals.prim_lod_frac,
-            primitive_color=vals.primitive_color,
-            environment_color=vals.environment_color,
+            primitive_color=color_from_scene_linear_to_srgb(vals.primitive_color),
+            environment_color=color_from_scene_linear_to_srgb(vals.environment_color),
         ),
         geometry_mode=dragex_backend.MaterialInfoGeometryMode(
             zbuffer=mat_geomode.zbuffer,
@@ -334,12 +341,12 @@ def mesh_to_mesh_infos_general(
             # Note: for ByteColorAttribute too the color uses floats
             if active_color_attribute.domain == "CORNER":
                 buf_corners_color = util.new_float_buf(4 * len(mesh.loops))
-                active_color_attribute.data.foreach_get("color", buf_corners_color)
+                active_color_attribute.data.foreach_get("color_srgb", buf_corners_color)
                 buf_points_color = None
             elif active_color_attribute.domain == "POINT":
                 buf_corners_color = None
                 buf_points_color = util.new_float_buf(4 * len(mesh.vertices))
-                active_color_attribute.data.foreach_get("color", buf_points_color)
+                active_color_attribute.data.foreach_get("color_srgb", buf_points_color)
             else:
                 raise NotImplementedError(active_color_attribute.domain)
         else:
