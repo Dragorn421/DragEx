@@ -28,10 +28,10 @@ float clampf(float f, float min, float max) {
 
 struct rgbau8 rgbaf_to_rgbau8(struct rgbaf *rgbaf) {
     struct rgbau8 rgbau8;
-    rgbau8.r = (uint8_t)clampf(rgbaf->r * 255, 0, 255);
-    rgbau8.g = (uint8_t)clampf(rgbaf->g * 255, 0, 255);
-    rgbau8.b = (uint8_t)clampf(rgbaf->b * 255, 0, 255);
-    rgbau8.a = (uint8_t)clampf(rgbaf->a * 255, 0, 255);
+    rgbau8.r = (uint8_t)clampf(roundf(rgbaf->r * 255), 0, 255);
+    rgbau8.g = (uint8_t)clampf(roundf(rgbaf->g * 255), 0, 255);
+    rgbau8.b = (uint8_t)clampf(roundf(rgbaf->b * 255), 0, 255);
+    rgbau8.a = (uint8_t)clampf(roundf(rgbaf->a * 255), 0, 255);
     return rgbau8;
 }
 
