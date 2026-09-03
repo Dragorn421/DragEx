@@ -199,13 +199,52 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
         if body is not None:
             used_sources = get_used_sources(mode_advanced)
 
+            # TODO warn on combined textures too big for TMEM
+            # TODO warn on textures not both CI or non-CI
+
             for id in (0, 1):
                 if {f"TEX{id}", f"TEX{id}_ALPHA"} & used_sources:
                     lheader, lbody = body.panel(
                         f"combiner_template_source_texture_{id}"
                     )
 
-                    col = lheader.column(align=True)
+                    texture = getattr(mode_advanced, f"texel_{id}_image")
+                    texture_errors = []
+                    if texture is not None and tuple(texture.size) != (0, 0):
+                        format, size = split_texformat(
+                            getattr(mode_advanced, f"texel_{id}_format")
+                        )
+                        bpp = int(size)
+                        texture_w, texture_h = texture.size
+                        if (
+                            texture_w * texture_h * bpp
+                            > (TMEM_SIZE if format != "CI" else TMEM_SIZE / 2) * 8
+                        ):
+                            texture_errors.append("Texture too big")
+                        if texture_w * bpp % 64 != 0:
+                            texture_errors.append(
+                                f"Texture width must be a multiple of {64 // bpp}"
+                            )
+                        if intlog2(texture_w) is None and getattr(
+                            mode_advanced, f"texel_{id}_repeat_mode_x"
+                        ) in {"WRAP", "MIRROR"}:
+                            texture_errors.append(
+                                "Texture width must be a power of 2 for wrapping"
+                            )
+                        if intlog2(texture_h) is None and getattr(
+                            mode_advanced, f"texel_{id}_repeat_mode_y"
+                        ) in {"WRAP", "MIRROR"}:
+                            texture_errors.append(
+                                "Texture height must be a power of 2 for wrapping"
+                            )
+
+                    if texture_errors:
+                        row = lheader.row()
+                        row.label(icon="ERROR")
+                        row.alert = True
+                        col = row.column(align=True)
+                    else:
+                        col = lheader.column(align=True)
                     col.use_property_split = True
                     col.use_property_decorate = False
 
@@ -217,12 +256,13 @@ class AdvancedMaterialMode(material_modes_defs.MaterialMode):
                         live_icon=True,
                     )
 
-                    # TODO check and error/warn about tmem usage, texture line alignment, dimensions for wrapping
-
                     if lbody is not None:
                         col = lbody.column(align=True)
                         col.use_property_split = True
                         col.use_property_decorate = False
+
+                        for texture_error in texture_errors:
+                            col.label(text=texture_error, icon="ERROR")
 
                         row = col.row()
                         row.prop(
