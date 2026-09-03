@@ -2,6 +2,8 @@ from typing import Sequence
 
 import bpy
 
+from .. import face_texture_selection
+
 tile_format_items = (
     ("RGBA", "RGBA", "RGBA"),
     ("YUV", "YUV", "YUV"),
@@ -26,6 +28,7 @@ class DragExMaterialTileProperties(bpy.types.PropertyGroup):
         name="Image",
         description="Tile data to be loaded",
         type=bpy.types.Image,
+        update=face_texture_selection.on_update_rdp_tile_image,
     )
 
     format: bpy.props.EnumProperty(
