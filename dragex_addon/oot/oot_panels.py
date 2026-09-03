@@ -63,15 +63,13 @@ class DragExOoTPanel(bpy.types.Panel):
         self.layout.operator(oot_ops.DragExOoTExportAnimationOperator.bl_idname)
 
 
-class DragExCollectionOoTPanel(bpy.types.Panel):
-    bl_idname = "COLLECTION_PT_dragex_oot"
-    bl_label = "DragEx"
-    bl_space_type = "PROPERTIES"
-    bl_region_type = "WINDOW"
-    bl_context = "collection"
+class DragExCollectionOoTPanelBase(bpy.types.Panel):
+    is_in_dragex_tab: bool
 
     @classmethod
     def poll(cls, context):
+        if context.collection is None:
+            return False
         scene = context.scene
         if scene is None:
             return False
@@ -84,17 +82,34 @@ class DragExCollectionOoTPanel(bpy.types.Panel):
         coll = context.collection
         assert coll is not None
         coll_dragex = util.DRAGEX(coll)
+        if self.is_in_dragex_tab:
+            layout.label(text=coll.name)
         layout.prop(coll_dragex.oot, "type")
         if coll_dragex.oot.type == "ROOM":
             layout.prop(coll_dragex.oot.room, "number")
 
 
-class DragExEmptyOoTPanel(bpy.types.Panel):
-    bl_idname = "OBJECT_PT_dragex_oot_empty"
+class DragExCollectionOoTPanelInProperties(DragExCollectionOoTPanelBase):
+    bl_idname = "COLLECTION_PT_dragex_oot"
     bl_label = "DragEx"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_context = "data"
+    bl_context = "collection"
+    is_in_dragex_tab = False
+
+
+class DragExCollectionOoTPanelInDragExTab(DragExCollectionOoTPanelBase):
+    bl_idname = "DRAGEX_PT_oot_collection"
+    bl_label = "OoT Collection"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "DragEx"
+    bl_order = 110
+    is_in_dragex_tab = True
+
+
+class DragExEmptyOoTPanelBase(bpy.types.Panel):
+    is_in_dragex_tab: bool
 
     @classmethod
     def poll(cls, context):
@@ -111,6 +126,10 @@ class DragExEmptyOoTPanel(bpy.types.Panel):
         obj = context.object
         assert obj is not None
         obj_dragex = util.DRAGEX(obj)
+
+        if self.is_in_dragex_tab:
+            layout.label(text=obj.name)
+
         layout.prop(obj_dragex.oot.empty, "type")
 
         layout.prop(obj_dragex.oot.empty, "export_pos")
@@ -146,12 +165,27 @@ class DragExEmptyOoTPanel(bpy.types.Panel):
                 )
 
 
-class DragExMeshOoTPanel(bpy.types.Panel):
-    bl_idname = "OBJECT_PT_dragex_oot_mesh"
+class DragExEmptyOoTPanelInProperties(DragExEmptyOoTPanelBase):
+    bl_idname = "OBJECT_PT_dragex_oot_empty"
     bl_label = "DragEx"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
+    is_in_dragex_tab = False
+
+
+class DragExEmptyOoTPanelInDragExTab(DragExEmptyOoTPanelBase):
+    bl_idname = "DRAGEX_PT_oot_empty"
+    bl_label = "OoT Empty"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "DragEx"
+    bl_order = 120
+    is_in_dragex_tab = True
+
+
+class DragExMeshOoTPanelBase(bpy.types.Panel):
+    is_in_dragex_tab: bool
 
     @classmethod
     def poll(cls, context):
@@ -169,5 +203,28 @@ class DragExMeshOoTPanel(bpy.types.Panel):
         assert obj is not None
         assert isinstance(obj.data, bpy.types.Mesh)
         mesh_dragex = util.DRAGEX(obj.data)
+
+        if self.is_in_dragex_tab:
+            layout.label(text=obj.name + " / " + obj.data.name)
+
         layout.prop(mesh_dragex.oot, "ignore_collision")
         layout.prop(mesh_dragex.oot, "draw_layer")
+
+
+class DragExMeshOoTPanelInProperties(DragExMeshOoTPanelBase):
+    bl_idname = "OBJECT_PT_dragex_oot_mesh"
+    bl_label = "DragEx"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "data"
+    is_in_dragex_tab = False
+
+
+class DragExMeshOoTPanelInDragExTab(DragExMeshOoTPanelBase):
+    bl_idname = "DRAGEX_PT_oot_mesh"
+    bl_label = "OoT Mesh"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "DragEx"
+    bl_order = 130
+    is_in_dragex_tab = True
