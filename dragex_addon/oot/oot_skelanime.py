@@ -221,6 +221,27 @@ def export_skeleton_impl(
 
             # TODO copypasted from export_coll_scene in oot_export_map.py, consolidate
             for (
+                tlut_c_identifier,
+                image_key,
+            ) in image_infos.key_by_tlut_c_identifier.items():
+                # TODO support shared TLUTs
+                # TODO support non-rgba16 TLUTs
+                image_c_identifier = image_infos.info_by_key[
+                    image_key
+                ].get_c_identifier()
+                tlut_file_stem = f"{image_c_identifier}.tlut.rgba16"
+                tlut_inc_c_p = (
+                    PurePosixPath(*export_directory.relative_to(decomp_repo_p).parts)
+                    / f"{tlut_file_stem}.inc.c"
+                )
+                f.write(
+                    f"u64 {tlut_c_identifier}[] = "
+                    "{\n"
+                    f'#include "{tlut_inc_c_p}"\n'
+                    "};\n"
+                    "\n"
+                )
+            for (
                 c_identifier,
                 image_key,
             ) in image_infos.key_by_c_identifier.items():
