@@ -83,11 +83,13 @@ def export_catalog(
         armature_data = armature_object.data
         assert isinstance(armature_data, bpy.types.Armature), armature_data
 
+        export_directory = export_skeleton_entry.to.resolve()
+
         if repo_root_p is None:
             try:
-                decomp_repo_p = oot_util.find_decomp_repo(export_skeleton_entry.to)
+                decomp_repo_p = oot_util.find_decomp_repo(export_directory)
             except:
-                print(f"{export_skeleton_entry.to=}")
+                print(f"{export_directory=}")
                 raise
         else:
             decomp_repo_p = repo_root_p
@@ -96,7 +98,7 @@ def export_catalog(
             armature_object,
             armature_data,
             scene,
-            export_skeleton_entry.to,
+            export_directory,
             decomp_repo_p,
         )
 
