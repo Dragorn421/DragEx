@@ -484,9 +484,17 @@ def export_anim_impl(
         joint_indices[(i, j)] = len(frame_data)
         frame_data.extend(_joint_table[i][j] for _joint_table in joint_tables)
 
-    with (export_directory / f"{anim_c_identifier}.c").open("w") as f:
+    with (
+        (export_directory / f"{anim_c_identifier}.h").open("w") as f_h,
+        (export_directory / f"{anim_c_identifier}.c").open("w") as f,
+    ):
+        f_h.write(f"#ifndef {anim_c_identifier.upper()}_H\n")
+        f_h.write(f"#define {anim_c_identifier.upper()}_H\n")
+        f_h.write('#include "animation.h"\n')
+
         f.write('#include "ultra64.h"\n')
         f.write('#include "animation.h"\n')
+        f.write(f'#include "{anim_c_identifier}.h"\n')
 
         f.write(f"s16 {anim_c_identifier}FrameData[] = " "{\n")
         i = 0
@@ -513,6 +521,9 @@ def export_anim_impl(
         f.write(f"    {anim_c_identifier}JointIndices,\n")
         f.write(f"    {static_index_max},\n")
         f.write("};\n")
+
+        f_h.write(f"extern AnimationHeader {anim_c_identifier};\n")
+        f_h.write("#endif\n")
 
 
 def export_anim(
