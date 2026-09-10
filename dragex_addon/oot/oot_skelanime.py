@@ -212,12 +212,19 @@ def export_skeleton_impl(
 
     import os
 
-    with util.FDManager() as fdm:
+    with (
+        (export_directory / f"{skeleton_c_identifier}.h").open("w") as f_h,
+        util.FDManager() as fdm,
+    ):
+        f_h.write(f"#ifndef {skeleton_c_identifier.upper()}_H\n")
+        f_h.write(f"#define {skeleton_c_identifier.upper()}_H\n")
+        f_h.write('#include "animation.h"\n')
         fd = fdm.open_w(export_directory / f"{skeleton_c_identifier}.c")
         with os.fdopen(fd, "w", closefd=False) as f:
             f.write('#include "ultra64.h"\n')
             f.write('#include "animation.h"\n')
             f.write('#include "array_count.h"\n')
+            f.write(f'#include "{skeleton_c_identifier}.h"\n')
 
             # TODO copypasted from export_coll_scene in oot_export_map.py, consolidate
             for (
@@ -283,13 +290,13 @@ def export_skeleton_impl(
             for _bh in all_bones
         ]
         limb_enum_names = [_ln.upper() for _ln in limb_names]
+        f_h.write(f"typedef enum {skeleton_c_identifier}Limb " "{\n")
+        f_h.write(f"    {skeleton_c_identifier.upper()}_NONE,\n")
+        for limben in limb_enum_names:
+            f_h.write(f"    {limben},\n")
+        f_h.write(f"    {skeleton_c_identifier.upper()}_MAX\n")
+        f_h.write("} " f"{skeleton_c_identifier}Limb;\n")
         with os.fdopen(fd, "w", closefd=False) as f:
-            f.write(f"typedef enum {skeleton_c_identifier}Limb " "{\n")
-            f.write(f"    {skeleton_c_identifier.upper()}_NONE,\n")
-            for limben in limb_enum_names:
-                f.write(f"    {limben},\n")
-            f.write(f"    {skeleton_c_identifier.upper()}_MAX\n")
-            f.write("} " f"{skeleton_c_identifier}Limb;\n")
             for limb, bh in enumerate(all_bones):
                 if bh.bone.parent is None:
                     # the jointPos of the root limb is unused
@@ -330,6 +337,8 @@ def export_skeleton_impl(
             f.write("    },\n")
             f.write(f"    {len(all_bones)},\n")
             f.write("};\n")
+        f_h.write(f"extern FlexSkeletonHeader {skeleton_c_identifier};\n")
+        f_h.write("#endif\n")
 
 
 WEIGHT_EPSILON = 0.01
