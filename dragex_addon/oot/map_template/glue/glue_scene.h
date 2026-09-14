@@ -26,16 +26,7 @@ extern RomFile map_prefix_lower_RoomList[0
 
 // Spawns
 
-#define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params)
-#include "../table_spawns.h"
-#undef DEF_SPAWN
-
-enum {
-#define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params) spawnEnumName,
-#include "../table_spawns.h"
-#undef DEF_SPAWN
-  MAP_PREFIX_UPPER_SPAWN_MAX
-};
+#include "spawns.h"
 
 extern Spawn map_prefix_lower_SpawnList[MAP_PREFIX_UPPER_SPAWN_MAX];
 extern ActorEntry map_prefix_lower_PlayerEntryList[MAP_PREFIX_UPPER_SPAWN_MAX];

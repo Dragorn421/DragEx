@@ -1,6 +1,8 @@
+#ifndef TABLE_SPAWNS_NO_INCLUDES
 #include "player.h"
 #include "exported/positions.h"
 #include "glue/glue_scene.h"
+#endif
 
 /*
  * DEF_SPAWN(name, room, position, yaw, params)

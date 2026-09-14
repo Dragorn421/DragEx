@@ -506,6 +506,7 @@ extern RoomShapeNormal {room_shape_name};
     for p in (
         Path("glue/glue_scene.c"),
         Path("glue/glue_scene.h"),
+        Path("glue/spawns.h"),
         Path("header_scene.inc.c"),
         Path("table_cameras.h"),
         Path("table_envlightsettings.h"),

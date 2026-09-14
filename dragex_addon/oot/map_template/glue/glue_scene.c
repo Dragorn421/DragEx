@@ -24,6 +24,10 @@ RomFile map_prefix_lower_RoomList[] = {
 
 // Spawns
 
+#define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params)
+#include "../table_spawns.h"
+#undef DEF_SPAWN
+
 Spawn map_prefix_lower_SpawnList[] = {
 #define DEF_SPAWN(spawnEnumName, roomEnumName, pos, rotY, params)              \
   {(spawnEnumName), (roomEnumName)},
